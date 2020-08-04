@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+PingIdentity - PingOne For Customers
+
+User Activity
+https://apidocs.pingidentity.com/pingone/platform/v1/api/#get-get-user-activities
+
+-->
+<Workflow name="PingIdentity - PingOne For Customers" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" default="api.pingone.com" />
+        <Parameter name="env_id" label="Environment ID" required="true" />
+        <Parameter name="client_id" label="Client ID" required="true" />
+        <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////
+        // Get Access Token //
+        //////////////////////
+        -->
+
+        <CallEndpoint url="https://auth.pingone.com/${/env_id}/as/token" method="POST" savePath="/get_access_token">
+            <BasicAuthentication username="${/client_id}" password="${/client_secret}" />
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body/error_description}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+
+
+        <!--
+        ////////////////
+        // Get Events //
+        ////////////////
+        -->
+
+        <!-- If we have a bookmark, initialize a filter -->
+        <If condition="exists /bookmark">
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" savePath="/now" />
+            <Set path="/filter" value="recordedAt gt &quot;${/bookmark}&quot; AND recordedAt lt &quot;${/now}&quot;" />
+        </If>
+
+        <!-- Fetch the Events -->
+        <CallEndpoint url="https://${/host}/v1/environments/${/env_id}/activities" method="GET" savePath="/get_events">
+            <BearerAuthentication token="${/access_token}" />
+            <QueryParameter name="filter" value="${/filter}" omitIfEmpty="true" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/body/code} ${/get_events/body/message}" />
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/code/_embedded/activities) > 0">
+
+            <PostEvents path="/get_events/body/code/_embedded/activities" source="${/host}"/>
+
+            <!-- Update the bookmark -->
+            <Set path="/bookmark" value="${max(/get_events/body/code/_embedded/activities/recordedAt)}" />
+
+        </If>
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}/v1/environments" expectedResponseStatus="401" />
+    </Tests>
+
+</Workflow>
