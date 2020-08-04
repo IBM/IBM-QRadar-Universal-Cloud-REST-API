@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<Workflow name="Ariel" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+
+    <Parameters>
+
+        <Parameter name="host" label="Host" required="true" />
+    
+    </Parameters> 
+
+    <Actions>
+
+    <!-- Get Events -->
+
+        <CallEndpoint url="https://${/host}/api/events" method="POST" savePath="/results" /> 
+
+    <!-- Handle Errors -->
+
+        <If condition="/results/status_code != 200">
+
+            <Abort reason="${/results/status_code}: ${/results/status_message}" /> 
+
+         </If>
+
+    <!-- Post Events to QRadar -->
+
+        <PostEvents path="/results/body/events" source="${/host}" /> 
+
+    </Actions>
+
+    <Tests>
+
+        <DNSResolutionTest host="${/host}" /> 
+        <TCPConnectionTest host="${/host}" /> 
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+        
+    </Tests> 
+
+</Workflow>
