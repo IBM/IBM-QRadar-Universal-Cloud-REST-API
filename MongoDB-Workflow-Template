@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Mongo DB" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" default="cloud.mongodb.com" />
+        <Parameter name="org_id" label="Organization ID" required="true" />
+        <Parameter name="public_key" label="Public Key" required="true" />
+        <Parameter name="private_key" label="Private Key" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Fetch Events -->
+        <CallEndpoint url="https://${/host}/api/atlas/v1.0/orgs/${/org_id}/events" method="GET" savePath="/get_events">
+            <DigestAuthentication username="${/public_key}" password="${/private_key}" />
+            <QueryParameter name="minDate" value="${/bookmark}" omitIfEmpty="true" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/body/reason}: ${/get_events/body/detail}" />
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/results) > 0" >
+
+            <PostEvents path="/get_events/body/results" source="${/host}" />
+
+            <!-- Update Bookmark -->
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${max(/get_events/body/results/created)}" savePath="/last_event_time" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/bookmark" />
+
+        </If>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
