@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+Dropbox Business API:
+https://www.dropbox.com/developers/documentation/http/teams
+
+Dropbox App Admin:
+https://www.dropbox.com/developers/apps
+
+
+To use:
+- Create an App (https://www.dropbox.com/developers/apps/create)
+- From the app's setting page, create an OAuth2 access token.
+- Pass it to the workflow as the `access_token` parameter.
+
+-->
+<Workflow name="Dropbox Business" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="access_token" label="Access Token" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/bookmark" value="1" />
+
+        <!-- Fetch the first page -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/start_time" />
+
+        <CallEndpoint url="https://${/host}/2/team_log/get_events" method="POST" savePath="/get_events/response">
+            <BearerAuthentication token="${/access_token}"/>
+            <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "time":
+                    {
+                        "start_time": "${/start_time}"
+                    }
+                }
+            </RequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/response/status_code != 200">
+            <Abort reason="${/get_events/response/body}" />
+        </If>
+
+        <!-- Post the Events -->
+        <ForEach item="/current_event" items="/get_events/response/body/events">
+
+            <PostEvent path="/current_event" source="${/host}" />
+
+            <!-- Update the bookmark -->
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/current_event/timestamp}" savePath="/current_event_time" />
+            <If condition="/current_event_time + 1000 > /bookmark" >
+                <Set path="/bookmark" value="${/current_event_time + 1000}" />
+            </If>
+
+        </ForEach>
+
+        <!-- Fetch the remaining pages -->
+        <While condition="/get_events/response/body/has_more">
+
+            <!-- Fetch the Events -->
+            <CallEndpoint url="https://${/host}/2/team_log/get_events/continue" method="POST" savePath="/get_events/response">
+                <BearerAuthentication token="${/access_token}"/>
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "cursor": "${/get_events/response/body/cursor}"
+                    }
+                </RequestBody>
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_events/response/status_code != 200">
+                <Abort reason="${/get_events/response/status_code}: ${/get_events/response/body}" />
+            </If>
+
+            <!-- Post the Events -->
+            <ForEach item="/current_event" items="/get_events/response/body/events">
+
+                <PostEvent path="/current_event" source="${/host}" />
+
+                <!-- Update the bookmark -->
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/current_event/timestamp}" savePath="/current_event_time" />
+                <If condition="/current_event_time + 1000 > /bookmark" >
+                    <Set path="/bookmark" value="${/current_event_time + 1000}" />
+                </If>
+
+            </ForEach>
+
+        </While>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
