@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+OneLogin
+https://developers.onelogin.com/api-docs/2/getting-started/dev-overview
+
+-->
+<Workflow name="OneLogin" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" description="The base URL" required="true" default="api.us.onelogin.com" />
+        <Parameter name="client_id" label="Client ID" description="The Client ID" required="true" />
+        <Parameter name="client_secret" label="Client Secret" description="The Client Secret" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////
+        // Get Access Token //
+        //////////////////////
+        -->
+
+        <CallEndpoint url="https://${/host}/auth/oauth2/token" method="POST" savePath="/get_access_token">
+            <RequestHeader name="authorization" value="client_id:${/client_id}, client_secret:${/client_secret}" />
+            <RequestBody type="application/json" encoding="UTF-8">{ "grant_type": "client_credentials" }</RequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/status_code}: ${/get_access_token/body/status/message}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/data[0]/access_token}" />
+
+
+        <!--
+        ////////////////
+        // Get Events //
+        ////////////////
+        -->
+
+        <CallEndpoint url="https://${/host}/api/1/events" method="GET" savePath="/get_events">
+            <BearerAuthentication token="${/access_token}" />
+            <QueryParameter name="since" value="${/bookmark}" omitIfEmpty="true" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/status_code}: ${/get_events/body/status/message}" />
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/data) > 0">
+
+            <!-- Events have a event_type_id.  Let's grab event type information for each event -->
+            <CallEndpoint url="https://${/host}/api/1/events/types" method="GET" savePath="/get_event_types" />
+
+            <!-- Handle Errors -->
+            <If condition="/get_event_types/status_code != 200">
+                <Abort reason="${/get_event_types/status_code}: ${/get_event_types/response/body/message}" />
+            </If>
+
+            <!-- Add event type to each event and post it -->
+            <ForEach item="/current_event" items="/get_events/body/data">
+
+                <!-- This line will pick out the event type data and merge it into the event -->
+                <Set path="/current_event/event_type" value="${/get_event_types/body/data[@id = ${/current_event/event_type_id}][0]}" />
+
+                <!-- Post the Event -->
+                <PostEvent path="/current_event" source="${/host}" />
+
+            </ForEach>
+
+            <!-- Update the bookmark -->
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/get_events/body/data/created_at)}" savePath="/last_event_time" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/last_event_time + 1}" savePath="/bookmark" />
+
+        </If>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}/api/1/events" expectedResponseStatus="400" />
+    </Tests>
+
+</Workflow>
