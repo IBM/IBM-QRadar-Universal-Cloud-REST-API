@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+Duo Admin API
+https://duo.com/docs/adminapi
+
+Duo Admin Panel
+https://admin.duosecurity.com/
+
+To obtain an 'Integration Key' and 'Secret Key':
+- Log on to the Duo Admin Panel
+- Navigate to "Applications"
+- Select the application to be monitored.
+- The "Integration Key" and "Secret Key" should be visible on the application page.
+
+-->
+<Workflow name="Duo" version="0.1" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="integration_key" label="Integration Key" required="true" />
+        <Parameter name="secret_key" label="Secret Key" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        /////////////////////////
+        // Authentication Logs //
+        /////////////////////////
+        -->
+
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/auth_logs/bookmark" value="1" />
+
+        <!-- Generate an Access Token -->
+        <FormatDate pattern="EEE, dd MMM yyyy HH:mm:ss Z" timeZone="UTC" savePath="/auth_logs/date" />
+        <Set path="/value" value="${/auth_logs/date}&#xA;GET&#xA;${/host}&#xA;/admin/v1/logs/authentication&#xA;mintime=${/auth_logs/bookmark}" />
+        <GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
+
+        <!-- Fetch the Events -->
+        <CallEndpoint url="https://${/host}/admin/v1/logs/authentication" method="GET" savePath="/auth_logs/response">
+            <BasicAuthentication username="${/integration_key}" password="${/signature}" />
+            <QueryParameter name="mintime" value="${/auth_logs/bookmark}" omitIfEmpty="true" />
+            <RequestHeader name="Date" value="${/auth_logs/date}" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/auth_logs/response/status_code != 200">
+            <Abort reason="${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}" />
+        </If>
+
+        <!-- Post the Events -->
+        <PostEvents path="/auth_logs/response/body/response" source="${/host}" />
+
+        <!-- Update the Bookmark for the next iteration -->
+        <If condition="count(/auth_logs/response/body/response) > 0" >
+            <Set path="/auth_logs/bookmark" value="${max(/auth_logs/response/body/response/timestamp) + 1}" />
+        </If>
+
+
+        <!--
+        ////////////////////////
+        // Administrator Logs //
+        ////////////////////////
+        -->
+
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/admin_logs/bookmark" value="1" />
+
+        <!-- Generate an Access Token -->
+        <FormatDate pattern="EEE, dd MMM yyyy HH:mm:ss Z" timeZone="UTC" savePath="/admin_logs/date" />
+        <Set path="/value" value="${/admin_logs/date}&#xA;GET&#xA;${/host}&#xA;/admin/v1/logs/administrator&#xA;mintime=${/admin_logs/bookmark}" />
+        <GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
+
+        <!-- Fetch the Events -->
+        <CallEndpoint url="https://${/host}/admin/v1/logs/administrator" method="GET" savePath="/admin_logs/response">
+            <BasicAuthentication username="${/integration_key}" password="${/signature}" />
+            <QueryParameter name="mintime" value="${/admin_logs/bookmark}" omitIfEmpty="true" />
+            <RequestHeader name="Date" value="${/admin_logs/date}" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/admin_logs/response/status_code != 200">
+            <Abort reason="${/admin_logs/response/body/code}: ${/admin_logs/response/body/message}" />
+        </If>
+
+        <!-- Post the Events -->
+        <PostEvents path="/admin_logs/response/body/response" source="${/host}" />
+
+        <!-- Update the Bookmark for the next iteration -->
+        <If condition="count(/admin_logs/response/body/response) > 0" >
+            <Set path="/admin_logs/bookmark" value="${max(/admin_logs/response/body/response/timestamp) + 1}" />
+        </If>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
