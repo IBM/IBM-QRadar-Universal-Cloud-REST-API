@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    targetNamespace="http://qradar.ibm.com/UniversalRESTAPI/WorkflowParameterValues/V1"
+    xmlns:wfpv="http://qradar.ibm.com/UniversalRESTAPI/WorkflowParameterValues/V1" >
+
+    <xs:simpleType name="nonEmptyString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:element name="WorkflowParameterValues">
+        <xs:complexType>
+
+            <xs:sequence>
+                <xs:element name="Value" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:attribute name="name" type="wfpv:nonEmptyString" use="required" />
+                        <xs:attribute name="value" type="xs:string" use="required" />
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
