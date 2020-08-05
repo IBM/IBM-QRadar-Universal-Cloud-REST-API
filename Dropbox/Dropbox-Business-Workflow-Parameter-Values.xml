@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalRESTAPI/WorkflowParameterValues/V1">
+    <Value name="host"         value="" />
+    <Value name="app_key"      value="" />
+    <Value name="app_secret"   value="" />
+</WorkflowParameterValues>
