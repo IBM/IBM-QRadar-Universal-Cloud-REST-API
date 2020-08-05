@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Okta" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="auth_token" label="Authentication Token" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/bookmark" value="https://${/host}/api/v1/logs" />
+
+        <!-- Fetch Events -->
+        <CallEndpoint url="${/bookmark}" method="GET" savePath="/get_logs" >
+            <QueryParameter name="limit" value="1000" />
+            <RequestHeader name="Authorization" value="SSWS ${/auth_token}" />
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestHeader name="Content-type" value="application/json" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_logs/status_code != 200">
+            <Abort reason="${/get_logs/body/errorCode}: ${/get_logs/body/errorSummary}" />
+        </If>
+
+        <!-- Post Events -->
+        <PostEvents path="/get_logs/body" source="${/host}" />
+
+        <!-- Update Bookmark -->
+        <RegexCapture pattern="&lt;([^&gt;]*)&gt;; rel=\&quot;next\&quot;" value="${/get_logs/headers/Link}" savePath="/bookmark" />
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>

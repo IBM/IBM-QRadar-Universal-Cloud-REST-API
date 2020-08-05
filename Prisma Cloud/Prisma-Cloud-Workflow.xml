@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+Prisma Cloud REST API Documentation
+https://api.docs.prismacloud.io/reference
+
+-->
+<Workflow name="Prisma Cloud" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="access_key_id" label="Access Key ID" required="true" />
+        <Parameter name="secret_key" label="Secret Key" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////
+        // Get Access Token //
+        //////////////////////
+        -->
+        <CallEndpoint url="https://${/host}/login" method="POST" savePath="/get_access_token" >
+            <RequestBody type="application/json" encoding="UTF-8">{ "username": "${/access_key_id}", "password": "${/secret_key}" }</RequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body/message}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/token}" />
+
+
+        <!--
+        ////////////////
+        // Get Alerts //
+        ////////////////
+        -->
+
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/get_alerts/bookmark" value="1" />
+
+        <!-- Fetch the events -->
+        <CallEndpoint url="https://${/host}/v2/alert" method="POST" savePath="/get_alerts" >
+            <QueryParameter name="detailed" value="true" />
+            <RequestHeader name="Accept" value="*/*" />
+            <RequestHeader name="x-redlock-auth" value="${/access_token}" />
+            <RequestBody type="application/json" encoding="UTF-8">{"timeRange":{"type": "absolute","value":{"startTime": ${/get_alerts/bookmark}}},"sortBy":["asc"]}</RequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_alerts/status_code != 200">
+            <Abort reason="${/get_alerts/status_code} ${/get_alerts/status_message}" />
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_alerts/body/items) > 0">
+
+            <PostEvents path="/get_alerts/body/items" source="${/host}"/>
+
+            <Set path="/get_alerts/bookmark" value="${max(/get_alerts/body/items/lastSeen) + 1}" />
+
+        </If>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Ariel" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="username" label="Username" required="true" />
+        <Parameter name="password" label="Password" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        /////////////////////
+        // Post the Search //
+        /////////////////////
+        -->
+
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/bookmark" value="${time() -  60000 * 60}" />
+
+        <!-- Post the Search -->
+        <FormatDate pattern="yyyy-MM-dd HH:mm Z" timeZone="UTC" time="${/bookmark}" savePath="/start" />
+
+        <CallEndpoint url="https://${/host}/api/ariel/searches" method="POST" savePath="/post_search">
+            <SSLConfiguration allowUntrustedServerCertificate="true" />
+            <BasicAuthentication username="${/username}" password="${/password}" />
+            <QueryParameter name="query_expression" value="SELECT endTime, Base64(payload) FROM events WHERE endTime > ${/bookmark} AND deviceType = 368 order by endTime START '${/start}'" />
+            <QueryParameter name="query_language_version" value="3" />
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestHeader name="Content-Type" value="text/xml" />
+            <RequestHeader name="Version" value="5.0" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/post_search/status_code != 201">
+            <Abort reason="${/post_search/body/http_response/message}: ${/post_search/body/message}" />
+        </If>
+
+        <!-- Extract the Search -->
+        <Set path="/search" value="${/post_search/body}" />
+
+
+        <!--
+        /////////////////////////////////
+        // Wait for Search To Complete //
+        /////////////////////////////////
+        -->
+
+        <While condition="/search/status != 'COMPLETED'">
+
+            <CallEndpoint url="https://${/host}/api/ariel/searches/${/search/search_id}" method="GET" savePath="/get_search">
+                <SSLConfiguration allowUntrustedServerCertificate="true" />
+                <BasicAuthentication username="${/username}" password="${/password}" />
+                <RequestHeader name="Accept" value="application/json" />
+                <RequestHeader name="Content-Type" value="text/xml" />
+                <RequestHeader name="Version" value="5.0" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_search/status_code != 200">
+                <Abort reason="${/get_search/body/http_response/message}" />
+            </If>
+
+            <!-- Extract the Search -->
+            <Set path="/search" value="${/get_search/body}" />
+
+        </While>
+
+
+        <!--
+        ////////////////////////////
+        // Process Search Results //
+        ////////////////////////////
+        -->
+
+        <Set path="/pageOffset" value="0" />
+        <Set path="/pageSize" value="10000" />
+
+        <DoWhile condition="count(/search/results/events) > 0">
+
+            <!-- Fetch the Next Page of Results -->
+            <CallEndpoint url="https://${/host}/api/ariel/searches/${/search/search_id}/results" method="GET" savePath="/get_results">
+                <SSLConfiguration allowUntrustedServerCertificate="true" />
+                <BasicAuthentication username="${/username}" password="${/password}" />
+                <RequestHeader name="Accept" value="application/json" />
+                <RequestHeader name="Content-Type" value="text/xml" />
+                <RequestHeader name="Version" value="5.0" />
+                <RequestHeader name="Range" value="items=${/pageOffset}-${/pageOffset + /pageSize - 1}" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_results/status_code != 200">
+                <Abort reason="${/get_search/body/http_response/message}: ${/get_search/body/message}" />
+            </If>
+
+            <!-- Post Events, if any -->
+            <If condition="count(/get_results/body/events) > 0">
+                <PostEvents path="/get_results/body/events/base64_payload" encoding="BASE64" source="${/host}" />
+                <Set path="/bookmark" value="${max(/get_results/body/events/endTime)}" />
+            </If>
+
+            <!-- Move to the Next Page -->
+            <Set path="/pageOffset" value="${/pageOffset + /pageSize}" />
+
+        </DoWhile>
+
+
+        <!--
+        ///////////////////////
+        // Delete the Search //
+        ///////////////////////
+        -->
+        <CallEndpoint url="https://${/host}/api/ariel/searches/${/search/search_id}" method="DELETE">
+            <SSLConfiguration allowUntrustedServerCertificate="true" />
+            <BasicAuthentication username="${/username}" password="${/password}" />
+            <RequestHeader name="Version" value="5.0" />
+        </CallEndpoint>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
