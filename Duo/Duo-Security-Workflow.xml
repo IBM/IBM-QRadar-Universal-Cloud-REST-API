@@ -14,7 +14,7 @@ To obtain an 'Integration Key' and 'Secret Key':
 - The "Integration Key" and "Secret Key" should be visible on the application page.
 
 -->
-<Workflow name="Duo" version="0.1" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Duo" version="0.1" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
