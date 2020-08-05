@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
-<Workflow name="Ariel" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+<Workflow name="Default" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
 
     <Parameters>
 

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Box" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="client_id" label="Client ID" required="true" />
+        <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+        <Parameter name="key_id" label="Key ID" required="true" />
+        <Parameter name="enterprise_id" label="Enterprise ID" required="true" />
+        <Parameter name="private_key" label="Private Key" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////////
+        // Request Access Token //
+        //////////////////////////
+        -->
+
+        <CreateJWTAccessToken savePath="/jwt_assertion">
+            <Header>
+                <Value name="alg" value="RS256" />
+                <Value name="typ" value="JWT" />
+                <Value name="kid" value="${/key_id}" />
+            </Header>
+            <Payload>
+                <Value name="iss" value="${/client_id}" />
+                <Value name="aud" value="https://api.box.com/oauth2/token" />
+                <Value name="sub" value="${/enterprise_id}" />
+                <Value name="box_sub_type" value="enterprise" />
+                <Value name="jti" value="${time()}${time()}" />
+                <Value name="exp" value="${time() / 1000 + 30}" />
+            </Payload>
+            <Secret value="${/private_key}" />
+        </CreateJWTAccessToken>
+
+        <CallEndpoint url="https://${/host}/oauth2/token" method="POST" savePath="/get_access_token" >
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="urn:ietf:params:oauth:grant-type:jwt-bearer" />
+                <Parameter name="client_id" value="${/client_id}" />
+                <Parameter name="client_secret" value="${/client_secret}" />
+                <Parameter name="assertion" value="${/jwt_assertion}" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body/error_description}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+        <CallEndpoint url="https://${/host}/auth/oauth2/token" method="POST" savePath="/get_access_token">
+            <RequestHeader name="authorization" value="client_id:${/client_id}, client_secret:${/client_secret}" />
+            <RequestBody type="application/json" encoding="UTF-8">{ "grant_type": "client_credentials" }</RequestBody>
+        </CallEndpoint>
+
+        <!--
+        ////////////////////
+        // Request Events //
+        ////////////////////
+        -->
+
+        <CallEndpoint url="https://${/host}/2.0/events" method="GET" savePath="/get_events" >
+            <BearerAuthentication token="${/access_token}" />
+            <QueryParameter name="stream_type" value="admin_logs" />
+            <QueryParameter name="limit" value="500" />
+            <QueryParameter name="stream_position" value="${/bookmark}" omitIfEmpty="true" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/body/error_description}" />
+        </If>
+
+        <!-- Post the Events -->
+        <PostEvents path="/get_events/body/entries" source="${/host}" />
+
+        <!-- Update the Bookmark -->
+        <Set path="/bookmark" value="${/get_events/body/next_stream_position}" />
+
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>

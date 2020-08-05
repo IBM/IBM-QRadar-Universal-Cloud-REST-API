@@ -7,7 +7,7 @@ User Activity
 https://apidocs.pingidentity.com/pingone/platform/v1/api/#get-get-user-activities
 
 -->
-<Workflow name="PingIdentity - PingOne For Customers" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="PingIdentity - PingOne For Customers" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" default="api.pingone.com" />

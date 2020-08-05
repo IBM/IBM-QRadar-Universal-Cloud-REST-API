@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Netskope Active" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" description="The base URL" required="true" />
+        <Parameter name="auth_token" label="Authentication Token" description="The Authentication Token" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////
+        // Get Audit Events //
+        //////////////////////
+        -->
+
+        <!-- Initialize the bookmark to 7 days back -->
+        <Initialize path="/get_audit_events/bookmark" value="${(time() / 1000) - (7 * 24 * 60 * 60)}" />
+
+        <!-- Set up the endpoint query parameter values -->
+        <Set path="/get_audit_events/starttime" value="${/get_audit_events/bookmark}" />
+        <Set path="/get_audit_events/endtime" value="${time()}" />
+        <Set path="/get_audit_events/limit" value="50" />
+        <Set path="/get_audit_events/skip" value="0" />
+
+        <!--
+            We can request a limit of 5000 events.  If there are more, we need to page using the 'skip'
+            query parameter.  We will keep advancing the skip by the limit until we get no results back.
+        -->
+        <DoWhile condition="count(/get_audit_events/body/data) > 0">
+
+            <CallEndpoint url="https://${/host}/api/v1/events" method="GET" savePath="/get_audit_events">
+                <QueryParameter name="type" value="audit" />
+                <QueryParameter name="starttime" value="${/get_audit_events/starttime}" />
+                <QueryParameter name="endtime" value="${/get_audit_events/endtime}" />
+                <QueryParameter name="limit" value="${/get_audit_events/limit}" />
+                <QueryParameter name="skip" value="${/get_audit_events/skip}" />
+                <QueryParameter name="token" value="${/auth_token}" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_audit_events/status_code != 200">
+                <Abort reason="${/get_audit_events/status_code}: ${/get_audit_events/status_message}" />
+            </If>
+
+            <!-- Handle Errors -->
+            <If condition="/get_audit_events/body/status != 'success'">
+                <Abort reason="${/get_audit_events/body/errorCode}: ${/get_audit_events/body/errors}" />
+            </If>
+
+            <!-- Post the Events -->
+            <PostEvents path="/get_audit_events/body/data" source="${/host}" />
+
+            <!-- Skip to the next page -->
+            <Set path="/get_audit_events/skip" value="${/get_audit_events/skip + /get_audit_events/limit}" />
+
+        </DoWhile>
+
+        <!-- Update the bookmark -->
+        <Set path="/bookmark" value="${/get_audit_events/endtime}" />
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}/api/1/events" expectedResponseStatus="400" />
+    </Tests>
+
+</Workflow>
