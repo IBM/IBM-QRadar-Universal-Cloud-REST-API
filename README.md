@@ -5,3 +5,7 @@ The main goal of the Universal Cloud REST API Protocol is to enable ingestion of
  - Users can collect data from multiple cloud data platforms
  - Improved operational efficiency by providing tools to easily on-board data sources, i.e. Log Source Management App, DSM Editor
  - As Vendors make changes to their APIs, we can easily adapt to those changes by editing the existing workflow
+ 
+# Configuration Documentation
+Universal Cloud REST API configuration documentation and be found here: <link>
+
