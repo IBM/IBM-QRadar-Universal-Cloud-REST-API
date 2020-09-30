@@ -5,7 +5,7 @@ Prisma Cloud REST API Documentation
 https://api.docs.prismacloud.io/reference
 
 -->
-<Workflow name="Prisma Cloud" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+<Workflow name="Prisma Cloud" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
