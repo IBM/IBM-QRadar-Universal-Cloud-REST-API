@@ -13,8 +13,14 @@ To obtain an 'Integration Key' and 'Secret Key':
 - Select the application to be monitored.
 - The "Integration Key" and "Secret Key" should be visible on the application page.
 
+Note:
+The Duo log APIs have rate limits where they can only be called every 5 minutes otherwise the API will
+return a "42901: Too Many Requests" error.  For this reason, this workflow uses the `minimumRecurrence`
+to ensure that we don't poll faster than allowed (set to a 6 minutes to avoid edge cases).  See the
+following Duo issue for details: https://github.com/duosecurity/duo_client_python/issues/101
+
 -->
-<Workflow name="Duo" version="0.1" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+<Workflow name="Duo" version="0.1" minimumRecurrence="360" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />

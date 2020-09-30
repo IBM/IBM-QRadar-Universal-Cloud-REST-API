@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Box" version="0.1" xmlns="http://qradar.ibm.com/UniversalRESTAPI/Workflow/V1">
+<Workflow name="Box" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
@@ -52,10 +52,6 @@
         <!-- Extract the Access Token -->
         <Set path="/access_token" value="${/get_access_token/body/access_token}" />
 
-        <CallEndpoint url="https://${/host}/auth/oauth2/token" method="POST" savePath="/get_access_token">
-            <RequestHeader name="authorization" value="client_id:${/client_id}, client_secret:${/client_secret}" />
-            <RequestBody type="application/json" encoding="UTF-8">{ "grant_type": "client_credentials" }</RequestBody>
-        </CallEndpoint>
 
         <!--
         ////////////////////
