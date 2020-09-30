@@ -2,8 +2,8 @@
 <xs:schema
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
     elementFormDefault="qualified"
-    targetNamespace="http://qradar.ibm.com/UniversalRESTAPI/WorkflowParameterValues/V1"
-    xmlns:wfpv="http://qradar.ibm.com/UniversalRESTAPI/WorkflowParameterValues/V1" >
+    targetNamespace="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1"
+    xmlns:wfpv="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1" >
 
     <xs:simpleType name="nonEmptyString">
         <xs:restriction base="xs:string">
