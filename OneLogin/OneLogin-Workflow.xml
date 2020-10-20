@@ -5,7 +5,7 @@ OneLogin
 https://developers.onelogin.com/api-docs/2/getting-started/dev-overview
 
 -->
-<Workflow name="OneLogin" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="OneLogin" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" description="The base URL" required="true" default="api.us.onelogin.com" />

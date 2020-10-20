@@ -20,7 +20,7 @@ to ensure that we don't poll faster than allowed (set to a 6 minutes to avoid ed
 following Duo issue for details: https://github.com/duosecurity/duo_client_python/issues/101
 
 -->
-<Workflow name="Duo" version="0.1" minimumRecurrence="360" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Duo" version="1.0" minimumRecurrence="360" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />

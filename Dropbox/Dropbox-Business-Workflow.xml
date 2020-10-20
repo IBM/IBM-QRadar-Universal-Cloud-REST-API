@@ -14,7 +14,7 @@ To use:
 - Pass it to the workflow as the `access_token` parameter.
 
 -->
-<Workflow name="Dropbox Business" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Dropbox Business" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
