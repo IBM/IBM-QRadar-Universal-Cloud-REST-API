@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="host" value="" />
+    <!-- leave port empty if port is 80/443 -->
+    <Value name="port" value="" />
+    <!-- ssl_enabled can be set to "true" or "false". -->
+    <Value name="ssl_enabled" value="" />
+    <Value name="username" value="" />
+    <!-- NOTE:
+         Complex passwords using special char need html-encode (Example: '&' = '&amp;')
+    -->
+    <Value name="password" value="" />
+</WorkflowParameterValues>
