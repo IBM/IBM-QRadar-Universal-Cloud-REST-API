@@ -36,11 +36,11 @@ For this reason, this workflow uses the `minimumRecurrence` and was set to 1 min
     <Actions>
 
         <!-- Check HTTP over SSL -->
-        <If condition="${/ssl_enabled} = false">
-            <Set path="/protocol" value="http" />
+        <If condition="/ssl_enabled = true">
+            <Set path="/protocol" value="https" />
         </If>
         <Else>
-            <Set path="/protocol" value="https" />
+            <Set path="/protocol" value="http" />
         </Else>
 
         <!-- Check Port is required -->
