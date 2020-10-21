@@ -1,4 +1,4 @@
-# IBM-QRadar-Universal-Cloud-REST-API
+# IBM QRadar Universal Cloud Connector
 
 IBM Security QRadar is pleased to announce the release of the Universal Cloud Connector, which is designed to enable security teams to more easily ingest data from a wide range of REST API cloud-based applications and services for enhanced visibility. To address this new dynamic, the Universal Cloud Connector includes a new Universal Cloud REST API Protocol that enables you to create log sources for the acquisition of data from REST API compatible data sources that aren’t currently supported. With the Universal Cloud REST API Protocol, you can: 
 
@@ -27,6 +27,10 @@ Note the following terminology as you configure the Universal Cloud REST API:
 
 
    - The State is a JSON object that represents the data of a running Workflow. Since the State is not strictly defined, data is dynamically stored in the State.
+
+# Contributing
+For instructions on how to contribute your own workflow to this repository, refer to the CONTRIBUTING.md file.
+
 
 # Configuration Documentation
 Universal Cloud REST API configuration documentation and be found here: https://www.ibm.com/support/knowledgecenter/SS42VS_DSM/com.ibm.dsm.doc/c_universal_rest_overview.html?cp=SS42VS_7.4
