@@ -28,11 +28,6 @@ Note the following terminology as you configure the Universal Cloud REST API:
 
    - The State is a JSON object that represents the data of a running Workflow. Since the State is not strictly defined, data is dynamically stored in the State.
 
-# Contributing
-
-For informationa bout how to contribute your own workflow to this repository, refer to the CONTRIBUTING.md document.
-
-
 # Configuration Documentation
 Universal Cloud REST API configuration documentation and be found here: https://www.ibm.com/support/knowledgecenter/SS42VS_DSM/com.ibm.dsm.doc/c_universal_rest_overview.html?cp=SS42VS_7.4
 
