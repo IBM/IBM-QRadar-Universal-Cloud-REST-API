@@ -12,6 +12,7 @@ The number one rule for contributing is consistency. Pay attention to the other 
 - Navigate to https://github.com/ibm-security-intelligence/IBM-QRadar-Universal-Cloud-REST-API/issues/new
 - Select an appropriate title (e.g. Add a workflow for MyFavoriteVendor)
 - Enter a description, if applicable.
+- Take note of the issue number, it will be used later.
 
 # Fork this repository
 - Navigate to https://github.com/ibm-security-intelligence/IBM-QRadar-Universal-Cloud-REST-API
@@ -28,3 +29,12 @@ The number one rule for contributing is consistency. Pay attention to the other 
 
 # Create a "Pull Request"
 Once you are happy with the arrangement in your fork want to publish it, you will need to create a Pull Request. This is where we will have a chance to review the changes before accept the request. GitHub provides an interface to facilitate review discussions.  Once all issues have been addressed, and all parties are happy, the pull request can be accepted to the main repository.
+- Navigate to your fork.
+- Switch to the "Pull requests" tab
+- Click the "New pull request" button.
+- Click the "Create pull request" button.
+- In the title, reference the issue number, prefixed with a pound sign (e.g. Add MyFavoriteVendor workflow #123)
+- Optionally add comments.
+- Click the "Create pull request".
+- We will receive a notification, do the review and eventually accept the pull request into the main repo.
+
