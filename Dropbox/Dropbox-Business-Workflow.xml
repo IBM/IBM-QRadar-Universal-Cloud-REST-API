@@ -18,7 +18,7 @@ To use:
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
-        <Parameter name="access_token" label="Access Token" required="true" />
+        <Parameter name="access_token" label="Access Token" required="true" secret="true" />
     </Parameters>
 
     <Actions>
