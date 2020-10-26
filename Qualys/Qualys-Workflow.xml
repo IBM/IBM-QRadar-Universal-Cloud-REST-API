@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Qualys" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+	<Parameters>
+		<Parameter name="host" label="Host" required="true"/>
+		<Parameter name="username" label="User Name" required="true"/>
+		<Parameter name="password" label="Password" required="true" secret="true"/>
+	</Parameters>
+
+	<Actions>
+		<!-- Initialize the Bookmark: Pull from this exact time-stamp on first call to Qualys API -->
+		<Initialize path="/bookmark" value="2020-10-01T00:00:00Z" />
+		
+		<!-- Get the Events -->
+		<CallEndpoint url="https://${/host}/api/2.0/fo/activity_log/?" method="GET" savePath="/results">
+			<BasicAuthentication username="${/username}" password="${/password}" />
+			<QueryParameter name="action" value="list"/>
+			<QueryParameter name="since_datetime" value="${/bookmark}" />
+			<RequestHeader name="X-Requested-With:" value="QRadar Universal Cloud Rest API and Qualys Activity Log" />
+		</CallEndpoint>
+		
+		<!-- Handle Errors -->
+		<If condition="/results/status_code != 200">
+			<Abort reason="${/results/status_message}"/>
+		</If>
+		
+		<!-- Events are returned in CSV format delimited by "\r\n" with response top and tail: BEGIN_RESPONSE_BODY_CSV and END_RESPONSE_BODY_CSV -->
+		<Split value="${/results/body}" delimiter="\r\n" savePath="/events" />
+		<!-- Get the total number of events returned which includes BEGIN_RESPONSE_BODY_CSV and END_RESPONSE_BODY_CSV -->
+		<Set path="/recordcount" value="${count(/events)}" />
+
+		<If condition="/recordcount > 1" >
+			<Log type="INFO" message="Qualys_Workflow: Total events retrieved count = ${/recordcount - 2}" />
+			<!-- Variable used to get the event from which to set the new bookmark -->
+			<Set path="/counter" value="1" />
+			<ForEach item="/current_event" items="/events">
+				<If condition="/counter != 1 and /counter != /recordcount">
+					<PostEvent path="/current_event" source="${/host}" />
+					<!-- Most recent event is the second line returned in the response -->
+					<If condition="/counter = 2">
+						<Log type="DEBUG" message="Qualys_Workflow: Most Recent Event = ${/current_event}." />
+						<!-- Extract the date time-stamp from the event -->
+						<RegexCapture pattern="\&quot;(.*?)\&quot;," value="${/current_event}" savePath="/time_of_most_recent_event" />
+						<Log type="DEBUG" message="Qualys_Workflow: Time-stamp of the most recent event = ${/time_of_most_recent_event}" />
+						<!-- Convert it to Unix timestamp -->
+						<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/time_of_most_recent_event}" savePath="/last_event_epoch_time" />
+						<!-- Add 1 second in preparation for next API call -->
+						<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_epoch_time + 1000}" savePath="/bookmark" />
+						<Log type="DEBUG" message="Qualys_Workflow: New Bookmark time = ${/bookmark}" />
+					</If>
+				</If>
+				<Set path="/counter" value="${/counter + 1}"/>
+			</ForEach>
+		</If>
+
+		<Set path="/recordcount" value="0" />
+		<Set path="/counter" value="0" />
+
+		<Sleep duration="30000" />
+
+	</Actions>
+
+	<Tests>
+		<DNSResolutionTest host="${/host}"/>
+		<TCPConnectionTest host="${/host}"/>
+		<HTTPConnectionThroughProxyTest url="https://${/host}"/>
+	</Tests>
+
+</Workflow>
