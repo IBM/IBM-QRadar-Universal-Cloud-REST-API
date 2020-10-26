@@ -3,7 +3,7 @@
 
     <Parameters>
         <Parameter name="host" label="Host" description="The base URL" required="true" />
-        <Parameter name="auth_token" label="Authentication Token" description="The Authentication Token" required="true" />
+        <Parameter name="auth_token" label="Authentication Token" description="The Authentication Token" required="true" secret="true" />
     </Parameters>
 
     <Actions>

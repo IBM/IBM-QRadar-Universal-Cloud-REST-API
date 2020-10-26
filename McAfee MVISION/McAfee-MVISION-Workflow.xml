@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="McAfee MVISION" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="auth_host" label="Authentication Host" required="true" default="iam.mcafee-cloud.com" />
+        <Parameter name="api_host" label="API Host" required="true" default="arevents.mvision.mcafee.com" />
+        <Parameter name="scope" label="Scope" required="true" />
+        <Parameter name="username" label="Username" required="true" />
+        <Parameter name="password" label="Password" required="true" secret="true" />
+        <Parameter name="client_id" label="Client ID" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////
+        // Get Access Token //
+        //////////////////////
+        -->
+
+        <CallEndpoint url="https://${/auth_host}/iam/v1.0/token" method="POST" savePath="/get_access_token">
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="password" />
+                <Parameter name="scope" value="${/scope}" />
+                <Parameter name="username" value="${/username}" />
+                <Parameter name="password" value="${/password}" />
+                <Parameter name="client_id" value="${/client_id}" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+
+
+        <!--
+        ////////////////
+        // Get Events //
+        ////////////////
+        -->
+
+        <!-- Fetch the Events -->
+        <CallEndpoint url="https://${/api_host}/eventservice/api/v1/events" method="GET" savePath="/get_events">
+            <BearerAuthentication token="${/access_token}" />
+            <QueryParameter name="since" value="${/bookmark}" omitIfEmpty="true" />
+            <RequestHeader name="type" value="threats" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/body}" />
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/Events) > 0">
+            <PostEvents path="/get_events/body/Events" source="${/api_host}" />
+
+            <!-- Update the bookmark -->
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSS]'Z'" timeZone="UTC" date="${max(/get_events/body/Events/receivedutc/value)}" savePath="/last_event_time" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/last_event_time + 1}" savePath="/bookmark" />
+        </If>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/auth_host}" />
+        <TCPConnectionTest host="${/auth_host}" />
+        <SSLHandshakeTest host="${/auth_host}" />
+
+        <DNSResolutionTest host="${/api_host}" />
+        <TCPConnectionTest host="${/api_host}" />
+        <SSLHandshakeTest host="${/api_host}" />
+
+        <HTTPConnectionThroughProxyTest url="https://${/auth_host}/iam/v1.0/token" />
+        <HTTPConnectionThroughProxyTest url="https://${/api_host}/eventservice/api/v1/events" />
+    </Tests>
+
+</Workflow>

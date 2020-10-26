@@ -10,4 +10,6 @@
          Complex passwords using special char need html-encode (Example: '&' = '&amp;')
     -->
     <Value name="password" value="" />
+    <!-- bookmark_enabled can be set to "true" or "false". -->
+    <Value name="bookmark_enabled" value="" />
 </WorkflowParameterValues>

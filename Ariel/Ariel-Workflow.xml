@@ -4,7 +4,7 @@
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
         <Parameter name="username" label="Username" required="true" />
-        <Parameter name="password" label="Password" required="true" />
+        <Parameter name="password" label="Password" required="true" secret="true" />
     </Parameters>
 
     <Actions>
