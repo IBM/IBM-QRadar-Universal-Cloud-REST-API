@@ -21,15 +21,16 @@ data from SAP. The SAP log APIs will provide only new data to QRadar. We recomme
 frequency with the SecurityBridge Intrusion Detection job frequency which is set in minutes in order to maximize the efficiency.
 For this reason, this workflow uses the `minimumRecurrence` and was set to 1 minute.
 -->
-<Workflow name="SecurityBridge" version="1.0" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="SecurityBridge" version="1.1" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
 
         <Parameter name="host" label="Host" required="true" />
-        <Parameter name="port" label="Port"  />
-        <Parameter name="ssl_enabled" label="SSL enabled?" />
+        <Parameter name="port" label="Port" />
+        <Parameter name="ssl_enabled" label="SSL enabled?" default="false" />
         <Parameter name="username" label="API user" required="true" />
         <Parameter name="password" label="API user password" required="true" secret="true" />
+        <Parameter name="bookmark_enabled" label="Bookmark enabled?" default="false" />
 
     </Parameters>
 
@@ -51,9 +52,25 @@ For this reason, this workflow uses the `minimumRecurrence` and was set to 1 min
             <Set path="/use_port" value="" />
         </Else>
 
+        <!-- Set up bookmark filter, if applicable -->
+        <If condition="/bookmark_enabled = true">
+
+            <!-- If a bookmark does not exist yet, let's go back 7 days -->
+            <Initialize path="/bookmark" value="${time() - (7 * 24 * 60 * 60 * 1000)}"/>
+
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/bookmark}" savePath="/qFrom" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" savePath="/qTo" />
+
+            <Set path="/filter" value="qFrom eq datetime'${/qFrom}' and qTo eq datetime'${/qTo}'" />
+        </If>
+        <Else>
+            <Set path="/filter" value="" />
+        </Else>
+
         <!-- Get SAP Events from Service -->
         <CallEndpoint url="${/protocol}://${/host}${/use_port}/sap/opu/odata/ABEX/EVENTS_SRV/events" method="GET" savePath="/results">
             <BasicAuthentication username="${/username}" password="${/password}" />
+            <QueryParameter name="$filter" value="${/filter}" omitIfEmpty="true" />
             <QueryParameter name="$format" value="json" />
         </CallEndpoint>
 
@@ -62,8 +79,18 @@ For this reason, this workflow uses the `minimumRecurrence` and was set to 1 min
             <Abort reason="${/results/status_code}: ${/results/status_message}" />
         </If>
 
-        <!-- Post Events to QRadar -->
-        <PostEvents path="/results/body/d/results" source="${/host}" />
+        <!-- Post Events to QRadar, if any -->
+        <If condition="count(/results/body/d/results) > 0">
+
+            <PostEvents path="/results/body/d/results" source="${/host}" />
+
+            <!-- If bookmarking is enabled, extract the latest event timestamp (+1 second) to be used as a bookmark for the next poll -->
+            <If condition="/bookmark_enabled = true">
+                <RegexCapture pattern="\/Date\(([0-9]+)\)" value="${max(/results/body/d/results/timestamp)}" savePath="/latest_timestamp" />
+                <Set path="/bookmark" value="${/latest_timestamp + 1000}" />
+            </If>
+
+        </If>
 
     </Actions>
 
