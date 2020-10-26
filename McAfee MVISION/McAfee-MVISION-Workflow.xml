@@ -6,7 +6,7 @@
         <Parameter name="api_host" label="API Host" required="true" default="arevents.mvision.mcafee.com" />
         <Parameter name="scope" label="Scope" required="true" />
         <Parameter name="username" label="Username" required="true" />
-        <Parameter name="password" label="Password" required="true" />
+        <Parameter name="password" label="Password" required="true" secret="true" />
         <Parameter name="client_id" label="Client ID" required="true" />
     </Parameters>
 

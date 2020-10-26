@@ -7,7 +7,7 @@
         <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
         <Parameter name="key_id" label="Key ID" required="true" />
         <Parameter name="enterprise_id" label="Enterprise ID" required="true" />
-        <Parameter name="private_key" label="Private Key" required="true" />
+        <Parameter name="private_key" label="Private Key" required="true" secret="true" />
     </Parameters>
 
     <Actions>
