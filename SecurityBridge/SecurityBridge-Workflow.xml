@@ -21,7 +21,7 @@ data from SAP. The SAP log APIs will provide only new data to QRadar. We recomme
 frequency with the SecurityBridge Intrusion Detection job frequency which is set in minutes in order to maximize the efficiency.
 For this reason, this workflow uses the `minimumRecurrence` and was set to 1 minute.
 -->
-<Workflow name="SecurityBridge" version="1.1" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="SecurityBridge" version="1.2" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
 
