@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
 
+This workflow can be used to pull events from Prisma Cloud (aka Prisma Public Cloud, aka Redlock).
+
+It will not work with Prisma Cloud Compute Edition (aka Twistlock).
+
 Prisma Cloud REST API Documentation
 https://api.docs.prismacloud.io/reference
 
 -->
-<Workflow name="Prisma Cloud" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Prisma Cloud" version="1.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
