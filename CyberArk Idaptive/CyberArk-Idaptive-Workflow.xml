@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+Refer to SIEM integration Guide:
+https://docs.cyberark.com/Product-Doc/OnlineHelp/Idaptive/Latest/en/integrations/Idaptive-SIEM-Integration-Guide.pdf
+
+To use:
+- Create the Read-Only system administrator with API access as per the guide
+- Pass the username (default siemuser) and password to the workflow as the username/password parameters.
+- Pass the app_id and scope for the OAuth2 Client WebApp you created from the guide
+- Provide your Tenant Url such https://myorg.idaptive.app
+
+-->
+
+<Workflow name="Idaptive" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="tenant_url" label="Tenant URL" required="true" />
+        <Parameter name="app_id" label="App ID" default="oauthsiem"/>
+        <Parameter name="scope" label="Scope" default="siem" />
+        <Parameter name="username" label="Username" default="siemuser"/>
+        <Parameter name="password" label="Password" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+        <!-- Initialize the Bookmark - Last event collected -->
+        <Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" /> <!-- Initialize bookmark to 24 hours back -->
+        <Log type="DEBUG" message="IDAPTIVE::  The Idaptive Bookmark value was ${/bookmark}." />
+        <!-- We fetch 2 minutes worth of logs at a time, would 2 minutes from the bookmark be in the future?-->
+        <Set path="/toDate" value="${/bookmark + 120000}" />
+        <Log type="DEBUG" message="IDAPTIVE::  Comparing current time: ${time()} with ToDate: ${/toDate}." />
+        <If condition="time() > /toDate" >
+            <!-- The ToDate is in the past, we can fetch the logs -->
+            <!-- Step 1. Fetch the Access Token -->
+            <CallEndpoint url="https://${/tenant_url}/oauth2/token/${/app_id}" method="POST" savePath="/get_access_token">
+                <BasicAuthentication username="${/username}" password="${/password}" />
+                <RequestHeader name="X-CENTRIFY-NATIVE-CLIENT" value="true" />
+                <UrlEncodedFormRequestBody>
+                    <Parameter name="grant_type" value="client_credentials" />
+                    <Parameter name="scope" value="${/scope}" />
+                </UrlEncodedFormRequestBody>
+            </CallEndpoint>
+
+            <!-- Did Auth succeed?-->
+            <If condition="/get_access_token/status_code != 200">
+                <!-- Auth failed -->
+                <Abort reason="${/get_access_token/status_code} : ${/get_access_token/status_message} : ${/get_access_token/body}" />
+            </If>
+            
+            <Set path="/auth_token" value="${/get_access_token/body/access_token}" />
+
+            <!-- Step 2.  Fetch all the events [in 2 min bursts but no more than 30mins worth per invocation]-->
+            <Set path="/shouldRun" value="1" />
+            <Set path="/counter" value="1" />    
+            <While condition="/shouldRun = 1" >
+                <!-- Calc the from date -->
+                <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.000000X" timeZone="UTC" time="${/bookmark}" savePath="/fromDateFormatted" />
+                <!-- Calc the to date (10 mins further in  ms) -->
+                <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.000000X" timeZone="UTC" time="${/bookmark + 120000}" savePath="/toDateFormatted" />
+                <!-- Fetch batch of events-->
+                <Log type="INFO" message="IDAPTIVE::  Running Query between ${/fromDateFormatted} and ${/toDateFormatted}" />
+                <CallEndpoint url="https://${/tenant_url}/Redrock/query" method="POST" savePath="/event_batch">
+                    <BearerAuthentication token="${/auth_token}"/>
+                    <RequestHeader name="X-CENTRIFY-NATIVE-CLIENT" value="true" />
+                    <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                            "Script": "Select * from Event where WhenOccurred >= ' ${/fromDateFormatted} ' and  WhenOccurred &lt; ' ${/toDateFormatted} ' ORDER BY WhenOccurred ASC"
+                        }
+                    </RequestBody>
+                </CallEndpoint>
+                <If condition="/event_batch/status_code != 200">
+                    <Abort reason="${/event_batch/status_code}: ${/event_batch/status_message}" />
+                </If>
+                <Log type="INFO" message="IDAPTIVE:: Got ${/event_batch/body/Result/Count} events" />
+                <If condition="/event_batch/body/Result/Count > 0">
+                    <!-- Process batch -->
+                    <ForEach item="/current_event" items="/event_batch/body/Result/Results">
+                        <RegexCapture pattern="\/Date\((\d*)\)\/" value="${/current_event/Row/WhenOccurred}" savePath="/current_event/Row/_epoch_ms_timestamp" />
+                        <FormatDate pattern="yyyyMMdd-HH:mm:ss.SSX" timeZone="UTC" time="${/current_event/Row/_epoch_ms_timestamp}" savePath="/current_event/Row/_timestamp" />
+                        <PostEvent path="/current_event/Row" source="${/tenant_url}" />
+                    </ForEach>
+                </If>
+                <!-- Update Bookmark -->
+                <Set path="/bookmark" value="${/bookmark + 120000}" />
+                <Set path="/toDate" value="${/bookmark + 120000}" />
+                <!-- Break if we have run 10 times-->
+                <Set path="/counter" value="${/counter + 1}" />
+                <If condition="/counter > 15">
+                    <Set path="/shouldRun" value="0" />
+                </If>
+                <!-- Break if we have an end date in the future -->
+                <If condition="/toDate > time()" >
+                    <Set path="/shouldRun" value="0" />
+                </If>
+                </While>
+            </If>
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/tenant_url}" />
+        <TCPConnectionTest host="${/tenant_url}" />
+        <SSLHandshakeTest host="${/tenant_url}"/>
+        <HTTPConnectionThroughProxyTest url="https://${/tenant_url}" />
+    </Tests>
+
+</Workflow>
