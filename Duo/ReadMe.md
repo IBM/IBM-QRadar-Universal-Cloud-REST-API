@@ -4,15 +4,22 @@ Duo Admin API
 
 https://duo.com/docs/adminapi
 
+Duo Admin API access guide
+https://duo.com/docs/adminapi#api-details
+
 Duo Admin Panel
 
 https://admin.duosecurity.com/
 
 To obtain an 'Integration Key' and 'Secret Key':
-- Log on to the Duo Admin Panel
+- Log on to the Duo Admin Panel as an 'Owner'
 - Navigate to "Applications"
-- Select the application to be monitored.
-- The "Integration Key" and "Secret Key" should be visible on the application page.
+- Click "Protect Application"
+- 'Protect' the 'Admin API'
+- Give it a friendly name
+- Grant the 'Grant read log' permission only
+- The "Integration Key", "Secret Key" and "API hostname" should be visible on the application page.
+- Click 'Save changes'
 
 # QRadar Log Source Configuration
 If you want to ingest data from an endpoint using Universal Rest API Protocol, configure a log source on the QRadar® Console using the Workflow field so that the defined endpoint can communicate with QRadar by using the Universal Rest API protocol.
