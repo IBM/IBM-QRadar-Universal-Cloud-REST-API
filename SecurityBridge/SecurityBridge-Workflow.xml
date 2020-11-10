@@ -97,7 +97,7 @@ For this reason, this workflow uses the `minimumRecurrence` and was set to 1 min
     <Tests>
 
         <DNSResolutionTest host="${/host}" />
-        <TCPConnectionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" port="${/port}" />
 
     </Tests>
 
