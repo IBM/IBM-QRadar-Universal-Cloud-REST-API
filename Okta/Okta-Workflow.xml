@@ -28,7 +28,7 @@
         <PostEvents path="/get_logs/body" source="${/host}" />
 
         <!-- Update Bookmark -->
-        <RegexCapture pattern="&lt;([^&gt;]*)&gt;; rel=\&quot;next\&quot;" value="${/get_logs/headers/Link}" savePath="/bookmark" />
+        <RegexCapture pattern="&lt;([^&gt;]*)&gt;; rel=\&quot;next\&quot;" value="${/get_logs/headers/link}" savePath="/bookmark" />
 
     </Actions>
 
