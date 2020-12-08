@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Netskope Active" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Netskope Active" version="1.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" description="The base URL" required="true" />
@@ -65,7 +65,7 @@
         <DNSResolutionTest host="${/host}" />
         <TCPConnectionTest host="${/host}" />
         <SSLHandshakeTest host="${/host}" />
-        <HTTPConnectionThroughProxyTest url="https://${/host}/api/1/events" expectedResponseStatus="400" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" expectedResponseStatus="404" />
     </Tests>
 
 </Workflow>

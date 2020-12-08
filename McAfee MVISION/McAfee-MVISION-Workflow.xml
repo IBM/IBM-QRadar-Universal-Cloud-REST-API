@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="McAfee MVISION" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="McAfee MVISION" version="1.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="auth_host" label="Authentication Host" required="true" default="iam.mcafee-cloud.com" />
@@ -76,8 +76,8 @@
         <TCPConnectionTest host="${/api_host}" />
         <SSLHandshakeTest host="${/api_host}" />
 
-        <HTTPConnectionThroughProxyTest url="https://${/auth_host}/iam/v1.0/token" />
-        <HTTPConnectionThroughProxyTest url="https://${/api_host}/eventservice/api/v1/events" />
+        <HTTPConnectionThroughProxyTest url="https://${/auth_host}" expectedResponseStatus="404" />
+        <HTTPConnectionThroughProxyTest url="https://${/api_host}" expectedResponseStatus="401" />
     </Tests>
 
 </Workflow>
