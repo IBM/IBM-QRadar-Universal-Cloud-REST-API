@@ -9,7 +9,7 @@ Prisma Cloud REST API Documentation
 https://api.docs.prismacloud.io/reference
 
 -->
-<Workflow name="Prisma Cloud" version="1.2" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Prisma Cloud" version="1.3" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
@@ -117,7 +117,7 @@ https://api.docs.prismacloud.io/reference
         <DNSResolutionTest host="${/host}" />
         <TCPConnectionTest host="${/host}" />
         <SSLHandshakeTest host="${/host}" />
-        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" expectedResponseStatus="404" />
     </Tests>
 
 </Workflow>

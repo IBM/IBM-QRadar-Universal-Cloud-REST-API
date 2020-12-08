@@ -5,7 +5,7 @@ Admin Portal:
 https://login.maas360.com/
 
 -->
-<Workflow name="IBM Fiberlink" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="IBM Fiberlink" version="1.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" default="services.fiberlink.com" />
@@ -117,7 +117,7 @@ https://login.maas360.com/
     <Tests>
         <DNSResolutionTest host="${/host}" />
         <TCPConnectionTest host="${/host}" />
-        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" expectedResponseStatus="404" />
     </Tests>
 
 </Workflow>
