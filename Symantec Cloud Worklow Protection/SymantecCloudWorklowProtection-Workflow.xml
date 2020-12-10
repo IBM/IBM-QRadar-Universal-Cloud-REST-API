@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Symantec Cloud Workload Protection" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" default="scwp.securitycloud.symantec.com" required="true" />
+        <Parameter name="customer_id" label="Customer ID" required="true" />
+        <Parameter name="domain_id" label="Domain ID" required="true" />
+        <Parameter name="client_id" label="Client ID" required="true" />
+        <Parameter name="client_secret" label="Client Secret Key" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////
+        // Get Access Token //
+        //////////////////////
+        -->
+        <CallEndpoint url="https://${/host}/dcs-service/dcscloud/v1/oauth/tokens" method="POST" savePath="/get_access_token" >
+            <QueryParameter name="x-epmp-customer-id" value="${/customer_id}" />
+            <QueryParameter name="x-epmp-domain-id" value="${/domain_id}" />
+            <RequestBody type="application/json" encoding="UTF-8">{"client_id":"${/client_id}","client_secret": "${/client_secret}"}</RequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body/message}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+
+        <!--
+        ////////////////////
+        // Request Events //
+        ////////////////////
+        -->
+
+        <!-- Initialize the Bookmark (in epoch milliseconds) -->
+        <Initialize path="/bookmark" value="1" />
+
+        <!-- Prepare the start and end date filter, based on the current bookmark -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" time="${/bookmark}" timeZone="UTC" savePath="/start_date" />
+
+        <!-- Prepare the end date filter, which is the current time. -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" savePath="/end_date" />
+
+        <!-- Fetch all events, one page at a time -->
+        <Set path="/current_page" value="0" />
+
+        <DoWhile condition="/get_events/body/total != 0">
+
+            <!-- Fetch the current page -->
+            <CallEndpoint url="https://${/host}/dcs-service/dcscloud/v1/event/query" method="POST" savePath="/get_events" >
+                <BearerAuthentication token="${/access_token}" />
+                <RequestHeader name="x-epmp-customer-id" value="${/customer_id}" />
+                <RequestHeader name="x-epmp-domain-id" value="${/domain_id}" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "pageSize": 50,
+                        "pageNumber": ${/current_page},
+                        "displayLabels": false,
+                        "startDate": "${/start_date}",
+                        "endDate": "${/end_date}"
+                    }
+                </RequestBody>
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_events/status_code != 200">
+                <Abort reason="${/get_events/status_code} ${/get_events/status_message}" />
+            </If>
+
+            <!-- Post Events -->
+            <PostEvents path="/get_events/body/result" source="${/host}"/>
+
+            <!-- Update the bookmark -->
+            <ForEach item="/event" items="/get_events/body/result">
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" date="${/event/time}" timeZone="UTC" savePath="/event_timestamp" />
+                <If condition="/event_timestamp > /bookmark">
+                    <Set path="/bookmark" value="${/event_timestamp + 1}" />
+                </If>
+            </ForEach>
+
+            <!-- Move to the next page -->
+            <Set path="/current_page" value="${/current_page + 1}" />
+
+        </DoWhile>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
