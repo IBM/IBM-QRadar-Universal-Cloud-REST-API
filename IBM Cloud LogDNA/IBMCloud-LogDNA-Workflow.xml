@@ -3,7 +3,8 @@
 
     <Parameters>
         <Parameter name="host" label="Host" required="true"/>
-        <Parameter name="appname" label="Application" />
+        <Parameter name="logsourcehost" label="Log Source Host" />
+        <Parameter name="logsourceapp" label="Log Source Application" />
         <Parameter name="servicekey" label="Servicekey" required="true" secret="true" />
     </Parameters>
 
@@ -13,7 +14,8 @@
             <SSLConfiguration allowUntrustedServerCertificate="true"/>
             
             <QueryParameter name="from" value="${/bookmark}" omitIfEmpty="true"/>
-            <QueryParameter name="app" value="vpc_flow_logs" omitIfEmpty="true"/>
+            <QueryParameter name="logsourceapp" value="${/logsourceapp}" omitIfEmpty="true"/>
+            <QueryParameter name="logsourcehost" value="${/logsourcehost}" omitIfEmpty="true"/>
             <RequestHeader name="Accept" value="application/json"/>
             <RequestHeader name="Content-Type" value="application/json"/>
             <RequestHeader name="servicekey" value="${/servicekey}"/>

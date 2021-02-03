@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
     <Value name="host"       value="" />
-    <Value name="appname"   value="" />
+    <Value name="logsourceapp"   value="" />
+    <Value name="logsourcehost"   value="" />
     <Value name="servicekey"   value="" />
 </WorkflowParameterValues>
