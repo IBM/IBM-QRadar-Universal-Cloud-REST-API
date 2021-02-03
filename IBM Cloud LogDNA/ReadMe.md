@@ -1,4 +1,3 @@
-
 # Getting IBM Cloud LogDNA Hostname
 
 To obtain the 'Host Name':
