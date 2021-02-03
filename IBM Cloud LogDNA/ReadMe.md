@@ -1,5 +1,5 @@
 
-#Getting IBM Cloud LogDNA Service Key
+# Getting IBM Cloud LogDNA Hostname
 
 To obtain the 'Host Name':
 1. Log on to the IBM Cloud LogDNA
@@ -9,7 +9,7 @@ To obtain the 'Host Name':
 5. This URL is for log ingestion, so you will need to modify the URL for event export.
 6. In the URL relpace 'logs' with 'api'. Example: https://api.us-south.logging.cloud.ibm.com 
 
-#Getting IBM Cloud LogDNA  Service Key
+# Getting IBM Cloud LogDNA Service Key
 
 To obtain a 'Service Key':
 1. Log on to the IBM Cloud LogDNA
