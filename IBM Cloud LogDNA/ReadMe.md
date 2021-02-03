@@ -32,3 +32,11 @@ Parameter Values).
 9. In the Test protocol parameters window, click _Start Test_.
 10. To fix any errors, click _Configure Protocol Parameters_. Configure the parameters and click Test Protocol Parameters.
 11. Click _Finish_
+
+
+# Optional IBM Cloud LogDNA Query Options
+
+    There are 2 optional query options to limit the number of returns based upon LogDNA Log Source and LogDNA Application. These parameters are 'logsourcehosts' and 'logsourceapps' that can be configured in IBMCloud-LogDNA-Workflow-Parameter.xml. Additional query options can configured, see https://docs.logdna.com/reference#v1export-1.
+
+    logsourcehosts: comma separated list of hosts to filter by
+    logsourceapps:  comma separated list of apps to filter by
