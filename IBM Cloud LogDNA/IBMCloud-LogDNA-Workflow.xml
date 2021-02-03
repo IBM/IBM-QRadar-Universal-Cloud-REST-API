@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="LogDNA" version="1.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true"/>
+        <Parameter name="appname" label="Application" />
+        <Parameter name="servicekey" label="Servicekey" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <CallEndpoint url="https://${/host}/v1/export" method="GET" savePath="/get_events">
+            <SSLConfiguration allowUntrustedServerCertificate="true"/>
+            
+            <QueryParameter name="from" value="${/bookmark}" omitIfEmpty="true"/>
+            <QueryParameter name="app" value="vpc_flow_logs" omitIfEmpty="true"/>
+            <RequestHeader name="Accept" value="application/json"/>
+            <RequestHeader name="Content-Type" value="application/json"/>
+            <RequestHeader name="servicekey" value="${/servicekey}"/>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/body/code}: ${/get_events/body/error}"/>
+        </If>
+
+        <If condition="count(/get_events/body) > 0">
+
+            <!-- Response is a series of JSON objects separated by newlines -->
+            <Split value="${/get_events/body}" savePath="/events"/>
+
+            <!-- Post the events -->
+            <PostEvents path="/events" source="${/host}"/>
+
+            <!-- Update the bookmark -->
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSZ" timeZone="UTC" date="${max(/events/eventTime)}" savePath="/last_event_time"/>
+            <Set path="/bookmark" value="${/last_event_time + 1}"/>
+
+        </If>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}"/>
+        <TCPConnectionTest host="${/host}"/>
+        <SSLHandshakeTest host="${/host}"/>
+        <HTTPConnectionThroughProxyTest url="https://${/host}" expectedResponseStatus="404" />
+    </Tests>
+
+</Workflow>
