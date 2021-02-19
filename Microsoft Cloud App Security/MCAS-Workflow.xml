@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="MicrosoftCloudAppSecurity" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="apiUrl" label="API URL" required="true" />
+        <Parameter name="apiToken" label="API Token" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- List Activites -->
+        <!-- Initialize the bookmark and request filter-->
+        <Initialize path="/activity_logs/bookmark" value="${time() - (60000 * 60 * 24 * 30)}" /> <!-- 30 days prior -->
+        <Set path="/activity_logs/from" value="${/activity_logs/bookmark}" />
+        <Set path="/activity_logs/to" value="${time()}" />
+        <Set path="/activity_logs/filters" value="{'date': {'gte': ${/activity_logs/from},'lte': ${/activity_logs/to}}}" />
+
+        <DoWhile condition="/activity_logs/response/body/hasNext = true">
+
+            <CallEndpoint url="https://${/apiUrl}/api/v1/activities/" method="POST" savePath="/activity_logs/response">
+                <SSLConfiguration allowUntrustedServerCertificate="true" />
+                <RequestHeader name="Authorization" value="Token ${/apiToken}" />
+                <RequestHeader name="Accept" value="application/json" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                    "filters": ${/activity_logs/filters},
+                    "sortDirection": "asc",
+            				"sortField": "date",
+            				"isScan": true
+                    }
+                </RequestBody>
+            </CallEndpoint>
+
+            <!-- Post the events -->
+            <PostEvents path="/activity_logs/response/body/data" source="${/apiUrl}" />
+
+            <!-- Update the activity_logs request filter-->
+            <Set path="/activity_logs/filters" value="${/activity_logs/response/body/nextQueryFilters}" />
+
+        </DoWhile>
+
+         <!-- Update the activity_logs bookmark -->
+        <Set path="/activity_logs/bookmark" value="${/activity_logs/to + 1}" />
+
+
+
+      <!-- List Alerts -->
+      <!-- Initialize the bookmark and request filter-->
+        <Initialize path="/alert_logs/bookmark" value="${time() - (60000 * 60 * 24 * 7)}" /> <!-- 7 days prior -->
+        <Set path="/alert_logs/from" value="${/alert_logs/bookmark}" />
+        <Set path="/alert_logs/to" value="${time()}" />
+        <Set path="/alert_logs/skip" value="0" />
+        <Set path="/alert_logs/limit" value="100" />
+
+        <DoWhile condition="/alert_logs/response/body/hasNext = true">
+
+            <CallEndpoint url="https://${/apiUrl}/api/v1/alerts/" method="POST" savePath="/alert_logs/response">
+              	<SSLConfiguration allowUntrustedServerCertificate="true" />
+              	<RequestHeader name="Authorization" value="Token ${/apiToken}" />
+              	<RequestHeader name="Accept" value="application/json" />
+              	<RequestBody type="application/json" encoding="UTF-8">
+                		{
+                			"filters": {
+                				"date": {
+                					"gte": ${/alert_logs/from},
+                					"lte": ${/alert_logs/to}
+                				}
+                			},
+                			"sortDirection": "asc",
+                			"sortField": "date",
+                			"skip": "${/alert_logs/skip}",
+                			"limit": "${/alert_logs/limit}"
+                		}
+              	</RequestBody>
+            </CallEndpoint>
+
+            <!-- Post the events -->
+            <PostEvents path="/alert_logs/response/body/data" source="${/apiUrl}" />
+
+              <!-- Update the alert_logs request filter-->
+            <Set path="/alert_logs/skip" value="${/alert_logs/skip + count(/alert_logs/response/body/data)}" />
+            <If condition="/alert_logs/response/body/nextQueryFilters/date/lte = true" >
+                <Set path="/alert_logs/from" value="${/alert_logs/response/body/nextQueryFilters/date/lte}" />
+            </If>
+
+        </DoWhile>
+
+         <!-- Update the alert_logs bookmark -->
+        <Set path="/alert_logs/bookmark" value="${/alert_logs/to +1}" />
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/apiUrl}" />
+        <TCPConnectionTest host="${/apiUrl}" />
+        <HTTPConnectionThroughProxyTest url="https://${/apiUrl}" />
+    </Tests>
+
+</Workflow>
