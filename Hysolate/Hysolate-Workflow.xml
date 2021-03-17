@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Hysolate" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+        <Parameter name="client_id" label="Client Id" required="true" />
+        <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+    </Parameters>
+    <Actions>
+        <!-- Get access token -->
+        <CallEndpoint url="https://auth.hysolate.com/oauth2/token" method="POST" savePath="/get_access_token">
+            <BasicAuthentication username="${/client_id}" password="${/client_secret}" />
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body/error}" />
+        </If>
+
+        <!-- Get audit logs -->
+        <Initialize path="/audit_log_page_token" value="" />
+        <DoWhile condition="${count(/get_audit_log_entries/body/items)} != 0">
+            <CallEndpoint url="https://console.hysolate.com/api/admin-audit-log-entries" method="GET" savePath="/get_audit_log_entries">
+                <BearerAuthentication token="${/get_access_token/body/access_token}" />
+                <QueryParameter name="pageToken" value="${/audit_log_page_token}" omitIfEmpty="true" />
+            </CallEndpoint>
+            <If condition="/get_audit_log_entries/status_code != 200">
+                <Abort reason="${/get_audit_log_entries/body/message}" />
+            </If>
+            <If condition="${count(/get_audit_log_entries/body/items)} != 0">
+                <PostEvents path="/get_audit_log_entries/body/items" source="console.hysolate.com" />
+            </If>
+            <Set path="/audit_log_page_token" value="${/get_audit_log_entries/body/nextPageToken}" />
+        </DoWhile>
+
+        <!-- Get device events -->
+        <Initialize path="/device_events_page_token" value="" />
+        <DoWhile condition="${count(/get_device_events/body/items)} != 0">
+            <CallEndpoint url="https://console.hysolate.com/api/device-events" method="GET" savePath="/get_device_events">
+                <BearerAuthentication token="${/get_access_token/body/access_token}" />
+                <QueryParameter name="pageToken" value="${/device_events_page_token}" omitIfEmpty="true" />
+            </CallEndpoint>
+            <If condition="/get_device_events/status_code != 200">
+                <Abort reason="${/get_device_events/body/message}" />
+            </If>
+            <If condition="${count(/get_device_events/body/items)} != 0">
+                <PostEvents path="/get_device_events/body/items" source="console.hysolate.com" />
+            </If>
+            <Set path="/device_events_page_token" value="${/get_device_events/body/nextPageToken}" />
+        </DoWhile>
+    </Actions>
+    <Tests>
+        <DNSResolutionTest host="console.hysolate.com" />
+        <TCPConnectionTest host="console.hysolate.com" />
+        <SSLHandshakeTest host="console.hysolate.com" />
+        <HTTPConnectionThroughProxyTest url="https://console.hysolate.com" />
+        <DNSResolutionTest host="auth.hysolate.com" />
+        <TCPConnectionTest host="auth.hysolate.com" />
+        <SSLHandshakeTest host="auth.hysolate.com" />
+        <HTTPConnectionThroughProxyTest url="https://auth.hysolate.com" />
+    </Tests>
+</Workflow>
