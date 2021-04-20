@@ -12,4 +12,6 @@
     <Value name="password" value="" />
     <!-- bookmark_enabled can be set to "true" or "false". -->
     <Value name="bookmark_enabled" value="" />
+    <!-- query timeslice for pagination in hours, empty = 1 h -->
+    <Value name="slice"            value="" />
 </WorkflowParameterValues>
