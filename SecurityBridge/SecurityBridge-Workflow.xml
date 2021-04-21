@@ -12,26 +12,23 @@ with value "false", otherwise set it to "true".
 The 'API User' and 'API User password' has to be provided by the SAP User Administrator.
 
 Documentation of
-SecurityBridge REST API: https://abap-experts.atlassian.net/servicedesk/customer/portal/1/article/708804780?src=-1705466695
-Tutorial Universal REST API with SecurityBridge: https://abap-experts.atlassian.net/wiki/spaces/SB/pages/1840349274/IBM+QRadar+-+Integration+tutorial
+- SecurityBridge REST API: https://abap-experts.atlassian.net/servicedesk/customer/portal/1/article/708804780?src=-1705466695 (Login required)
 
-NOTE:
-The SecurityBridge REST API within SAP needs to be enabled before QRadar will be able to acquire
-data from SAP. The SAP log APIs will provide only new data to QRadar. We recommend to synchronize the call
-frequency with the SecurityBridge Intrusion Detection job frequency which is set in minutes in order to maximize the efficiency.
-For this reason, this workflow uses the `minimumRecurrence` and was set to 1 minute.
+- Tutorial Universal REST API with SecurityBridge: https://abap-experts.atlassian.net/servicedesk/customer/portal/1/article/1840349274?src=1077970461 (Login required)
+
+Please find more information in 
+SecurityBridge/README.md
 -->
-<Workflow name="SecurityBridge" version="1.3" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="SecurityBridge" version="1.4" minimumRecurrence="60" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
-
         <Parameter name="host" label="Host" required="true" />
         <Parameter name="port" label="Port" />
         <Parameter name="ssl_enabled" label="SSL enabled?" default="false" />
         <Parameter name="username" label="API user" required="true" />
         <Parameter name="password" label="API user password" required="true" secret="true" />
         <Parameter name="bookmark_enabled" label="Bookmark enabled?" default="false" />
-
+        <Parameter name="slice" label="Timeslice (hours)" default="1" />
     </Parameters>
 
     <Actions>
@@ -52,53 +49,105 @@ For this reason, this workflow uses the `minimumRecurrence` and was set to 1 min
             <Set path="/use_port" value="" />
         </Else>
 
-        <!-- Set up bookmark filter, if applicable -->
+        <!-- ################################# BOOKMARK MODE ################################# -->
         <If condition="/bookmark_enabled = true">
+            
+            <!-- Set and remember now -->
+            <Set path="/now" value="${time()}" />
 
-            <!-- If a bookmark does not exist yet, let's go back 7 days -->
-            <Initialize path="/bookmark" value="${time() - (7 * 24 * 60 * 60 * 1000)}"/>
+            <!-- If a bookmark does not exist yet, let's go back 1 day -->
+            <Initialize path="/bookmark" value="${/now - (1 * 24 * 60 * 60 * 1000)}"/>
 
-            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/bookmark}" savePath="/qFrom" />
-            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" savePath="/qTo" />
+            <!-- In slices defined by parameter or default to 1 hour -->
+            <Set path="/query_window_size" value="${/slice * 60 * 60 * 1000}" />
+            
+            <!-- Set the initial query window -->
+            <Set path="/start_time" value="${/bookmark}" />
 
-            <Set path="/filter" value="qFrom eq datetime'${/qFrom}' and qTo eq datetime'${/qTo}'" />
-        </If>
-        <Else>
-            <Set path="/filter" value="" />
-        </Else>
-
-        <!-- Get SAP Events from Service -->
-        <CallEndpoint url="${/protocol}://${/host}${/use_port}/sap/opu/odata/ABEX/EVENTS_SRV/events" method="GET" savePath="/results">
-            <BasicAuthentication username="${/username}" password="${/password}" />
-            <QueryParameter name="$filter" value="${/filter}" omitIfEmpty="true" />
-            <QueryParameter name="$format" value="json" />
-        </CallEndpoint>
-
-        <!-- Handle Errors -->
-        <If condition="/results/status_code != 200">
-            <Abort reason="${/results/status_code}: ${/results/status_message}" />
-        </If>
-
-        <!-- Post Events to QRadar, if any -->
-        <If condition="count(/results/body/d/results) > 0">
-
-            <PostEvents path="/results/body/d/results" source="${/host}" />
-
-            <!-- If bookmarking is enabled, extract the latest event timestamp (+1 second) to be used as a bookmark for the next poll -->
-            <If condition="/bookmark_enabled = true">
-                <RegexCapture pattern="\/Date\(([0-9]+)\)" value="${max(/results/body/d/results/timestamp)}" savePath="/latest_timestamp" />
-                <Set path="/bookmark" value="${/latest_timestamp + 1000}" />
+            <!-- Work in timesliced until now is reached -->
+            <Set path="/end_time" value="${/bookmark + /query_window_size}" />
+            <If condition="/end_time >= /now">
+                <Set path="/end_time" value="${/now - 1}" />
             </If>
 
+
+            <!-- Keep advancing the query window until we reach "now" -->
+            <While condition="/end_time &lt; /now">
+                <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/start_time}" savePath="/qFrom" />
+                <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/end_time}" savePath="/qTo" />
+                
+                <Set path="/filter" value="qFrom eq datetime'${/qFrom}' and qTo eq datetime'${/qTo}'" />
+
+                <!-- Get SAP Events from Service -->
+                <CallEndpoint url="${/protocol}://${/host}${/use_port}/sap/opu/odata/ABEX/EVENTS_SRV/events" method="GET" savePath="/results">
+                    <BasicAuthentication username="${/username}" password="${/password}" />
+                    <QueryParameter name="$filter" value="${/filter}" omitIfEmpty="true" />
+                    <QueryParameter name="$format" value="json" />
+                </CallEndpoint>
+
+                <!-- Handle Errors -->
+                <If condition="/results/status_code != 200">
+                    <Abort reason="${/results/status_code}: ${/results/status_message}" />
+                </If>
+
+                <!-- Post Events to QRadar, if any -->
+                <If condition="count(/results/body/d/results) > 0">
+
+                    <PostEvents path="/results/body/d/results" source="${/host}" />
+
+                    <!-- If bookmarking is enabled, extract the latest event timestamp (+1 second) to be used as a bookmark for the next poll -->
+                    <RegexCapture pattern="\/Date\(([0-9]+)\)" value="${max(/results/body/d/results/timestamp)}" savePath="/latest_timestamp" />
+                    <!-- <Set path="/bookmark" value="${/latest_timestamp + 1000}" /> -->
+
+
+                </If>
+
+                <!-- Advance the query window -->
+                <Set path="/start_time" value="${/start_time + /query_window_size + 1}" />
+                <If condition="/start_time >= /now">
+                    <Set path="/start_time" value="${/bookmark}" />
+                </If>
+
+                <Set path="/end_time" value="${/end_time + /query_window_size }" />
+            </While>
+
+            <Set path="/bookmark" value="${/now}" />   
         </If>
 
+        <!-- #################################  NO BOOKMARK ################################# -->
+        <Else>
+            <Set path="/filter" value="" />
+            <!-- Get SAP Events from Service -->
+            <CallEndpoint url="${/protocol}://${/host}${/use_port}/sap/opu/odata/ABEX/EVENTS_SRV/events" method="GET" savePath="/results">
+                <BasicAuthentication username="${/username}" password="${/password}" />
+                <QueryParameter name="$filter" value="${/filter}" omitIfEmpty="true" />
+                <QueryParameter name="$format" value="json" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/results/status_code != 200">
+                <Abort reason="${/results/status_code}: ${/results/status_message}" />
+            </If>
+
+            <!-- Post Events to QRadar, if any -->
+            <If condition="count(/results/body/d/results) > 0">
+
+                <PostEvents path="/results/body/d/results" source="${/host}" />
+
+                <!-- If bookmarking is enabled, extract the latest event timestamp (+1 second) to be used as a bookmark for the next poll -->
+                <If condition="/bookmark_enabled = true">
+                    <RegexCapture pattern="\/Date\(([0-9]+)\)" value="${max(/results/body/d/results/timestamp)}" savePath="/latest_timestamp" />
+                    <Set path="/bookmark" value="${/latest_timestamp + 1000}" />
+                </If>
+
+            </If>
+        </Else>
     </Actions>
 
     <Tests>
 
         <DNSResolutionTest host="${/host}" />
-        <TCPConnectionTest host="${/host}" port="${/port}" />
-		<HTTPConnectionThroughProxyTest url="http://${/host}"/>
+        <TCPConnectionTest host="${/host}" />
 
     </Tests>
 

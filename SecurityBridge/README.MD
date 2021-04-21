@@ -37,4 +37,15 @@ Parameter:
 
 ```bookmark_enabled = True```
 
-Is this option active, the workflow will invoke the SAP endpoint with a filter on date and time. Please note, whether or not the data has been pulled, is not visible in SAP, this can only be checked in QRadar. 
+```slice = 1...9``` (new since v1.4)
+Is this option active, the workflow will invoke the SAP endpoint with a filter on date and time. Please note, whether or not the data has been pulled, is not visible in SAP, this can only be checked in QRadar. An initial bookmark is set 1 day in the past in case the service is executed for the first time. 
+
+Timeslices (New since Workflow version 1.4): For systems that record a high log volume IBM QRadar may run into a threshold at 100 MB for a service call. The ```slice``` parameter allows to define the duration in hour(s) of the timeslice that is used to pull data per iteration. Remains the parameter empty a default of 1 hour is set. 
+
+
+#### HISTORY:
+13-APRIL-2021
+
+```v1.4```: 
+- New:Bookmark mode enhancement to read event-api in slices of time. 
+- Update: Bookmark default is set to 1 day back instead of 3 days. 
