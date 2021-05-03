@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Work
+flowParameterValues/V1">
+    <Value name="host"      value="logs1.incapsula.com" />
+    <Value name="path"      value="1111_2222222" />
+    <Value name="username"  value="123456" />
+    <Value name="password"  value="000aa0a0-1111-22b2-cc33-dd44d55555d5" />
+</WorkflowParameterValues>
