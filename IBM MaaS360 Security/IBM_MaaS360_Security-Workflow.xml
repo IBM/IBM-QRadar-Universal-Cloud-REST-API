@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+Admin Portal:
+https://login.maas360.com/
+
+-->
+<Workflow name="IBM Fiberlink" version="0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" default="services.fiberlink.com" />
+        <Parameter name="username" label="Username" required="true" />
+        <Parameter name="password" label="Password" required="true" secret="true" />
+        <Parameter name="app_id" label="App ID" required="true" />
+        <Parameter name="billing_id" label="Billing ID" required="true" />
+        <Parameter name="platform_id" label="Platform" required="true" default="5" />
+        <Parameter name="app_version" label="App Version" required="true" default="1.0" />
+        <Parameter name="app_access_key" label="Secret Key" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--Initialize auth token -->
+        <Initialize path="/auth_token" value="1" />
+        <!--Initialize Startdate -->
+        <Initialize path="/securityEvent/date" value="1" />
+        <!--Initialize total count -->
+        <Initialize path="/totalCounts" value="1" />
+        <!--Initialize page number -->
+        <Initialize path="/pagenum" value="0" />
+
+
+        <While condition="/totalCounts > 0">
+
+            <Set path="/pagenum" value="${(/pagenum)+1}" />
+            <!--API Call-->
+            <CallEndpoint url="https://${/host}/security-event-ws/security/${/app_version}/customer/${/billing_id}/events?startDate=${/securityEvent/date}&amp;endDate=15768416050000&amp;pageSize=1000&amp;pageNumber=${/pagenum}" method="GET" savePath="/securityEvents">
+                <RequestHeader name="authorization" value="MaaS token=&quot;${/auth_token}&quot;" />
+            </CallEndpoint>
+
+            <If condition="/securityEvents/status_code != 200">
+
+            <!--///////////////////////////////// Get MaaS Auth /////////////////////////////////-->
+
+                <CallEndpoint url="https://${/host}/auth-apis/auth/${/app_version}/authenticate/${/billing_id}" method="POST" savePath="/get_auth_token" >
+                    <XmlRequestBody>
+                        <authRequest>
+                            <maaS360AdminAuth>
+                                <billingID>${/billing_id}</billingID>
+                                <platformID>${/platform_id}</platformID>
+                                <appID>${/app_id}</appID>
+                                <appVersion>${/app_version}</appVersion>
+                                <appAccessKey>${/app_access_key}</appAccessKey>
+                                <userName>${/username}</userName>
+                                <password>${/password}</password>
+                            </maaS360AdminAuth>
+                        </authRequest>
+                    </XmlRequestBody>
+                </CallEndpoint>
+
+                <!-- We're catching non-200 here just to be safe but this endpoint actually always returns 200 and errors are reported in the XML body instead -->
+                <If condition="/get_auth_token/status_code != 200">
+                    <Abort reason="${/get_auth_token/status_code}: ${/get_auth_token/status_message}" />
+                </If>
+
+                <!-- Handle the real error in the body. -->
+                <XPathQuery xmlPath="/get_auth_token/body" xPathQuery="/authResponse/errorCode/text()" singleton="true" savePath="/get_auth_token/error_code" />
+                <If condition="/get_auth_token/error_code != 0">
+                    <XPathQuery xmlPath="/get_auth_token/body" xPathQuery="/authResponse/errorDesc/text()" singleton="true" savePath="/get_auth_token/error_description" />
+                    <Abort reason="${/get_auth_token/error_code}: ${/get_auth_token/error_description}" />
+                </If>
+
+                <!-- Extract the Auth Token -->
+                <XPathQuery xmlPath="/get_auth_token/body" xPathQuery="/authResponse/authToken/text()" singleton="true" savePath="/auth_token" />
+
+                <CallEndpoint url="https://${/host}/security-event-ws/security/${/app_version}/customer/${/billing_id}/events?startDate=${/securityEvent/date}&amp;endDate=15768416050000&amp;pageSize=1000&amp;pageNumber=${/pagenum}" method="GET" savePath="/securityEvents">
+                    <RequestHeader name="authorization" value="MaaS token=&quot;${/auth_token}&quot;" />
+                </CallEndpoint>
+            </If>
+
+            <!-- Handle Errors -->
+            <If condition="/securityEvents/status_code != 200">
+                <Abort reason="${/securityEvents/status_code}: ${/securityEvents/status_message}" />
+            </If>
+
+            <Set path="/totalCounts" value="${(/securityEvents/body/totalCount)-(1000)}" />
+
+            <If condition="count(/securityEvents/body/events) > 0">
+                    <!-- Adding all the eventTime to array -->
+                    <Add path="/currentEventTimeStamps" value="${max(/securityEvents/body/events/eventTime)}" />
+                    <!-- Posting Events to Q-Radar -->
+                    <PostEvents path="/securityEvents/body/events" source="${/host}" />
+            </If>
+        </While>
+
+        <!-- Reset Page Number -->
+        <Set path="/pagenum" value="0" />
+        <!-- Reset Total Counts -->
+        <Set path="/totalCounts" value="1" />
+
+        <!-- Saving maximum time from all the current events -->
+        <If condition="count(/currentEventTimeStamps) > 0">
+            <Set path="/securityEvent/date" value="${max(/currentEventTimeStamps)+1000}" />
+            <!--Delete all the current events time after saving maximum eventTime from array -->
+            <Delete path="/currentEventTimeStamps" />
+        </If>
+
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
