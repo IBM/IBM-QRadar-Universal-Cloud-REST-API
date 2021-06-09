@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+The Workflow is used to get Orca Alerts via REST API.
+
+Instructions:
+https://orcasecurity.zendesk.com/hc/en-us/articles/4401950668180
+
+Parameters:
+- "api_host" - Orca API host (required, default="api.orcasecurity.io")
+- "api_key" - Orca API key for QRadar (required)
+
+-->
+<Workflow name="Orca Security" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+	<Parameters>
+		<Parameter name="api_host" label="API Host" required="true" default="api.orcasecurity.io"/>
+		<Parameter name="api_key" label="API Key" required="true" secret="true"/>
+	</Parameters>
+
+	<Actions>
+
+        <DoWhile condition="/get_alerts/body/next_page_token != null">
+
+            <CallEndpoint url="https://${/api_host}/api/query/alerts" method="GET" savePath="/get_alerts">
+                <BearerAuthentication token="${/api_key}" />
+                <QueryParameter name="limit" value="1000" />
+                <QueryParameter name="next_page_token" value="${/get_alerts/body/next_page_token}" omitIfEmpty="true" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_alerts/status_code = 403">
+                <Abort reason="Invalid Orca API Key" />
+            </If>
+
+            <If condition="/get_alerts/status_code != 200">
+                <Abort reason="${/get_alerts/body/error}" />
+            </If>
+
+            <Log type="DEBUG" message="ORCA: Fetched ${count(/get_alerts/body/data)} Orca Alerts." />
+            <Log type="DEBUG" message="ORCA: Next page token ${/get_alerts/body/next_page_token}." />
+
+            <!-- Post Events -->
+            <If condition="count(/get_alerts/body/data) > 0" >
+                <PostEvents path="/get_alerts/body/data" source="${/api_host}" />
+            </If>
+
+        </DoWhile>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/api_host}" />
+        <TCPConnectionTest host="${/api_host}" />
+        <SSLHandshakeTest host="${/api_host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/api_host}" />
+    </Tests>
+
+</Workflow>
