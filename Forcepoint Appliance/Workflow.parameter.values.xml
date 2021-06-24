@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="host"      value="" />
+    <Value name="username"  value="" />
+    <Value name="password"  value="" />
+	<Value name="max_download_children" value="1" />
+    <Value name="destination" value="" />
+    <Value name="pidfile" value="" />
+    <Value name="stream" value="all" />
+</WorkflowParameterValues>
