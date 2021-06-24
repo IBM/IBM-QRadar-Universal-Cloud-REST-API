@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="ServiceNow" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+        <Parameter name="host" label="Host" required="true"/>
+        <Parameter name="Integration_ID" label="Integration_ID" required="true" secret="true"/>
+        <Parameter name="Password" label="Password" required="true" secret="true"/>
+    </Parameters>
+    <Actions>
+        <!-- Initialize the Bookmark to Few hours back -->
+        <Initialize path="/errorstatus" value="0"/> <!--Initialize an error status to false condition -->
+
+        <!-- Validate earlier polling error status and set up the starttime accordingly-->
+        <If condition="/errorstatus = 1">
+            <Set path="/From_Time" value="/OldFrom_Time"/> <!-- Set fromtime from old failed value -->
+            <Set path="/errorstatus" value="0"/>
+        </If>
+        <Else>
+            <Set path="/From_Time" value="${(time()) - (5 * 60 * 1000)}"/> <!-- Set fromtime to 5 minutes back -->
+        </Else>
+
+        <!-- Set up the end time as now-->
+            <Set path="/To_Time" value="${time()}"/>  <!-- Set endtime to current time -->
+
+        <!-- Format times to GMT -->
+        <FormatDate pattern="yyyy-MM-dd HH:mm:ss" timeZone="GMT" time="${/From_Time}" savePath="/fromTime" /> 
+        <FormatDate pattern="yyyy-MM-dd HH:mm:ss" timeZone="GMT" time="${/To_Time}" savePath="/toTime" />
+            
+        <!-- Basic Authentication and Fetching events-->
+        <CallEndpoint url="https://${/host}/urlparamters" method="GET" savePath="/get_logs" >
+            <BasicAuthentication username="${/Integration_ID}" password="${/Password}" />
+            <QueryParameter name="from_time" value="${/fromTime}" omitIfEmpty="true" /> 
+            <QueryParameter name="to_time" value="${/toTime}" omitIfEmpty="true" />
+        </CallEndpoint>
+
+        <!-- Handle Web Errors Other than 200 status Codes-->
+        <If condition="/get_logs/status_code != 200" >
+            <Abort reason="${/get_logs/body}" />
+            <Set path="/errorstatus" value="1"/>
+            <Set path="/OldFrom_Time" value="/From_Time"/> <!-- Set fromtime to 5 minutes back during fetch failure-->
+        </If>
+     
+        <!-- Post the fetched events to the logsource in QRadar -->
+            <PostEvents path="/get_logs/body/result" source="${/host}"/>
+
+    </Actions>
+    <Tests>
+        <DNSResolutionTest host="${/host}"/>
+        <TCPConnectionTest host="${/host}"/>
+        <HTTPConnectionThroughProxyTest url="https://${/host}"/>
+    </Tests>
+</Workflow>
