@@ -1,0 +1,17 @@
+<Workflow name="Test" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+        <Parameter name="host" label="" required="true" />
+        <Parameter name="username" label="" required="true" />
+        <Parameter name="password" label="" required="true" />
+        <Parameter name="max_download_children" label="1" required="true" />
+        <Parameter name="destination" label="" required="true" />
+        <Parameter name="pidfile" label="" required="true" />
+        <Parameter name="stream" label="all" required="true" />
+    </Parameters>
+    <Actions>
+        <!-- Get the Events -->
+	<CallEndpoint url="" method="GET" savePath="/results">
+			<BasicAuthentication username="${/username}" password="${/password}" />
+		</CallEndpoint>
+    </Actions>
+</Workflow>
