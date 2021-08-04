@@ -1,0 +1,49 @@
+<Workflow name="Test" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+        <Parameter name="Token" label="" required="true" secret="true" />
+		<Parameter name="api_host" label="xxx.sophos.com" required="true" />
+
+
+    </Parameters>
+
+
+    <Actions>
+        <!-- Get the Events -->
+        <CallEndpoint url="https://api1.central.sophos.com/gateway/siem/v1/events" method="GET" savePath="/get_events">
+                        <QueryParameter name="since" value="${/bookmark}" omitIfEmpty="true" />
+						<RequestHeader name="Content-type" value="application/json" />
+                        <RequestHeader name="charset" value="utf-8" />
+                        <RequestHeader name="Accept" value="application/json" />
+                        <RequestHeader name="X-Locale" value="en" />
+                        <RequestHeader name="Authorization" value="Basic ${/Token}" />
+                        <RequestHeader name="x-api-key" value="" />
+						
+        </CallEndpoint>
+		
+		
+		<!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/body}" />
+
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/items) > 0">
+            <PostEvents path="/get_events/body/items" source="${/api_host}" />
+
+            <!-- Update the bookmark -->
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSS]'Z'" timeZone="UTC" date="${max(/get_events/body/items/receivedutc/value)}" savePath="/last_event_time" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/last_event_time + 1}" savePath="/bookmark" />
+        </If>
+
+    </Actions>
+
+    <Tests>
+        
+        <DNSResolutionTest host="${/api_host}" />
+        <TCPConnectionTest host="${/api_host}" />
+        <SSLHandshakeTest host="${/api_host}" />
+
+    </Tests>
+</Workflow>
+
