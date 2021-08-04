@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Elasticsearch" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="host" required="true" />
+        <Parameter name="key" label="key" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <Initialize path="/get_alerts/bookmark" value="2021-06-11T10:33:23.994Z" />
+        <CallEndpoint url="https://${/host}:9200/index_name_*/_search?" method="POST" savePath="/get_alerts">
+            <RequestHeader name="Accept" value="*/*" />
+            <RequestHeader name="Authorization" value="${/key}" />
+            <RequestBody type="application/json" encoding="UTF-8">          
+            {
+            "track_total_hits": true,
+            "size": 10000, 
+            "query": {
+                "bool": {
+                "must": [
+                    {
+                        "wildcard": {
+                            "message": {
+                            "value": "*search_name*"
+                            }
+                        }
+                    },
+                    { 
+                        "range": {
+                            "@timestamp": {
+                                "gt": "${/get_alerts/bookmark}",
+                                "lte": "now"
+                            }
+                        }
+                    }
+                    ]
+                }
+                },
+                "sort": [
+                {
+                    "@timestamp": {
+                        "order": "desc"
+                    }
+                }
+                ]
+            }
+            </RequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_alerts/status_code != 200">
+            <Abort reason="${/get_alerts/status_code} ${/get_alerts/status_message}" />
+        </If>
+
+        <!-- Post Events -->
+        <PostEvents path="/get_alerts/body/hits/hits" source="${/host}"/>
+
+        <!-- Update the bookmark -->
+        <Set path="/get_alerts/bookmark" value="${/get_alerts/body/hits/hits[0]/_source/'@timestamp'}" />
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+    </Tests>
+
+</Workflow>
