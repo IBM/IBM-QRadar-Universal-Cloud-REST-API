@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Ariel" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="path" label="Path" required="true" />
+		<Parameter name="username" label="Username" required="true" />
+        <Parameter name="password" label="Password" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        /////////////////////
+        // Post the Search //
+        /////////////////////
+        -->
+
+        <!-- Initialize the Bookmark -->
+		<Initialize path="/bookmark" value="51" />
+        <CallEndpoint url="https://${/host}/${/path}/logs.index" method="GET" savePath="/logs_index">
+            <SSLConfiguration allowUntrustedServerCertificate="true" />
+			<BasicAuthentication username="${/username}" password="${/password}" />
+            <RequestHeader name="Accept" value="*/*" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/logs_index/status_code != 200">
+            <Abort reason="${/logs_index/status_message}: ${/logs_index/body/message}" />
+        </If>
+
+        <!-- Extract the Search -->
+        <Set path="/index" value="${/logs_index/body}" /> 
+	
+		<Split value="${/logs_index/body}" delimiter="\n" savePath="/log_files" />
+		
+		<ForEach item="/log_file" items="/log_files">
+			<RegexCapture pattern="[0-9]+_([0-9]+)\.log" value="${/log_file}" savePath="/current_file" />
+
+			<If condition="/current_file > /bookmark" >
+				<!-- Update Bookmark -->
+				<CallEndpoint url="https://${/host}/${/path}/${/log_file}" method="GET" savePath="/log_content">
+					<SSLConfiguration allowUntrustedServerCertificate="true" />
+					<BasicAuthentication username="${/username}" password="${/password}" />
+					<RequestHeader name="Accept" value="*/*" />
+				</CallEndpoint>
+				<If condition="/log_content/status_code != 200">	
+					<Abort reason="${/log_content/status_message}: ${/log_content/body/message}" />
+				</If>	
+				<Set path="/log_events" value="${/log_content/body}" /> 
+				
+				<Split value="${/log_events}" delimiter="\n" savePath="/events" /> 
+				
+				<Set path="/recordcount" value="${count(/events)}" />
+				<If condition="/recordcount > 1" >
+					<ForEach item="/current_event" items="/events">
+						<RegexCapture pattern="(LEEF):1.0\|Incapsula" value="${/current_event}" savePath="/event_header" />
+						<If condition="/event_header = 'LEEF'" >
+							<PostEvent path="/current_event" source="${/username}" />
+						</If>
+					</ForEach>
+				</If>
+				
+				<RegexCapture pattern="[0-9]+_([0-9]+)\.log" value="${/log_file}" savePath="/bookmark" />
+				
+			</If>
+			<!-- Handle Errors -->
+			
+		</ForEach>
+		
+    </Actions>
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
