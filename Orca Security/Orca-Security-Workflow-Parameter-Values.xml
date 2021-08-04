@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+	<Value name="api_host" value="api.orcasecurity.io" />
+	<Value name="api_key" value="" />
+</WorkflowParameterValues>
