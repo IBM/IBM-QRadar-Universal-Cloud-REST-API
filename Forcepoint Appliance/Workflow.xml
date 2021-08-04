@@ -1,0 +1,90 @@
+<Workflow name="Test" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+        <Parameter name="host" label="xxx.com" required="true" />
+        <Parameter name="username" label="" required="true" />
+        <Parameter name="password" label="" required="true" secret="true"/>
+        <Parameter name="max_download_children" label="1" required="true" />
+        <Parameter name="destination" label="/tmp" required="true" />
+        <Parameter name="pidfile" label="/tmp/ftl.pid" required="true" />
+        <Parameter name="stream" label="all" required="true" />
+    </Parameters>
+    <Actions>
+        <!-- Get the Events -->
+	<CallEndpoint url="https://${/host}" method="GET" savePath="/get_events/response">
+			<BasicAuthentication username="${/username}" password="${/password}" />
+			<QueryParameter name="max_download_children" value="${/max_download_children}"/>
+			<QueryParameter name="destination" value="${/destination}" />
+		        <QueryParameter name="pidfile" value="${/pidfile}"/>
+			<QueryParameter name="stream" value="${/stream}" />
+			<RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "time":
+                    {
+                        "start_time": "${/start_time}"
+                    }
+                }
+            </RequestBody>
+	</CallEndpoint>
+		
+	
+ <!-- Handle Errors -->
+        <If condition="/get_events/response/status_code != 200">
+            <Abort reason="${/get_events/response/body}" />
+        </If>
+
+        <!-- Post the Events -->
+        <ForEach item="/current_event" items="/get_events/response/body/events">
+
+            <PostEvent path="/current_event" source="${/host}" />
+
+            <!-- Update the bookmark -->
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/current_event/timestamp}" savePath="/current_event_time" />
+            <If condition="/current_event_time + 1000 > /bookmark" >
+                <Set path="/bookmark" value="${/current_event_time + 1000}" />
+            </If>
+
+        </ForEach>
+
+        <!-- Fetch the remaining pages -->
+        <While condition="/get_events/response/body/has_more">
+
+            <!-- Fetch the Events -->
+            <CallEndpoint url="https://${/host}/2/team_log/get_events/continue" method="POST" savePath="/get_events/response">
+                <BearerAuthentication token="${/access_token}"/>
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "cursor": "${/get_events/response/body/cursor}"
+                    }
+                </RequestBody>
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_events/response/status_code != 200">
+                <Abort reason="${/get_events/response/status_code}: ${/get_events/response/body}" />
+            </If>
+
+            <!-- Post the Events -->
+            <ForEach item="/current_event" items="/get_events/response/body/events">
+
+                <PostEvent path="/current_event" source="${/host}" />
+
+                <!-- Update the bookmark -->
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/current_event/timestamp}" savePath="/current_event_time" />
+                <If condition="/current_event_time + 1000 > /bookmark" >
+                    <Set path="/bookmark" value="${/current_event_time + 1000}" />
+                </If>
+
+            </ForEach>
+
+        </While>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
