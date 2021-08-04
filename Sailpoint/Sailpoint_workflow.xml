@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Sailpoint" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="xxx-api.identitynow.com" required="true" />
+        <Parameter name="client_id" label="" required="true" />
+        <Parameter name="client_secret" label="" required="true" secret="true" />
+        
+    </Parameters>
+
+    <Actions>
+
+        <!--
+        //////////////////////////
+        // Request Access Token //
+        //////////////////////////
+        -->
+
+        <CreateJWTAccessToken savePath="/jwt_assertion">
+            <Header>
+                <Value name="alg" value="HS256" />
+                <Value name="typ" value="JWT" />
+            </Header>
+            <Payload>
+                <Value name="iss" value="" />
+                <Value name="aud" value="https://${host}/oauth2/token" />
+                <Value name="jti" value="${time()}${time()}" />
+                <Value name="exp" value="${time() / 1000 + 30}" />
+            </Payload>
+            <Secret value="${/client_secret}" />
+        </CreateJWTAccessToken>
+
+        <CallEndpoint url="https://${/host}/oauth2/token" method="POST" savePath="/get_access_token" >
+			
+            <UrlEncodedFormRequestBody>
+				<Parameter name="grant_type" value="urn:ietf:params:oauth:grant-type:jwt-bearer" />
+                <Parameter name="client_id" value="" />
+                <Parameter name="client_secret" value="" />
+                <Parameter name="assertion" value="${/jwt_assertion}" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        
+        
+        <!--
+        ////////////////////
+        // Request Events //
+        ////////////////////
+        -->
+
+        <CallEndpoint url="https://${/host}/v3/sources" method="GET" savePath="/get_events" >
+            <BearerAuthentication token="${/get_access_token}" />
+			<QueryParameter name="limit" value="50" />
+            <QueryParameter name="stream_position" value="${/bookmark}" omitIfEmpty="true" />
+			
+            
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/body/error_description}" />
+        </If>
+
+        <!-- Post the Events -->
+        <PostEvents path="/get_events/body/entries" source="${/host}" />
+
+        <!-- Update the Bookmark -->
+        <Set path="/bookmark" value="${/get_events/body/next_stream_position}" />
+
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
