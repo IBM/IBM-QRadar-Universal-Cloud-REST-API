@@ -17,3 +17,4 @@ In the workflow, the first section "Get Access Token" pulls a token from the cus
 
 In the section "Get Deployment ID" it is connecting to the customer's endpoint API specific to the domain and receives the entire list of the available deployments.  Since new deployment can be spun up, there will likely be one active one and the rest will be down.  Since it is ordered by DESCENDING date, the most recent will be active, thus the /get_deploymnentid/body/data[1]/deploymentId value gets saved under /deploymentId.
 
+If you were to pull all the data from the array of deployments, you will see some with a status of "TERMINATED", while the one you want to pull from should show "STARTED".
