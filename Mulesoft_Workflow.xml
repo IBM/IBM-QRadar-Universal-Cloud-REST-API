@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?> 
+<Workflow name="Mulesoft" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1"> 
+<Parameters> 
+	<Parameter name="host" label="Host" required="true" /> 
+	<Parameter name="grant_type" label="Grant Type" required="true" /> 
+	<Parameter name="client_id" label="Client ID" required="true" /> 
+	<Parameter name="client_secret" label="Client Secret" required="true" secret="true" /> 
+	<Parameter name="domain" label="Domain" required="true" /> 
+	<Parameter name="X-ANYPNT-ENV-ID" label="Enviroment ID" required="true" /> 
+	<Parameter name="orderByDate" label="Order By" required="true" />
+	</Parameters> 
+	<Actions> 
+		<!-- ///////////////////
+		///// Get Access Token // 
+		////////////////////// 
+		--> 
+		<CallEndpoint url="https://${/host}:443/accounts/api/v2/oauth2/token" method="POST" savePath="/get_access_token"> 
+			<UrlEncodedFormRequestBody> 
+				<Parameter name="grant_type" value="${/grant_type}" /> 
+				<Parameter name="client_id" value="${/client_id}" /> 
+				<Parameter name="client_secret" value="${/client_secret}" /> 
+			</UrlEncodedFormRequestBody> 
+		</CallEndpoint> 
+		
+		<!-- Handle Errors --> 
+		<If condition="/get_access_token/status_code != 200"> 
+			<Abort reason="${/get_access_token/body}" /> 
+		</If> 
+		
+		
+		<!-- Extract the Access Token --> 
+		<Set path="/access_token" value="${/get_access_token/body/access_token}" /> 
+		
+		<Set path="/limit" value="100" /> 
+		<Set path="/offset" value="0" /> 
+		<Set path="/timee" value="${time() - 60000 * 60}" /> 
+		<FormatDate pattern="yyyy-MM-dd HH:mm Z" timeZone="UTC" time="${/timee}" savePath="/starttime" /> 
+		
+		<!-- ///////////////////
+		///// Get Deployment ID // 
+		////////////////////// 
+		--> 
+
+		<CallEndpoint url="https://${/host}/cloudhub/api/v2/applications/${/domain}/deployments" method="GET" savePath="/get_deploymentid"> 
+				<QueryParameter name="orderByDate" value="${/orderByDate}" />
+				<RequestHeader name="authorization" value="Bearer ${/access_token}" />
+				<RequestHeader name="X-ANYPNT-ENV-ID" value="${/X-ANYPNT-ENV-ID}" /> 				
+		</CallEndpoint>
+ 
+		<!-- Handle Errors --> 
+		<If condition="/get_deploymentid/status_code != 200"> 
+			<Abort reason="${/get_deploymentid/body}" /> 
+		</If> 
+		
+		<!-- Extract the Deployment ID --> 
+		<Set path="/deploymentId" value="${/get_deploymentid/body/data[1]/deploymentId}" /> 
+	
+		<!-- //////////////// // Initialize the bookmark to event total // 
+		//////////////// 
+		--> 
+		
+		<Initialize path="/bookmark" value="0" /> 
+		
+		<!-- 
+		//////////////// // Set up endpoint query parameter values // 
+		//////////////// 
+		--> 
+		<!-- //////////////// 
+		// Get Events // 
+		//////////////// 
+		--> 
+		<!-- Fetch the Events --> 
+		<DoWhile condition="/get_events/body/total > ${/bookmark}" > 
+		
+		<Set path="/offset" value="${/bookmark}"/> 
+		<CallEndpoint url="https://${/host}/cloudhub/api/v2/applications/${/domain}/deployments/${/deploymentId}/logs" method="GET" savePath="/get_events"> 
+			<QueryParameter name="limit" value="${/limit}" /> 
+			<QueryParameter name="offset" value="${/offset}" /> 
+			<RequestHeader name="authorization" value="Bearer ${/access_token}" /> 
+			<RequestHeader name="X-ANYPNT-ENV-ID" value="${/X-ANYPNT-ENV-ID}" /> 
+		</CallEndpoint> 
+		
+		<!-- Handle Errors --> 
+		<If condition="/get_events/status_code != 200"> 
+			<Abort reason="${/get_events/body} + Testing Error" /> 
+		</If> 
+		
+		<!-- //////////////// 
+		// Count the Bookmark // 
+		//////////////// 
+		--> 
+		
+		<!-- Update Bookmark --> 
+		<Set path="/bookmark" value="${/offset} + ${/limit}"/> 
+		
+		<!-- Post Events, if any --> 
+		<If condition="/get_events/body/total > ${/bookmark}" > 
+			<PostEvents path="/get_events/body/data" source="${/host}_${/domain}" /> 
+		</If> 
+		
+		</DoWhile> 
+		<!-- <Set path="/iterationdetails" value = "Total Logs : ${/get_events/body/total} Bookmark Value ${/bookmark} StartTime ${/starttime}" /> 
+		<PostEvents path="/iterationdetails" source="${/host}_${/domain}" /> 
+		Update Bookmark for the next iteration --> 
+		<Set path="/bookmark" value="${/get_events/body/total}"/> 
+	</Actions> 
+	<Tests> 
+		<DNSResolutionTest host="${/host}" /> 
+		<TCPConnectionTest host="${/host}" /> 
+		<SSLHandshakeTest host="${/host}" /> 
+	</Tests> 
+</Workflow>
