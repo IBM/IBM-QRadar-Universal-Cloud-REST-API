@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Symantec Cloud" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+
+<Parameters>
+	<Parameter name="key" label="key" required="true" />
+	<Parameter name="host" label="host" default="api.sep.securitycloud.symantec.com" required="true" />
+</Parameters>
+
+
+<Actions>
+	<Initialize path="/next" value="10000000000" />
+           <Initialize path="/next1" value="11111" />
+	<CallEndpoint url="https://${/host}/v1/oauth2/tokens" method="POST" savePath="/get_access_token"  >
+	<RequestHeader name="authorization" value="${/key}" />
+	<RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+	<RequestHeader name="accept" value="application/json" />
+	</CallEndpoint>
+ 
+<If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body/message}" />
+        </If>
+
+<Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+
+
+<CallEndpoint url="https://${/host}/v1/event-export" method="POST" savePath="/get_events" >
+<RequestHeader name="authorization" value="${/access_token}" />
+<RequestHeader name="content-type" value="application/json" />
+<RequestHeader name="accept" value="application/json" />
+<RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "feature_name": "All",
+                        "product": "SAEP",
+			 "next": [${/next} , ${/next1}]
+			
+                       }
+                </RequestBody>
+         </CallEndpoint>
+
+
+<If condition="/get_events/status_code != 200">
+            <Abort reason="${/get_events/status_code}" />
+        </If>
+
+<PostEvents path="/get_events/body/events" source="${/host}" />
+
+<Set path="/next" value="${/get_events/body/next[0]}" />
+<Set path="/next1" value="${/get_events/body/next[1]}" />
+
+
+</Actions>
+
+<Tests>
+	<DNSResolutionTest host="${/host}" />
+	<TCPConnectionTest host="${/host}" />
+	<SSLHandshakeTest host="${/host}" />
+</Tests>
+</Workflow>
