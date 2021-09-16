@@ -70,7 +70,7 @@ following Duo issue for details: https://github.com/duosecurity/duo_client_pytho
             <!-- Converted to 13 character Unix timestamp in milliseconds + 1 -->
     
             <If condition="count(/auth_logs/response/body/response) > 0" >
-                <Set path="/auth_logs/bookmark" value="${(max(/auth_logs/response/body/response/authlogs/timestamp) * 1000 ) + 1}" />
+                <Set path="/auth_logs/bookmark" value="${(max(/auth_logs/response/body/response/authlogs/timestamp) * 1000 ) + 1000}" />
             </If>
         </If>
 
