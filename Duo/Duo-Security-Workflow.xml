@@ -30,7 +30,10 @@ following Duo issue for details: https://github.com/duosecurity/duo_client_pytho
         // v2 Authentication Logs //
         ////////////////////////////
         -->
-          
+        
+        <!-- Clear the log source status before a new workflow run starts -->
+	    <ClearStatus />
+        
         <!-- Initialize the Bookmark -->
         <!-- Starting Bookmark is T-1hour in ms (3600000) -->
         <Initialize path="/auth_logs/bookmark" value="${time() - 3600000}" />
