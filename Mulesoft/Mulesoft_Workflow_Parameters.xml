@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
 	<Value name="host" value="XXXXX" />
-    <Value name="domain" value="XXXXX" />	
+	<Value name="domain" value="XXXXX" />	
 	<Value name="X-ANYPNT-ENV-ID" value="XXXXX" />
 	<Value name="grant_type" value="client_credentials" />
 	<Value name="client_id" value="XXXXX" />
