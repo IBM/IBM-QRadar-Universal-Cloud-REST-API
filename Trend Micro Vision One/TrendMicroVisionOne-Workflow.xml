@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="TrendMicro Vision One" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
 
-    <Parameters>
-        <Parameter name="bearer_token" label="bearer_token" required="true" secret="true" />
-        <!-- URL, check here for the corect base URL https://automation.trendmicro.com/xdr/Guides/Regional-Domains -->
-    	<Parameter name="hostURL" label="URL" required="true" />
-    </Parameters>
+	<Parameters>
+		<Parameter name="bearer_token" label="bearer_token" required="true" secret="true" />
+		<!-- URL, check here for the corect base URL https://automation.trendmicro.com/xdr/Guides/Regional-Domains -->
+		<Parameter name="hostURL" label="URL" required="true" />
+	</Parameters>
 
-		
-    <Actions>
+	<Actions>
 		<!-- Clear the log source status before a new workflow run starts -->
 		<ClearStatus />	
-		
-	    	<Set value="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" path="/dateFormat" />
-	    
+		<Set value="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" path="/dateFormat" />
+	
 		<!-- log a message for the system notificatoin log that the workflow started -->
 		<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${time()}" savePath="/current_Time" />
 		<Log type="INFO" message="${/host}: Workflow startet at ${/current_Time}" />		
