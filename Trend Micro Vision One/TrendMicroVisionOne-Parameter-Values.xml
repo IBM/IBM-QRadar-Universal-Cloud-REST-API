@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
-  <Value name="baerer_token"      value="" />
+  <Value name="bearer_token"      value="" />
   <!-- base URL (e.g. api.eu.xdr.trendmicro.com): check here for the corect base URL https://automation.trendmicro.com/xdr/Guides/Regional-Domains -->
   <Value name="hostURL"	value="" />
 </WorkflowParameterValues>
