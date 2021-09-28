@@ -3,4 +3,6 @@
     <Value name="host"              value="" />
     <Value name="integration_key"   value="" />
     <Value name="secret_key"        value="" />
+    <Value name="method"            value="GET" />
+    <Value name="endpoint"          value="/admin/v2/logs/authentication" />
 </WorkflowParameterValues>
