@@ -1,104 +1,128 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
-
 Duo Admin API
 https://duo.com/docs/adminapi
-
 Duo Admin Panel
 https://admin.duosecurity.com/
-
 To obtain an 'Integration Key' and 'Secret Key':
 - Log on to the Duo Admin Panel
 - Navigate to "Applications"
 - Select the application to be monitored.
 - The "Integration Key" and "Secret Key" should be visible on the application page.
-
 Note:
 The Duo log APIs have rate limits where they can only be called every 5 minutes otherwise the API will
 return a "42901: Too Many Requests" error.  For this reason, this workflow uses the `minimumRecurrence`
 to ensure that we don't poll faster than allowed (set to a 6 minutes to avoid edge cases).  See the
 following Duo issue for details: https://github.com/duosecurity/duo_client_python/issues/101
-
 -->
+
 <Workflow name="Duo" version="1.0" minimumRecurrence="360" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
-        <Parameter name="host" label="Host" required="true" />
-        <Parameter name="integration_key" label="Integration Key" required="true" />
-        <Parameter name="secret_key" label="Secret Key" required="true" secret="true" />
+        <Parameter name="host"              label="Host"            required="true" />
+        <Parameter name="integration_key"   label="Integration Key" required="true" />
+        <Parameter name="secret_key"        label="Secret Key"      required="true" secret="true" />
+        <Parameter name="method"            label="Request Method"  required="true" default="GET" />
+        <Parameter name="endpoint"          label="API Endpoint"    required="true" default="/admin/v2/logs/authentication" />
+        <Parameter name="parameters"        label="API Endpoint"    required="false" default="" />
     </Parameters>
 
     <Actions>
 
         <!--
-        /////////////////////////
-        // Authentication Logs //
-        /////////////////////////
+            From documentation, this is the strategy I can see to take. 
+            1. First, we want to encode our authentication as ASCII Base64 as defined in the API documentation (https://duo.com/docs/adminapi#authentication). This Includes:
+                - Having the date enumerated as RFC 2822 format
+                - The Method [GET, POST, etc.]
+                - The Endpoint
+                - The Path of the endpoint [/admin/v2/logs/]
+                
+            2. Considerations for the actual query of logs itself:
+                - Logs can only go back a maximum of 180 days. This should be the maximum "mintime" to initalize at, if not more recent.
+                - Logs are only available up to 2 minutes from the query time (Lag as noted by the Cisco Duo documentation). Therefore, the "maxtime" value should look something like ${time()-(2*60000)} to remove 2 minutes of milliseconds from the epoch.
+                - Date used in the HMAC request much match the date header in the log request.
+            
+            3. If parameters are provided they need to be included in our HMAC validation in alphabtical order. There is a line to set the "/value" path before the call, and inside of the DoWhile loop and both must be edited in the same fashion. Additionally, the parameters need to be put into the call itself as a <QueryParameter> entity. Follow the examples of limit, min/maxtime.
         -->
 
-        <!-- Initialize the Bookmark -->
-        <Initialize path="/auth_logs/bookmark" value="1" />
 
-        <!-- Generate an Access Token -->
-        <FormatDate pattern="EEE, dd MMM yyyy HH:mm:ss Z" timeZone="UTC" savePath="/auth_logs/date" />
-        <Set path="/value" value="${/auth_logs/date}&#xA;GET&#xA;${/host}&#xA;/admin/v1/logs/authentication&#xA;mintime=${/auth_logs/bookmark}" />
+<!--
+/////////////////////////
+// Authentication Logs //
+/////////////////////////
+-->
+
+    <!-- Initialize the Bookmarks - mintime and maxtime -->
+        <Initialize path="/auth_logs/mintime" value="${time() - 60000 * 60 * 24 * 30}" />                      <!-- We want our initial query time to be as early as possible. Currently set to 30 days before first call. -->
+        <Set path="/auth_logs/maxtime" value="${time() - 60000 * 2}" />    <!-- Docs say that we cannot get logs within 2 minutes of the call, so we always set maxtime to be 2 minutes before our query time. -->
+    
+    <!-- Generate an Access Token -->
+        <FormatDate pattern="EEE, dd MMM yyyy HH:mm:ss Z" timeZone="UTC" savePath="/auth_logs/date" /> <!-- This needs to be a date in RFC 2822 format, like Tue, 21 Aug 2012 17:29:18 -0000 Pattern appears to match this. -->
+
+        <!-- Parameters will need to be set in this line as well as in the call for HMAC to work. No offset here as we are just beginning. -->
+        <Set path="/value" value="${/auth_logs/date}&#xA;${/method}&#xA;${/host}&#xA;${/endpoint}&#xA;limit=1000&amp;maxtime=${/auth_logs/maxtime}&amp;mintime=${/auth_logs/mintime}" />
+        
         <GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
 
-        <!-- Fetch the Events -->
-        <CallEndpoint url="https://${/host}/admin/v1/logs/authentication" method="GET" savePath="/auth_logs/response">
-            <BasicAuthentication username="${/integration_key}" password="${/signature}" />
-            <QueryParameter name="mintime" value="${/auth_logs/bookmark}" omitIfEmpty="true" />
-            <RequestHeader name="Date" value="${/auth_logs/date}" />
-        </CallEndpoint>
+    <!-- Fetch the Events in a loop -->
+         <DoWhile condition="/auth_logs/response/body/response/metadata/next_offset != null"> <!-- if this value is present, we need to iterate. If it is empty, we have all events -->
+
+            <!-- RESPONSE FORMAT:
+            {
+                "response":
+                {
+                    "authlogs":[...], <- logs should be stored in this array, so in /auth_logs/response/authlogs
+                    "metadata":
+                    {
+                        "next_offset":null,
+                        "total_objects":0
+                    }
+                },
+                "stat":"OK"
+            }
+            -->
+            <CallEndpoint url="https://${/host}${/endpoint}" method="GET" savePath="/auth_logs/response">
+                <SSLConfiguration allowUntrustedServerCertificate="true" />
+                <BasicAuthentication username="${/integration_key}" password="${/signature}" />
+                <QueryParameter name="limit" value="1000" />
+                <QueryParameter name="maxtime" value="${/auth_logs/maxtime}" />
+                <QueryParameter name="mintime" value="${/auth_logs/mintime}" />
+                <QueryParameter name="next_offset" value="${/auth_logs/offset}" omitIfEmpty="true"/>
+                <RequestHeader name="Date" value="${/auth_logs/date}" />
+            </CallEndpoint>
 
         <!-- Handle Errors -->
-        <If condition="/auth_logs/response/status_code != 200">
-            <Abort reason="${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}" />
-        </If>
+            <If condition="/auth_logs/response/status_code != 200">
+                <Abort reason="${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}" />
+            </If>
 
         <!-- Post the Events -->
-        <PostEvents path="/auth_logs/response/body/response" source="${/host}" />
+            <PostEvents path="/auth_logs/response/body/response/authlogs" source="${/host}" />
 
-        <!-- Update the Bookmark for the next iteration -->
-        <If condition="count(/auth_logs/response/body/response) > 0" >
-            <Set path="/auth_logs/bookmark" value="${max(/auth_logs/response/body/response/timestamp) + 1}" />
-        </If>
+        <!-- Set the offset -->
+            <If condition="/auth_logs/response/body/response/metadata/next_offset != null"> <!-- We have an offset -->
+                <Set path="/auth_logs/offset" value="${/auth_logs/response/body/response/metadata/next_offset[0]},${/auth_logs/response/body/response/metadata/next_offset[1]}" />
 
+                <Log type="DEBUG" message="An offset value of [${/auth_logs/offset}] was found. looping once more." />
+                
+                <!-- This needs to be re - set in the loop before the next call as the signature is different each time due to offset. -->
+                <Set path="/value" value="${/auth_logs/date}&#xA;${/method}&#xA;${/host}&#xA;${/endpoint}&#xA;limit=1000&amp;maxtime=${/auth_logs/maxtime}&amp;mintime=${/auth_logs/mintime}&amp;next_offset=${url_encode(/auth_logs/offset)}" />
+            
+                <GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
+            </If>
+            <Else>
+                <Log type="DEBUG" message="No offset value detected in response." />
+            </Else>
 
-        <!--
-        ////////////////////////
-        // Administrator Logs //
-        ////////////////////////
-        -->
+        </DoWhile>
 
-        <!-- Initialize the Bookmark -->
-        <Initialize path="/admin_logs/bookmark" value="1" />
+        <Log type="DEBUG" message="Done posting events for this recurrence. Updating bookmark to begin at ${/auth_logs/maxtime + 1}." />
 
-        <!-- Generate an Access Token -->
-        <FormatDate pattern="EEE, dd MMM yyyy HH:mm:ss Z" timeZone="UTC" savePath="/admin_logs/date" />
-        <Set path="/value" value="${/admin_logs/date}&#xA;GET&#xA;${/host}&#xA;/admin/v1/logs/administrator&#xA;mintime=${/admin_logs/bookmark}" />
-        <GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
+        <!-- Update the Bookmark and HMAC for the next iteration -->
+        <Set path="/auth_logs/mintime" value="${/auth_logs/maxtime + 1}" /> <!-- we queried to our last maxtime, increment by 1 to make it our next mintime. -->
 
-        <!-- Fetch the Events -->
-        <CallEndpoint url="https://${/host}/admin/v1/logs/administrator" method="GET" savePath="/admin_logs/response">
-            <BasicAuthentication username="${/integration_key}" password="${/signature}" />
-            <QueryParameter name="mintime" value="${/admin_logs/bookmark}" omitIfEmpty="true" />
-            <RequestHeader name="Date" value="${/admin_logs/date}" />
-        </CallEndpoint>
-
-        <!-- Handle Errors -->
-        <If condition="/admin_logs/response/status_code != 200">
-            <Abort reason="${/admin_logs/response/body/code}: ${/admin_logs/response/body/message}" />
-        </If>
-
-        <!-- Post the Events -->
-        <PostEvents path="/admin_logs/response/body/response" source="${/host}" />
-
-        <!-- Update the Bookmark for the next iteration -->
-        <If condition="count(/admin_logs/response/body/response) > 0" >
-            <Set path="/admin_logs/bookmark" value="${max(/admin_logs/response/body/response/timestamp) + 1}" />
-        </If>
-
+        <!-- Remove the offset variables so they do not get picked up in the initial CallEndpoint request next run through-->
+        <Delete path="/auth_logs/offset" />
     </Actions>
 
     <Tests>
