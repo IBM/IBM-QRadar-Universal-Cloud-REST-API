@@ -1,5 +1,5 @@
 - Input Parameters: 
-  - Bearer Token: A token you get from the Vision One Portal or the Trend Micro Support (format 
+  - Bearer Token: A token you get from the Vision One Portal or the Trend Micro Support
   - TrendMicro Vision One API Base URL (e.g. api.eu.xdr.trendmicro.com): check here for the corect base URL https://automation.trendmicro.com/xdr/Guides/Regional-Domains
 
 - Log Source setup
