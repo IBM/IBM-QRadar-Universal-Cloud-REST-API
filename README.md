@@ -28,6 +28,9 @@ Note the following terminology as you configure the Universal Cloud REST API:
 
    - The State is a JSON object that represents the data of a running Workflow. Since the State is not strictly defined, data is dynamically stored in the State.
 
+# Issues
+For any issues with sample workflows in this repository please make use of the Issues feature in Github. If you have questions that aren't getting a response a good tip is to tag the original contributor and see if they can offer some feedback. This is community supported so all users are encouraged to provide assistance and support their peers in the comminity.
+
 # Contributing
 For instructions on how to contribute your own workflow to this repository, refer to the CONTRIBUTING.md file.
 
