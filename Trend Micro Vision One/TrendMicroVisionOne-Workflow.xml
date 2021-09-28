@@ -1,40 +1,41 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Test" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+<Workflow name="TrendMicro Vision One" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
 
     <Parameters>
-        <Parameter name="baerer_token" label="baerer_token" required="true" secret="true" />
+        <Parameter name="bearer_token" label="bearer_token" required="true" secret="true" />
         <!-- URL, check here for the corect base URL https://automation.trendmicro.com/xdr/Guides/Regional-Domains -->
-		    <Parameter name="hostURL" label="URL" required="true" />
+    	<Parameter name="hostURL" label="URL" required="true" />
     </Parameters>
 
+		
     <Actions>
 		<!-- Clear the log source status before a new workflow run starts -->
 		<ClearStatus />	
 		
+	    	<Set value="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" path="/dateFormat" />
+	    
 		<!-- log a message for the system notificatoin log that the workflow started -->
-		<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${time()}" savePath="/current_Time" />
-		<Log type="INFO" message="${/host}: Workflow startet at ${/current_Time}" />
-		
-		
+		<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${time()}" savePath="/current_Time" />
+		<Log type="INFO" message="${/host}: Workflow startet at ${/current_Time}" />		
 		
 		<!-- set a startTime (today - 24 hours (86400000 ns) if the workflow runs for the first time on a system, if a startDateTime from a previous run already exists, skip and continue -->
 		<If condition="empty(/startDateTime)" >
 			<!-- Initialize the first startdatetime if not yet initialized with date which is current timestamp minus 24 hours (minus 864000000)  -->
 			<Initialize path="/startDateTime" value="${time() - 86400000}" />
 			<!-- Format date to work with the API -->
-			<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/startDateTime}" savePath="/startDateTime" />
+			<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${/startDateTime}" savePath="/startDateTime" />
 		</If>
 		
 		<!-- Format date to work with the Trend Micro Vision One API's date format -->
-		<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${time()}" savePath="/endDateTime" />
+		<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${time()}" savePath="/endDateTime" />
 		
 		<!-- Create a syslog LEEF header  -->
-			<!-- first part of the header  -->
-			<Set value="&lt;191&gt;1 ${/endDateTime} ${/logSourceIdentifier} LEEF:2.0|IBM|Trend Micro Vision One|1.0|" path="/syslogHeaderPart1"/>
+			<!-- first part of the header. The three "-" characters are placed after the log source identifier and before the "LEEF"-string to be fully RFC5424 compliant as they represent blank values for APP-NAME PROCID and MSGID  -->
+			<Set value="&lt;191&gt;1 ${/endDateTime} ${/logSourceIdentifier} - - - LEEF:2.0|IBM|Trend Micro Vision One|1.0|" path="/syslogHeaderPart1"/>
 			<!-- Second part of the header with cat=Suspicious Activity  -->
-			<Set value="|0x7c|cat=Suspicious Activity&#124;devTime=${/endDateTime}&#124;devTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&#124;" path="/syslogHeaderPart2CatSuspiciousActivity"/>
+			<Set value="|0x7c|cat=Suspicious Activity&#124;devTime=${/endDateTime}&#124;devTimeFormat=${/dateFormat}&#124;" path="/syslogHeaderPart2CatSuspiciousActivity"/>
 			<!-- Second part of the header with cat=System  -->
-			<Set value="|0x7c|cat=System&#124;devTime=${/endDateTime}&#124;devTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&#124;" path="/syslogHeaderPart2CatSystem"/>
+			<Set value="|0x7c|cat=System&#124;devTime=${/endDateTime}&#124;devTimeFormat=${/dateFormat}&#124;" path="/syslogHeaderPart2CatSystem"/>
 			<!-- EventIDs  -->
 			<Set value="NoAlertsReported" path="/noAlertsReported"/>
 			<Set value="AlertFound" path="/AlertFound"/>
@@ -42,7 +43,7 @@
 		
 		<!-- Pull Events from API -->
             <CallEndpoint url="https://${/hostURL}/v2.0/siem/events" method="GET" savePath="/get_events_alertList/response">
-                <BearerAuthentication token="${/baerer_token}"/>
+                <BearerAuthentication token="${/bearer_token}"/>
 				<QueryParameter name="startDateTime" value="${/startDateTime}" />
 				<QueryParameter name="endDateTime" value="${/endDateTime}" />
 				<RequestHeader name="contentType" value="'Content-Type': 'application/json;charset=utf-8'" />
@@ -61,7 +62,7 @@
 			<ForEach item="/current_event" items="/get_events_alertList/response/body/data/workbenchRecords">
 				<!-- Pull Alert deatils from the workbench API -->
 				<CallEndpoint url="https://${/hostURL}/v2.0/xdr/workbench/workbenches/${/current_event/workbenchId}" method="GET" savePath="/get_events_alertDetails/response">
-					<BearerAuthentication token="${/baerer_token}"/>
+					<BearerAuthentication token="${/bearer_token}"/>
 					<RequestHeader name="contentType" value="'Content-Type': 'application/json;charset=utf-8'" />
 				</CallEndpoint>
 				
@@ -108,7 +109,7 @@
 		<Set path="/startDateTime" value="${/endDateTime}" />
 		
 		<!-- log a message to system notification log that the workflow ended-->
-		<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${time()}" savePath="/current_TimeEnd" />
+		<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${time()}" savePath="/current_TimeEnd" />
 		<Log type="INFO" message="${/host}: Workflow ended at ${/current_TimeEnd}" />
 		
     </Actions>
