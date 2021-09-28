@@ -38,7 +38,7 @@ following Duo issue for details: https://github.com/duosecurity/duo_client_pytho
         <!-- Starting Bookmark is T-1hour in ms (3600000) -->
         <Initialize path="/auth_logs/bookmark" value="${time() - 3600000}" />
 
-        <!-- Initialize the Maxtime and Limit -->
+        <!-- Initialize the Maxtime and Limit (The maximum number of records returned. Default: 100; Max: 1000) -->
         <Initialize path="/auth_logs/maxtime" value="${time()}" />
         <Initialize path="/auth_logs/limit" value="1000" />
 
