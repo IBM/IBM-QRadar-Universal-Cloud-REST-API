@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+Ermes For Enterprise Event API - QRadar Integration (Universal Cloud REST API)
+-->
+<Workflow name="ErmesForEnterprise" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="auth_host" label="Authentication Host" required="true" />
+        <Parameter name="api_host" label="API Host" required="true" />
+        <Parameter name="client_id" label="Client ID" required="true" />
+        <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Initialize the bookmark (Start date) to 3 days ago, if not set -->
+        <Initialize path="/ermes_logs/bookmark" value="${time() - (72 * 60 * 60 * 1000)}" />
+        
+        <!-- Set limit for max fetch to now -->
+        <Set path="/ermes_logs/max_created" value="${time()}" />
+
+        <!-- Reformat datetimes to use in API -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/ermes_logs/bookmark}" savePath="/ermes_logs/from_time" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/ermes_logs/max_created}" savePath="/ermes_logs/to_time" />
+       
+        <!-- Get access token using M2M Authentication -->
+        <CallEndpoint url="https://${/auth_host}/oauth/token" method="POST" savePath="/get_token">
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+                <Parameter name="client_id" value="${/client_id}" />
+                <Parameter name="client_secret" value="${/client_secret}" />
+            </UrlEncodedFormRequestBody>           
+        </CallEndpoint>
+
+        <!-- Check for errors during Auth -->
+        <If condition="/get_token/status_code != 200">
+            <Abort reason="${/get_token/body/message}" />
+        </If>
+
+        <!-- Get Ermes for Enterprise Events Logs until empty -->
+        <Set path="/ermes_logs/page_count" value="1" />
+        <DoWhile condition="${count(/get_events/body/_items)} != 0">
+
+            <!-- Get paginated event logs from public API endpoint using OAuth Token -->
+            <CallEndpoint url="https://${/api_host}/public/v1/events" method="GET" savePath="/get_events">
+                <BearerAuthentication token="${/get_token/body/access_token}" />
+                <QueryParameter name="max_results" value="100" />
+                <QueryParameter name="gte__created" value="${/ermes_logs/from_time}" />
+                <QueryParameter name="lt__created" value="${/ermes_logs/to_time}" />
+                <QueryParameter name="page" value="${/ermes_logs/page_count}" />
+                <QueryParameter name="sort" value="-_created" />
+            </CallEndpoint>
+
+            <!-- Check for errors during Events Fetch -->
+            <If condition="/get_events/status_code != 200">
+                <Abort reason="${/get_events/body/message}" />
+            </If>
+
+            <!-- Post events data to QRadar Event Pipeline -->
+            <If condition="${count(/get_events/body/_items)} != 0">
+                <PostEvents path="/get_events/body/_items" source="${/api_host}" />
+            </If>
+
+            <!-- Increase Pagination until empty result set -->
+            <Set path="/ermes_logs/page_count" value="${/ermes_logs/page_count + 1}" />
+        </DoWhile>
+
+        <!-- Update bookmark to last running max time (start from this next time) -->
+        <Set path="/ermes_logs/bookmark" value="${/ermes_logs/max_created}" />
+
+        <!-- Log API call and received total count -->
+        <Log type="INFO" message="Received ${/get_events/body/_meta/total} total events from Ermes API and submitted to QRadar Pipeline" />
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/auth_host}" />
+        <TCPConnectionTest host="${/auth_host}" />
+        <DNSResolutionTest host="${/api_host}" />
+        <TCPConnectionTest host="${/api_host}" />
+    </Tests>
+
+</Workflow>
