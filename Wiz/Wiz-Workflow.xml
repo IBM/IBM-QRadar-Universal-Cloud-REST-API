@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Wiz" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="client_id" label="Client ID" required="true" />
+        <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+        <Parameter name="host" label="API Endpoint" required="true" />
+        <Parameter name="historical_days" label="Historical Days" required="true" />
+        <Parameter name="gql_query" label="GraphQL Query" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Set the Current Time -->
+        <Set path="/current_time" value="${time()}" />
+
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/bookmark" value="${${/current_time} - (${/historical_days} * 24 * 60 * 60 * 1000)}" />
+
+        <!-- Format Date to be passed in fetching events -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
+
+        <!-- Fetch API Token -->
+        <CallEndpoint url="https://auth.wiz.io/oauth/token" method="POST" savePath="/get_access_token">
+            <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+                <Parameter name="client_id" value="${/client_id}" />
+                <Parameter name="client_secret" value="${/client_secret}" />
+                <Parameter name="audience" value="beyond-api" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+        <!-- Fetch Events -->
+        <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_events">
+            <QueryParameter name="query" value="${/gql_query}" />
+            <QueryParameter
+                name="variables"
+                value='{
+                    "first":500,
+                    "orderBy": {
+                        "field": "SEVERITY",
+                        "direction": "DESC"
+                    },
+                    "filterBy": {
+                        "createdAt": {
+                                    "after": "${/timestamp}Z"
+                                },
+                        "status": [
+                        "OPEN",
+                        "IN_PROGRESS"
+                        ]
+                    }
+                }'
+            />
+            <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+            
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/data/issues/nodes) > 0">
+
+            <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
+
+            <!-- Update the bookmark -->
+            <Set path="/bookmark" value="${/current_time}" />
+
+        </If>
+
+        <!-- Fetch remaining events -->
+        <While condition="/get_events/body/data/issues/pageInfo/hasNextPage">
+            
+            <!-- Fetch events -->
+            <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_events">
+                <QueryParameter name="query" value="${/gql_query}" />
+                <QueryParameter
+                    name="variables"
+                    value='{
+                        "first":500,
+                        "orderBy": {
+                            "field": "SEVERITY",
+                            "direction": "DESC"
+                        },
+                        "filterBy": {
+                            "createdAt": {
+                                        "after": "${/timestamp}Z"
+                                    },
+                            "status": [
+                            "OPEN",
+                            "IN_PROGRESS"
+                            ]
+                        },
+                        "after": "${/get_events/body/data/issues/pageInfo/endCursor}"
+                    }'
+                />
+                <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+            
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_events/status_code != 200">
+                <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
+            </If>
+
+            <!-- Post Events, if any -->
+            <If condition="count(/get_events/body/data/issues/nodes) > 0">
+
+                <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
+
+                <!-- Update the bookmark -->
+                <Set path="/bookmark" value="${/current_time}" />
+
+            </If>
+        </While>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+
+        <DNSResolutionTest host="auth.wiz.io" />
+        <TCPConnectionTest host="auth.wiz.io" />
+        <SSLHandshakeTest host="auth.wiz.io" />
+    </Tests>
+
+</Workflow>
