@@ -3,7 +3,7 @@
     <Value name="client_id"     value="" />
     <Value name="client_secret" value="" />
     <Value name="host"  value="" />
-    <Value name="historical_days" value="10" />
+    <Value name="initial_historical_days" value="10" />
     <Value
         name="gql_query"
         value="query IssuesTable(

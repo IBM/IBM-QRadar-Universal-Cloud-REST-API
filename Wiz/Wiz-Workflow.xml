@@ -5,7 +5,7 @@
         <Parameter name="client_id" label="Client ID" required="true" />
         <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
         <Parameter name="host" label="API Endpoint" required="true" />
-        <Parameter name="historical_days" label="Historical Days" required="true" />
+        <Parameter name="initial_historical_days" label="Historical Days" required="true" />
         <Parameter name="gql_query" label="GraphQL Query" required="true" />
     </Parameters>
 
@@ -15,7 +15,7 @@
         <Set path="/current_time" value="${time()}" />
 
         <!-- Initialize the Bookmark -->
-        <Initialize path="/bookmark" value="${${/current_time} - (${/historical_days} * 24 * 60 * 60 * 1000)}" />
+        <Initialize path="/bookmark" value="${${/current_time} - (${/initial_historical_days} * 24 * 60 * 60 * 1000)}" />
 
         <!-- Format Date to be passed in fetching events -->
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
