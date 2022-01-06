@@ -20,7 +20,7 @@ Parameters:
 
 	<Actions>
 
-        <DoWhile condition="/get_alerts/body/next_page_token != null">
+        <DoWhile condition="count(/get_alerts/body/next_page_token) != 0">
 
             <CallEndpoint url="https://${/api_host}/api/query/alerts" method="GET" savePath="/get_alerts">
                 <BearerAuthentication token="${/api_key}" />
