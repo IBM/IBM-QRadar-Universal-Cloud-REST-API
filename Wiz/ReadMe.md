@@ -44,6 +44,6 @@ Parameter Values).
 
 1. client_id : The Client ID obtained from Wiz portal.
 2. client_secret : The Client Secret obtained from Wiz portal.
-3. host : The API Endpoint URL to fetch the events from Wiz.
+3. host : The API Endpoint URL to fetch the events from Wiz. If your host is `https://api.us1.app.wiz.io/graphql` then enter `api.us1.app.wiz.io`.
 4. historical_days : Number of historical days to fetch data from Wiz (default value is 10 days) .
 5. gql_query : The GraphQL query to be used while fetching the events from Wiz (default GraphQL query already present).

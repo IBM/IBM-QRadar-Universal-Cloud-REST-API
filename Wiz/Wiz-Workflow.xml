@@ -11,15 +11,12 @@
 
     <Actions>
 
-        <!-- Set the Current Time -->
-        <Set path="/current_time" value="${time()}" />
-
         <!-- Initialize the Bookmark -->
-        <Initialize path="/bookmark" value="${${/current_time} - (${/initial_historical_days} * 24 * 60 * 60 * 1000)}" />
+        <Initialize path="/bookmark" value="${time() - (${/initial_historical_days} * 24 * 60 * 60 * 1000)}" />
 
         <!-- Format Date to be passed in fetching events -->
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
-
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
+        
         <!-- Fetch API Token -->
         <CallEndpoint url="https://auth.wiz.io/oauth/token" method="POST" savePath="/get_access_token">
             <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
@@ -52,7 +49,7 @@
                     },
                     "filterBy": {
                         "createdAt": {
-                                    "after": "${/timestamp}Z"
+                                    "after": "${/timestamp}"
                                 },
                         "status": [
                         "OPEN",
@@ -67,6 +64,7 @@
 
         <!-- Handle Errors -->
         <If condition="/get_events/status_code != 200">
+            <Log type="INFO" message="WIZ Abort Reason Error:: ${/get_events/body}" />
             <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
         </If>
 
@@ -76,8 +74,10 @@
             <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
 
             <!-- Update the bookmark -->
-            <Set path="/bookmark" value="${/current_time}" />
-
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
+            <If condition="/current_event_time + 1000 > /bookmark" >
+                <Set path="/bookmark" value="${/current_event_time + 1000}" />
+            </If>
         </If>
 
         <!-- Fetch remaining events -->
@@ -96,7 +96,7 @@
                         },
                         "filterBy": {
                             "createdAt": {
-                                        "after": "${/timestamp}Z"
+                                        "after": "${/timestamp}"
                                     },
                             "status": [
                             "OPEN",
@@ -112,6 +112,7 @@
 
             <!-- Handle Errors -->
             <If condition="/get_events/status_code != 200">
+                <Log type="INFO" message="WIZ Abort Reason Error:: ${/get_events/body}" />
                 <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
             </If>
 
@@ -121,7 +122,10 @@
                 <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
 
                 <!-- Update the bookmark -->
-                <Set path="/bookmark" value="${/current_time}" />
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
+                <If condition="/current_event_time + 1000 > /bookmark" >
+                    <Set path="/bookmark" value="${/current_event_time + 1000}" />
+                </If>  
 
             </If>
         </While>
