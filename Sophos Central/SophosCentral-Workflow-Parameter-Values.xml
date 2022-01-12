@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
-    <Value name="global_api_host"   value="api.central.sophos.com" />
-    <Value name="region_api_host"   value="api-eu01.central.sophos.com" />
-    <Value name="client_id"         value="" />
-    <Value name="client_secret"     value="" />
-    <Value name="tenant_id"         value="" />
+	<Value name="api_host" value="api-eu01.central.sophos.com" />
+	<Value name="client_id" value="" />
+	<Value name="client_secret" value="" />
+	<Value name="tenant_id" value="" />
 </WorkflowParameterValues>
