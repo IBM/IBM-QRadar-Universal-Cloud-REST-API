@@ -3,6 +3,7 @@ The workflow is based on the following Sophos Central documentation.
 
 https://support.sophos.com/support/s/article/KB-000036372?language=en_US
 
+## Workflow Parameter Values Notes
 Sophos documentation detailing API Host values is available here.
 
 https://developer.sophos.com/intro#global-vs-regional-apis
@@ -19,8 +20,9 @@ The client_id, client_secret and tenant_id values are retrieved from Sophos Cent
 
 -----------------------------------------------------------------
 
-For the Initial bookmark value, provide a Unix timestamp within the last 24 hours in the Initialize statement below.
-For example, in Linux to get the time 12 hours before the current time in the correct format.
+## Workflow Notes
+For the Initial bookmark value, provide a Unix timestamp in UTC within the last 24 hours in the Initialize statement below.
+For example, in Linux to get the time 12 hours before the current time in the correct format for the Initialize statement.
 
 echo $(($(date +%s)-(12 * 60 * 60)))
 
