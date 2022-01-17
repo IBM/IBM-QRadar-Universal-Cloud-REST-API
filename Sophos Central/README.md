@@ -17,16 +17,3 @@ Alternatively, if your Tenant's data region is EU - Ireland, the "api_host" valu
 <Value name="api_host" value="api-eu01.central.sophos.com"/>
 ```
 The client_id, client_secret and tenant_id values are retrieved from Sophos Central with further details in the links already mentioned.
-
------------------------------------------------------------------
-
-## Workflow Notes
-For the Initial bookmark value, provide a Unix timestamp in UTC within the last 24 hours in the Initialize statement below.
-For example, in Linux to get the time 12 hours before the current time in the correct format for the Initialize statement.
-
-echo $(($(date +%s)-(12 * 60 * 60)))
-
-1641881796
-```
-<Initialize path="/bookmark" value="1641881796" />
-```
