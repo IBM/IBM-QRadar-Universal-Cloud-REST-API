@@ -1,0 +1,65 @@
+<Workflow name="Sophos" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+	<Parameters>
+		<Parameter name="api_host" label="API Host" required="true" />
+		<Parameter name="client_id" label="Client ID" required="true" secret="true" />
+		<Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+		<Parameter name="tenant_id" label="Tenant ID" required="true" />
+	</Parameters>
+
+	<Actions>
+	
+		<!-- Value must be a Unix timestamp in seconds in UTC within the last 24 hours. The expression here sets an initial bookmark of 24 hours ago -->
+	        <Initialize path="/bookmark" value="${substring((time() - (24 * 60 * 60 * 1000)),0,10)}" />
+
+		<!-- Get a Bearer access token -->
+		<CallEndpoint url="https://id.sophos.com/api/v2/oauth2/token" method="POST" savePath="/get_access_token" >
+			<RequestHeader name="Content-Type" value="application/x-www-form-urlencoded" />
+            		<UrlEncodedFormRequestBody>
+				<Parameter name="grant_type" value="client_credentials" />
+				<Parameter name="client_id" value="${/client_id}" />
+				<Parameter name="client_secret" value="${/client_secret}" />
+				<Parameter name="scope" value="token" />
+			</UrlEncodedFormRequestBody>
+		</CallEndpoint>
+
+		<!-- Handle Errors -->
+		<If condition="/get_access_token/status_code != 200">
+			<Abort reason="${/get_access_token/body/error_description}" />
+		</If>
+
+		<!-- Extract the Access Token -->
+		<Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+		<!-- Sophos API call to retrieve events -->
+		<!-- TODO - future enhancement needed in the following API call logic to handle pagination -->
+		<CallEndpoint url="https://${/api_host}/siem/v1/events" method="GET" savePath="/get_events">
+			<QueryParameter name="from_date" value="${/bookmark}" />
+			<QueryParameter name="limit" value="1000" omitIfEmpty="true" />
+			<RequestHeader name="Authorization" value="Bearer ${/access_token}"/>
+			<RequestHeader name="X-Tenant-ID" value="${/tenant_id}"/>
+		</CallEndpoint>
+
+		<If condition="/get_events/status_code != 200">
+			<Abort reason="${/get_events/body/code}: ${/get_events/body/error}"/>
+		</If>
+
+		<Set path="/recordcount" value="${count(/get_events/body/items)}" />
+		<If condition="/recordcount > 0" >
+			<PostEvents path="/get_events/body/items" source="${/api_host}" />
+			<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/get_events/body/items/created_at)}" savePath="/lastevent_timestamp" />
+
+			<!-- Update the bookmark  -->
+			<RegexCapture pattern="(\d{10})" value="${(/lastevent_timestamp) + 1000}" savePath="/bookmark" /> 
+			<ClearStatus />
+		</If>    
+
+	</Actions>
+
+	<Tests>
+		<DNSResolutionTest host="${/api_host}"/>
+		<TCPConnectionTest host="${/api_host}"/>
+		<SSLHandshakeTest host="${/api_host}" />
+		<HTTPConnectionThroughProxyTest url="https://${/api_host}"/>
+	</Tests>
+
+</Workflow>
