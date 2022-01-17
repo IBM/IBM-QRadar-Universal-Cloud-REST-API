@@ -1,4 +1,4 @@
-<Workflow name="Sophos" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Sophos" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
 	<Parameters>
 		<Parameter name="api_host" label="API Host" required="true" />
 		<Parameter name="client_id" label="Client ID" required="true" secret="true" />
@@ -8,8 +8,8 @@
 
 	<Actions>
 	
-		<!-- Value must be a Unix timestamp in UTC within the last 24 hours so will need updated. Readme file has more details -->
-        	<Initialize path="/bookmark" value="1641881796" />     
+		<!-- Value must be a Unix timestamp in seconds in UTC within the last 24 hours. The expression here sets an initial bookmark of 24 hours ago -->
+	        <Initialize path="/bookmark" value="${substring((time() - (24 * 60 * 60 * 1000)),0,10)}" />
 
 		<!-- Get a Bearer access token -->
 		<CallEndpoint url="https://id.sophos.com/api/v2/oauth2/token" method="POST" savePath="/get_access_token" >
