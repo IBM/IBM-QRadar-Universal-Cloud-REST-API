@@ -5,7 +5,7 @@ CloudHub API Parameter Reference Page:
 https://anypoint.mulesoft.com/exchange/portals/anypoint-platform/f1e97bc6-315a-4490-82a7-23abe036327a.anypoint-platform/cloudhub-api/minor/1.0/console/method/%233041/
 
 Necessary Parameters needed to pull logs from the API:
-- Host (Customer Endpoint URL)
+- Host (Customer Endpoint Hostname)
 - Domain (This is a domain within the Customer's Endpoint)
 - X-ANYPNT-ENV-ID (Environment ID)
 - Client ID
