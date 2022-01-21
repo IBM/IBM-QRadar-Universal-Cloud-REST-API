@@ -7,7 +7,11 @@
 	<Parameter name="client_secret" label="Client Secret" required="true" secret="true" /> 
 	<Parameter name="domain" label="Domain" required="true" /> 
 	<Parameter name="X-ANYPNT-ENV-ID" label="Enviroment ID" required="true" /> 
+	<!-- 	This orderByDate parameter may or may not be needed.  Uncomment if desired.
 	<Parameter name="orderByDate" label="Order By" required="true" />
+		If used, add this line to the "workflow_parameters.xml file:
+			<Value name="orderByDate" value="DESC" />
+	-->
 	</Parameters> 
 	<Actions> 
 		<!-- ///////////////////
@@ -42,7 +46,10 @@
 		--> 
 
 		<CallEndpoint url="https://${/host}/cloudhub/api/v2/applications/${/domain}/deployments" method="GET" savePath="/get_deploymentid"> 
-				<QueryParameter name="orderByDate" value="${/orderByDate}" />
+		<!--	The below "orderByDate" parameter can bring the latest deploymentid to the top to be chosen if there is only one deployment active at a time.
+			You will need to remove these comment parameters here and at the top of this workflow.
+ 				<QueryParameter name="orderByDate" value="${/orderByDate}" />	
+		-->
 				<RequestHeader name="authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="X-ANYPNT-ENV-ID" value="${/X-ANYPNT-ENV-ID}" /> 				
 		</CallEndpoint>
