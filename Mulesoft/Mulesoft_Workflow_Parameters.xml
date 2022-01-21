@@ -6,5 +6,4 @@
 	<Value name="grant_type" value="client_credentials" />
 	<Value name="client_id" value="XXXXX" />
 	<Value name="client_secret" value="XXXXX" />
-	<Value name="orderByDate" value="DESC" />
 </WorkflowParameterValues>
