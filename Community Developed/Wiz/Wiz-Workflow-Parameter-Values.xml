@@ -41,6 +41,17 @@
                     id
                     name
                     query
+                    securitySubCategories {
+                        id
+                        title
+                        category {
+                            id
+                            name
+                            framework {
+                                id
+                            }
+                        }
+                    }
                 }
                 createdAt
                 updatedAt
