@@ -19,6 +19,9 @@ Parameters:
     </Parameters>
 
     <Actions>
+        <!-- Clear the log source status before a new workflow run starts -->
+        <ClearStatus />
+
         <CallEndpoint url="https://${/api_host}/api/query/alerts" method="GET" savePath="/get_alerts">
             <BearerAuthentication token="${/api_key}" />
             <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
