@@ -9,7 +9,7 @@
 	</Parameters>
 	<Actions>
 		<!-- Initialize the Bookmark -->
-		<Initialize path="/bookmark" value="${time() - 60000 * 60 * 24}" />
+		<Initialize path="/bookmark" value="${time() - 60000 * 60 * 24 * 30}" />
 
 		<!-- Use bookmark -10 mins as start time -->
 		<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/start_time" />
@@ -58,17 +58,16 @@
 					 <DoWhile condition="count(/get_alerts/body/data/entries) > 0">
 						<Set path="/alerts" value="${/get_alerts/body/data/entries}" />
 						<!-- Enrich Alerts -->
-						<ForEach item="alert" items="/alerts">
+						<ForEach item="/alert" items="/alerts">
 							<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/hosts/${/alert/agent/_id}" method="GET" savePath="/agent">
 								<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 								<RequestHeader name="Accept" value="application/json" />
 							</CallEndpoint>
 							<!-- Add host information to alert-->
-							<Merge sourcePath="/agent/body/data/hostname" targetPath="/alert/agent" />
-							<Merge sourcePath="/agent/body/data/domain" targetPath="/alert/agent" />
-							<Merge sourcePath="/agent/body/data/primary_ip_address" targetPath="/alert/agent" />
-							<Merge sourcePath="/agent/body/data/last_poll_ip" targetPath="/alert/agent" />
-							<!-- Post Alert -->
+							<Set path="/alert/agent/hostname" value="${/agent/body/data/hostname}"  />
+							<Set path="/alert/agent/domain" value="${/agent/body/data/domain}"  />
+							<Set path="/alert/agent/primary_ip_address" value="${/agent/body/data/primary_ip_address}"  />
+							<Set path="/alert/agent/last_poll_ip" value="${/agent/body/data/last_poll_ip}"  />
 							<PostEvent path="/alert" source="${/host}" />
 						</ForEach>
 						<!-- Update bookmark -->
