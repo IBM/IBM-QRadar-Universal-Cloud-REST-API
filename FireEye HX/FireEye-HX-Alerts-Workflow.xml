@@ -61,9 +61,9 @@
 								<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 								<RequestHeader name="Accept" value="application/json" />
 							</CallEndpoint>
-							<If condition="/agent/status_code != 204">
-								<Log type="Error" message="FE HX API: Error Authenticating to API: ${/get_feapi_token/body}" />
-								<Abort reason="Error login: ${/get_feapi_token/body}" />
+							<If condition="/getAagent/status_code != 200">
+								<Log type="Error" message="FE HX API: Error fetching Agnet information: ${/getAagent/body}" />
+								<Abort reason="Error login: ${/getAagent/body}" />
 							</If>
 							<Log type="Info" message="FE HX API: Host found for ID: ${/alert/agent/_id}" />
 							<!-- Add host information to alert-->
