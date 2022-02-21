@@ -26,6 +26,8 @@ Parameters:
             <BearerAuthentication token="${/api_key}" />
             <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
             <QueryParameter name="limit" value="100" />
+            <!-- keep this parameter to reduce the response size -->
+            <QueryParameter name="exclude" value="object.model,object.findings" />
         </CallEndpoint>
 
         <If condition="/get_alerts/status_code = 403">
@@ -50,6 +52,8 @@ Parameters:
                 <BearerAuthentication token="${/api_key}" />
                 <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
                 <QueryParameter name="limit" value="100" />
+                <!-- keep this parameter to reduce the response size -->
+                <QueryParameter name="exclude" value="object.model,object.findings" />
                 <QueryParameter name="next_page_token" value="${/get_alerts/body/next_page_token}" />
             </CallEndpoint>
 
