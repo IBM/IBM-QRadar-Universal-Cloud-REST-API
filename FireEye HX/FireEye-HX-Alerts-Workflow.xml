@@ -74,9 +74,11 @@
 							<PostEvent path="/alert" source="${/host}" />
 						</ForEach>
 						<!-- Update bookmark -->
-						<Set path="/bookmark" value="${max(/alerts/reported_at)}" />
+						<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/alerts/reported_at)}" savePath="/last_alert_time" />
+            					<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/last_alert_time + 1}" savePath="/bookmark" />
+						
 						<!-- Next Page -->
-						<Set path="/Offset" value="${/offset + /limit - 1}" />
+						<Set path="/offset" value="${/offset + /limit - 1}" />
 						<!-- Get next page of alerts -->
 						<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getAlerts">
 							<QueryParameter name="offset" value="${/offset}" />
@@ -104,8 +106,8 @@
 			</CallEndpoint>
 			<!-- Handle Errors -->
 			<If condition="/delFeApiToken/status_code != 204">
-				<Log type="Error" message="FE HX API: Error Deleteing Session: ${/delFeApiToken/body/message}" />
-				<Abort reason="${/delFeApiToken/body/message}" />
+				<Log type="Error" message="FE HX API: Error Deleteing Session: ${/delFeApiToken/body}" />
+				<Abort reason="${/delFeApiToken/body}" />
 			</If>
 		</Else>
 	</Actions>
