@@ -1,6 +1,10 @@
 # QRadar Workflow for FireEye HX
 IBM QRadar Universal Cloud Connector Workflow for reading FireEye HX alerts through REST API
 
+## Requirements:
+User account to access FireEye HX Controller with api_analyst role
+
+## Workflow information
 - Author Name: Mohamed Al-Shabrawy
 - Maintainer Name: @M-Shabrawy
 - Version: 1.0.2
@@ -8,6 +12,6 @@ IBM QRadar Universal Cloud Connector Workflow for reading FireEye HX alerts thro
   - - https://fireeye.dev/
   - - https://fireeye.dev/apis/lighthouse/
   
-- Event Types Currently Supported by the workflow:
+## Event Types Currently Supported by the workflow:
 -   -  Alerts: Gets a list of non-suppressed alerts known to the system
--   -  Alert Groups: Lists all alert_groups 
+-   -  Alert Groups: Lists all alert_groups
