@@ -11,7 +11,7 @@
     </Parameters>
 
     <Actions>
-        <Set path="/debug" value="true" />
+        <Set path="/debug" value="false" />
         <Set path="/sppaddress" value="https://${/host}:${/port}" />
 
 
