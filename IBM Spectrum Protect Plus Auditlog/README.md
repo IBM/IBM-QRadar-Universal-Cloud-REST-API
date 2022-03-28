@@ -1,8 +1,13 @@
-### IBM Spectrum Protect Plus REST API:
-* [SPP landing page](https://www.ibm.com/docs/en/spp/10.1.10)
-* [SPP REST API Doc](https://www.ibm.com/docs/en/SSNQFQ_10.1.10/pdf/restapi.pdf)
+### Workflow basic information:
 
-### tested Spectrum Protect Plus versions:
+* Author: Daniel Wendler
+* Maintainer: dwendler
+* Workflow Version Number: 1.0
+* [Endpoint Documentation of Spectrum Protect Plus REST API](https://www.ibm.com/docs/en/SSNQFQ_10.1.10/pdf/restapi.pdf)
+* [SPP landing page](https://www.ibm.com/docs/en/spp/10.1.10)
+* supported endpoints: Audit Logs via api/endeavour/log/audit
+
+### tested REST API of IBM Spectrum Protect Plus versions:
 This Workflow has been tested with SPP version 10.1.9 and 10.1.10. 
 The SPP REST API in versions 10.1.8 and earlier do not provide the required 
 information and functionalities required by this workflow.
