@@ -7,13 +7,14 @@
         <Parameter name="port" label="port" required="true" />
         <Parameter name="username" label="username" required="true" />
         <Parameter name="userpwd" label="userpwd" required="true" secret="true" />
-		<Parameter name="pageSize" label="pageSize" required="false" />
+        <Parameter name="pageSize" label="pageSize" required="false" />
     </Parameters>
-
 
     <Actions>
         <Set path="/debug" value="true" />
         <Set path="/sppaddress" value="https://${/host}:${/port}" />
+
+
         <!-- get Access Token aka SPP sessionid -->
         <CallEndpoint url="${/sppaddress}/api/endeavour/session" method="POST" savePath="/get_access_token">
             <BasicAuthentication username="${/username}" password="${/userpwd}" />
@@ -26,17 +27,15 @@
             <Abort reason="${/get_access_token/body}" />
         </If>
 
-        <!-- Extract the Access Token -->
+        <!-- Extract the Access Token and set the initial query URL in nextpage -->
         <Set path="/access_token" value="${/get_access_token/body/sessionid}" />
-
-
-		<Set path="/next_page" value="${/sppaddress}/api/endeavour/log/audit" />
-		<Set path="/counter" value="0" />
+        <Set path="/next_page" value="${/sppaddress}/api/endeavour/log/audit" />
+        <Set path="/counter" value="0" />
         
         <!-- the first API call differs from subsequent calls by its parameters -->
-		<Set path="/firstApiCall" value="true" />
-		
-		<!-- 
+        <Set path="/firstApiCall" value="true" />
+      
+        <!-- 
             initialize the bookmark, will only set the below value if bookmark is not already initialized 
             The bookmark value is epoch time in milliseconds. If no value is set, the start time is calculated
             one week back.
@@ -47,57 +46,55 @@
         -->
         
         <If condition="/debug = true">
-             <Set path="/bookmark" value="1648461176749" /> 
-             <Log type="INFO" message="SPP IQUCRA> debug: true" />	
+            <Set path="/bookmark" value="1648461176749" /> 
+            <Log type="INFO" message="SPP IQUCRA> debug: true" />   
         </If>
-		<Else>             
+        <Else>             
             <Initialize path="/bookmark" value="${time() -  7 * 24 * 60 * 60 * 1000}" />
         </Else>
-		 
-		<Log type="INFO" message="SPP IQUCRA> bookmark (start): ${/bookmark}" />		
-		<Log type="INFO" message="SPP IQUCRA> counter (start): ${/counter}" />		
-		
-		
-		<!-- Get List of logs with API token -->
-		<DoWhile condition="/next_page != null">
-			<Log type="INFO" message="SPP IQUCRA> URL: ${/next_page}" />
+       
+        <Log type="INFO" message="SPP IQUCRA> bookmark (start): ${/bookmark}" />      
+        <Log type="INFO" message="SPP IQUCRA> counter (start): ${/counter}" />      
+      
+      
+        <!-- Get List of logs with API token -->
+        <DoWhile condition="/next_page != null">
+            <Log type="INFO" message="SPP IQUCRA> URL: ${/next_page}" />
 
-			<!-- 
-				Due to a feature in the Spectrum Protect Plus REST API code we should add the parameters
-				pageSize, filter and search >>>> ONLY <<<< for the FIRST page query, all subsequent 
-				page queries contain already the search, filter and pageSize parameters
-			--> 
-			<If condition="/firstApiCall = true">
-				<CallEndpoint url="${/next_page}" method="GET" savePath="/response">
-					<QueryParameter name="pageSize" value="${/pageSize}" omitIfEmpty="true" />
-					<QueryParameter name="sort" value='[{"property": "accessTime", "direction": "ASC"}]' omitIfEmpty="true" />
-					<QueryParameter name="filter" value='[{"property": "accessTime", "op": ">=", "value": "${/bookmark}"}]' omitIfEmpty="true" /> 
-					
-					<RequestHeader name="Accept" value="application/json" />
-					<RequestHeader name="Content-type" value="application/json" />
-					<RequestHeader name="x-endeavour-sessionid" value="${/access_token}" />
-				</CallEndpoint>
-				<Set path="/firstApiCall" value="false" />
-			</If>
-			<Else>
-				<CallEndpoint url="${/next_page}" method="GET" savePath="/response">
-					<RequestHeader name="Accept" value="application/json" />
-					<RequestHeader name="Content-type" value="application/json" />
-					<RequestHeader name="x-endeavour-sessionid" value="${/access_token}" />
-				</CallEndpoint>
-			</Else>
-			
- 
-			<!-- Handle Errors -->
-			<If condition="/response/status_code != 200">
-				<Abort reason="API endpoint query not successfull, error: ${/response/body}" />
-			</If>
-			
+            <!-- 
+                Due to a feature in the Spectrum Protect Plus REST API code we should add the parameters
+                pageSize, filter and search >>>> ONLY <<<< for the FIRST page query, all subsequent 
+                page queries contain already the search, filter and pageSize parameters
+            --> 
+            <If condition="/firstApiCall = true">
+                <CallEndpoint url="${/next_page}" method="GET" savePath="/response">
+                    <QueryParameter name="pageSize" value="${/pageSize}" omitIfEmpty="true" />
+                    <QueryParameter name="sort" value='[{"property": "accessTime", "direction": "ASC"}]' omitIfEmpty="true" />
+                    <QueryParameter name="filter" value='[{"property": "accessTime", "op": ">=", "value": "${/bookmark}"}]' omitIfEmpty="true" /> 
+                    <RequestHeader name="Accept" value="application/json" />
+                    <RequestHeader name="Content-type" value="application/json" />
+                    <RequestHeader name="x-endeavour-sessionid" value="${/access_token}" />
+                </CallEndpoint>
+                <Set path="/firstApiCall" value="false" />
+            </If>
+            <Else>
+                <CallEndpoint url="${/next_page}" method="GET" savePath="/response">
+                    <RequestHeader name="Accept" value="application/json" />
+                    <RequestHeader name="Content-type" value="application/json" />
+                    <RequestHeader name="x-endeavour-sessionid" value="${/access_token}" />
+                </CallEndpoint>
+            </Else>
+         
+            <!-- Handle Errors -->
+            <If condition="/response/status_code != 200">
+               <Abort reason="API endpoint query not successfull, error: ${/response/body}" />
+            </If>
+         
 
-			<!-- here itemList is the array of Logs -->
-			<Set path="/itemList" value="${/response/body/logs}" />
-			
-			<ForEach item="/item" items="/itemList">
+            <!-- here itemList is the array of Logs -->
+            <Set path="/itemList" value="${/response/body/logs}" />
+         
+            <ForEach item="/item" items="/itemList">
                 <!-- remote HATEOAS information from responses and leave audit log info only -->
                 <Delete path="/item/links" />
                 <Delete path="/item/up" />
@@ -105,31 +102,30 @@
                 <!-- add the SPP server IP or Hostname as JSON attribute into response for easy parsing with DSM -->
                 <Set path="/item/sppserver" value="${/host}" />
                 <Set path="/itemMessage" value="${/item}" />
-				<PostEvent path="/itemMessage" source="${/host}"/> 
-				<Set path="/counter" value="${/counter + 1}" />
-			</ForEach>
-			
-			<If condition="exists /response/body/links/nextPage/href">
-				<Set path="/next_page" value="${/response/body/links/nextPage/href}" />
-			</If>
-			<Else>
-				<Delete path="/next_page" />
-			</Else>
-			
-			<!-- get timestamp of last item in the itemList (in this loop) -->
-			<Set path="/lastItem" value="${count(/itemList) -(1)}" />
-			<Set path="/bookmark" value="${/itemList[/lastItem]/accessTime}" />
-			<Log type="INFO" message="SPP IQUCRA> bookmark (queryPage): ${/bookmark}" />		
-			
-		</DoWhile>
-		
-		<Log type="INFO" message="SPP IQUCRA> bookmark (final): ${/bookmark}" />		
-		<Log type="INFO" message="SPP IQUCRA> collected events: ${/counter}" />
+                <PostEvent path="/itemMessage" source="${/host}"/> 
+                <Set path="/counter" value="${/counter + 1}" />
+            </ForEach>
+         
+            <If condition="exists /response/body/links/nextPage/href">
+                <Set path="/next_page" value="${/response/body/links/nextPage/href}" />
+            </If>
+            <Else>
+                <Delete path="/next_page" />
+            </Else>
+         
+            <!-- get timestamp of last item in the itemList (in this loop) -->
+            <Set path="/lastItem" value="${count(/itemList) -(1)}" />
+            <Set path="/bookmark" value="${/itemList[/lastItem]/accessTime}" />
+            <Log type="INFO" message="SPP IQUCRA> bookmark (queryPage): ${/bookmark}" />      
+         
+        </DoWhile>
+      
+        <Log type="INFO" message="SPP IQUCRA> bookmark (final): ${/bookmark}" />      
+        <Log type="INFO" message="SPP IQUCRA> collected events: ${/counter}" />
 
     </Actions>
 
     <Tests>
         <TCPConnectionTest host="${/host}" />
     </Tests>
-
 </Workflow>
