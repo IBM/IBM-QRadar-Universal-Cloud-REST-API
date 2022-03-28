@@ -1,4 +1,4 @@
-### Workflow basic information:
+# Workflow basic information:
 
 * Author: Daniel Wendler
 * Maintainer: dwendler, dwendler(at)de(dot)ibm(dot)com
@@ -8,7 +8,7 @@
 * supported endpoints: Audit Logs via api/endeavour/log/audit
 
 
-### Workflow parameters
+# Workflow parameters
 
 * #host# (required): IP_Address or Hostname, no protocol prefix, e.g. "mySppHost.myCompany.com" will be assebled to https://mySppHost.myCompany.com:443 
 * #port# (not required, default is 443): 443
@@ -17,12 +17,12 @@
 * #pageSize# (not required, leave default): number of audit log entries to retrieve with a single REST API get operation, the workflow will use pagination until no new events exist in the audit log queue. default = 100 is suggested by the API for this endpoint
 
 
-### tested REST API of IBM Spectrum Protect Plus versions:
+# tested REST API of IBM Spectrum Protect Plus versions:
 This Workflow has been tested with SPP version 10.1.9 and 10.1.10. 
 The SPP REST API in versions 10.1.8 and earlier do not provide the required 
 information and functionalities required by this workflow.
 
-### QRadar Log Source Configuration
+# QRadar Log Source Configuration
 
 If you want to ingest data from an endpoint using Universal Rest API Protocol, configure a log source on the QRadar® Console using the Workflow field so that the defined endpoint can communicate with QRadar by using the Universal Rest API protocol.
 
@@ -41,7 +41,7 @@ Parameter Values).
 11. To fix any errors, click _Configure Protocol Parameters_. Configure the parameters and click Test Protocol Parameters.
 12. Click _Finish_
 
-### sample API response of an audit log entry
+# sample API response of an audit log entry
 
 ```
 {
@@ -57,7 +57,7 @@ Parameter Values).
 ```
 
 
-### conversion from epoch time to date and vice versa
+# conversion from epoch time to date and vice versa
 
 **Note:** SPP utilizes epoch timestamp in milliseconds -> multiply / devide with 1000 may be required
 
@@ -67,7 +67,7 @@ date -d @1648466798    # convert epoch timestamp in seconds (not MS) to local da
 ```
 
 
-### sample test tool execution and debug logs - sanitized
+# sample test tool execution and debug logs - sanitized
 
 > time /opt/qradar/bin/test-workflow.sh -u -w /tmp/spp/spp-Workflow.xml -wp /tmp/spp/spp-Workflow-Parameter-Values.xml
 ```
@@ -94,7 +94,7 @@ SLF4J: Actual binding is of type [org.slf4j.impl.Log4jLoggerFactory]
 ```
 
 
-### sample QRadar log output 
+# sample QRadar log output 
 
 >tail -f /var/log/qradar.log  | grep SPP
 
