@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="host"       value="https://IP_or_HOSTNAME:443"/>
+    <Value name="username"   value="monitorUser" />
+    <Value name="userpwd"    value="Passw0rd" />
+	<Value name="pageSize"   value="100" />
+</WorkflowParameterValues>
