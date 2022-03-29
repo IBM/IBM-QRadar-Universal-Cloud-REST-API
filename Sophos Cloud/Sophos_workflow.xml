@@ -1,49 +1,60 @@
-<Workflow name="Test" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Sophos Cloud" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
     <Parameters>
-        <Parameter name="Token" label="" required="true" secret="true" />
-		<Parameter name="api_host" label="xxx.sophos.com" required="true" />
-
-
+      <Parameter name="Token" label="Token" required="true" secret="true" />
+  		<Parameter name="api_host" label="xxx.sophos.com" required="true" />
+      <Parameter name="x_api_key" label="x_api_key" required="true" />
     </Parameters>
-
-
     <Actions>
         <!-- Get the Events -->
-        <CallEndpoint url="https://api1.central.sophos.com/gateway/siem/v1/events" method="GET" savePath="/get_events">
-                        <QueryParameter name="since" value="${/bookmark}" omitIfEmpty="true" />
-						<RequestHeader name="Content-type" value="application/json" />
-                        <RequestHeader name="charset" value="utf-8" />
-                        <RequestHeader name="Accept" value="application/json" />
-                        <RequestHeader name="X-Locale" value="en" />
-                        <RequestHeader name="Authorization" value="Basic ${/Token}" />
-                        <RequestHeader name="x-api-key" value="" />
-						
-        </CallEndpoint>
-		
-		
+
+        <If condition="/cursor = null">
+          <CallEndpoint url="https://${/api_host}/gateway/siem/v1/events" method="GET" savePath="/get_events">
+  						<RequestHeader name="Content-type" value="application/json" />
+              <RequestHeader name="charset" value="utf-8" />
+              <RequestHeader name="Accept" value="application/json" />
+              <RequestHeader name="X-Locale" value="en" />
+              <RequestHeader name="Authorization" value="Basic ${/Token}" />
+              <RequestHeader name="x-api-key" value="${/x_api_key}" />
+          </CallEndpoint>
+        </If>
+        <Else>
+          <CallEndpoint url="https://${/api_host}/gateway/siem/v1/events?cursor=${/cursor}" method="GET" savePath="/get_events">
+            <RequestHeader name="Content-type" value="application/json" />
+            <RequestHeader name="charset" value="utf-8" />
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestHeader name="X-Locale" value="en" />
+            <RequestHeader name="Authorization" value="Basic ${/Token}" />
+            <RequestHeader name="x-api-key" value="${/x_api_key}" />
+          </CallEndpoint>
+        </Else>
+
+
+
 		<!-- Handle Errors -->
         <If condition="/get_events/status_code != 200">
-            <Abort reason="${/get_events/body}" />
-
+            <Abort reason="${/get_events/status_code}" />
         </If>
 
         <!-- Post Events, if any -->
         <If condition="count(/get_events/body/items) > 0">
-            <PostEvents path="/get_events/body/items" source="${/api_host}" />
 
-            <!-- Update the bookmark -->
-            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSS]'Z'" timeZone="UTC" date="${max(/get_events/body/items/receivedutc/value)}" savePath="/last_event_time" />
-            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/last_event_time + 1}" savePath="/bookmark" />
+            <Log type="INFO" message="The value was ${count(/get_events/body/items)}." />
+            <ForEach item="/current_event" items="/get_events/body/items">
+                <If condition="exists /current_event/when">
+                  <Log type="INFO" message="The value was ${/current_event}." />
+                  <Log type="INFO" message="The value was ${/current_event/when}." />
+                  <PostEvent path="/current_event" source="${/api_host}" />
+
+                </If>
+            </ForEach>
+
+            <Set path="/cursor" value='${/get_events/body/next_cursor}' />
         </If>
-
     </Actions>
-
     <Tests>
-        
         <DNSResolutionTest host="${/api_host}" />
         <TCPConnectionTest host="${/api_host}" />
         <SSLHandshakeTest host="${/api_host}" />
-
     </Tests>
 </Workflow>
-
