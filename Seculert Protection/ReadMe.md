@@ -1,0 +1,2 @@
+For more information about configuring and using this workflow, see the Seculert Protection REST API protocol configuration options on IBM Documentation.
+https://www.ibm.com/docs/en/SS42VS_DSM/com.ibm.dsm.doc/c_logsource_seculert_protection_REST_API_protocol.html
