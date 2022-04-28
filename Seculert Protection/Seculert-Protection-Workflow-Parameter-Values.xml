@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="">
+  <Value name="apiKey"	value="" />
+  <Value name="queryTimeInterval"	value="" />
+  <Value name="server"	value="" />
+  <Value name="apiVersion"	value="" />
+</WorkflowParameterValues>
