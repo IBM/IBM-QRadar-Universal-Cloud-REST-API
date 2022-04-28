@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Seculert" version="1.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+	<Parameters> 
+		<Parameter name="apiKey" label="API Key" required="true" /> 
+		<Parameter name="queryTimeInterval" label="Query Time Interval" required="true" default="900000" />
+		<Parameter name="server" label="Server" required="true" default="https://api.secert.com" />
+		<Parameter name="apiVersion" label="API Version" required="true" default="1.1" />
+	</Parameters> 
+	
+	<Actions> 
+		<Log type="DEBUG" message="Initializing bookmark values" />
+		<!-- Initialize the Bookmark --> 
+		<Initialize path="/bookmarkRecords" value="${time() - /queryTimeInterval}" />
+		<Initialize path="/bookmarkAlerts" value="${time() - /queryTimeInterval}" /> 
+		<Initialize path="/firstRun" value="1" /> 
+		<Initialize path="/sevenDays" value="604800000" /> 
+	
+		<!-- Event retriever thread is a bit slow to kill error'd out provider threads, this prevents duplicate errors. --> 
+		<If condition="/firstRun = 1" >
+			<Sleep duration="2000" />
+		</If>
+		
+		<Log type="DEBUG" message="Checking if the current bookmarks are older than 7 days." />
+		<If condition="time() > /bookmarkRecords + /sevenDays" >
+			<Set path="/bookmarkRecords" value="${time() - /sevenDays}" />
+		</If>
+		
+		<If condition="time() > /bookmarkAlerts + /sevenDays" > 
+			<Set path="/bookmarkAlerts" value="${time() - /sevenDays}" /> 
+		</If> 
+		<Set path="/doOnceMore" value="1" /> 
+		
+		<Log type="DEBUG" message="The current bookmark for bookmarkRecords is /bookmarkRecords" />
+		<Log type="DEBUG" message="The current bookmark for bookmarkAlerts is /bookmarkAlerts" />
+		<Log type="DEBUG" message="Iterating through events in till we are caught up." />
+		<While condition="time() > /bookmarkRecords + /queryTimeInterval or /doOnceMore = 1"> 
+			<!-- Get the start/end date. start_time=bookmark. End_time is the bookmark time + X seconds (userconfigurable) -->
+			<FormatDate pattern="MM/dd/yyyy HH:mm:ss" timeZone="UTC" time="${/bookmarkRecords}" savePath="/start_time" />
+			
+			<If condition="time() > /bookmarkRecords + /queryTimeInterval" >
+				<FormatDate pattern="MM/dd/yyyy HH:mm:ss" timeZone="UTC" time="${/bookmarkRecords + /queryTimeInterval}" savePath="/end_time" />
+			</If>
+			<Else>
+				<FormatDate pattern="MM/dd/yyyy HH:mm:ss" timeZone="UTC" time="${time()}" savePath="/end_time" /> 
+			</Else>
+			
+			<!-- Fetch Events --> 
+			<CallEndpoint url="${/server}/${/apiVersion}/incidents/records" method="GET" savePath="/get_logs" >
+				<QueryParameter name="format" value="leef" />
+				<QueryParameter name="api_key" value="${/apiKey}" />
+				<QueryParameter name="from_time" value="${/start_time}" />
+				<QueryParameter name="to_time" value="${/end_time}" />
+			</CallEndpoint>
+			
+			<Log type="DEBUG" message="Checking for errors." />
+			<!-- Handle Errors -->
+			<If condition="/get_logs/status_code != 200"> 
+				<Abort reason="${/get_logs/status_code}: ${/get_logs/status_message}" />
+			 </If> 
+			 
+			 <Log type="DEBUG" message="Splitting the event string by [\r\n] into an array object" />
+			 <!-- Split the raw event list based of "\r\n--> 
+			 <Split value="${/get_logs/body}" delimiter="\r\n" savePath="/values" />
+			 
+			<!-- Post Events -->
+			<If condition="count(/values) > 1" >
+				<PostEvents path="/values" source="api.seculert.com" />
+			</If>
+			<Else>
+				<If condition="not empty(/values[0])" >
+					<Set path="/successOrError" value="${substring(/values[0],2,7)}" /> 
+					<If condition="/successOrError = 'error'">						
+						<Abort reason="${/values[0]}" />
+					</If> 
+					<PostEvents path="/values" source="api.seculert.com" />
+				</If>
+			</Else>
+			 
+			 <Log type="DEBUG" message="Updating the bookmark value to the latest time." />
+			 <!-- Update Bookmark --> 
+			 <If condition="time() > /bookmarkRecords + /queryTimeInterval" > 
+			 	<Set path="/bookmarkRecords" value="${/bookmarkRecords + /queryTimeInterval}" /> 
+			 </If> 
+			 <Else> 
+			 	<Set path="/bookmarkRecords" value="${time()}" /> 
+			 	<Set path="/doOnceMore" value="0" /> 
+			 </Else> 
+			 <Sleep duration="5000" /> 
+		</While> 
+		
+		<Set path="/doOnceMore" value="1" /> 
+		
+		<While condition="time() > /bookmarkAlerts + /queryTimeInterval or /doOnceMore = 1">
+			<!-- Get the start/end date. start_time=bookmark. End_time is the bookmark time + X seconds (userconfigurable) -->
+			<FormatDate pattern="MM/dd/yyyy HH:mm:ss" timeZone="UTC" time="${/bookmarkAlerts}" savePath="/start_time" />
+			
+			<If condition="time() > /bookmarkRecords + /queryTimeInterval" >
+				<FormatDate pattern="MM/dd/yyyy HH:mm:ss" timeZone="UTC" time="${/bookmarkAlerts + /queryTimeInterval}" savePath="/end_time" />
+			</If>
+			<Else>
+				<FormatDate pattern="MM/dd/yyyy HH:mm:ss" timeZone="UTC" time="${time()}" savePath="/end_time" /> 
+			</Else>
+			
+			<!-- Fetch Events --> 
+			<CallEndpoint url="${/server}/${/apiVersion}/incidents/alerts" method="GET" savePath="/get_logs" > 
+				<QueryParameter name="format" value="leef" /> 
+				<QueryParameter name="api_key" value="${/apiKey}" /> 
+				<QueryParameter name="from_time" value="${/start_time}" /> 
+				<QueryParameter name="to_time" value="${/end_time}" /> 
+			</CallEndpoint> 
+			
+			<Log type="DEBUG" message="Checking for errors." /> 
+			<!-- Handle Errors --> 
+			<If condition="/get_logs/status_code != 200"> 
+				<Abort reason="${/get_logs/status_code}: ${/get_logs/status_message}" />
+			</If> 
+			
+			<Log type="DEBUG" message="Splitting the event string by [\r\n] into an array object" /> 
+			<!-- Split the raw event list based of "\r\n-->
+			<Split value="${/get_logs/body}" delimiter="\r\n" savePath="/values" /> 
+			
+			<!-- Post Events -->
+			<If condition="count(/values) > 1" >
+				<PostEvents path="/values" source="api.seculert.com" />
+			</If>
+			<Else>
+				<If condition="not empty(/values[0])" >
+					<Set path="/successOrError" value="${substring(/values[0],2,7)}" /> 
+					<If condition="/successOrError = 'error'"> 						
+						<Abort reason="${/values[0]}" /> 
+					</If> 
+					<PostEvents path="/values" source="api.seculert.com" />
+				</If>
+			</Else> 
+			
+			<Log type="DEBUG" message="Updating the bookmark value to the latest time." /> 
+			<!-- Update Bookmark --> 
+			<If condition="time() > /bookmarkAlerts + /queryTimeInterval" > 
+				<Set path="/bookmarkAlerts" value="${/bookmarkAlerts + /queryTimeInterval}" /> 
+			</If> 
+			<Else> 
+				<Set path="/bookmarkAlerts" value="${time()}" /> 
+				<Set path="/doOnceMore" value="0" /> 
+			</Else> 
+			<Sleep duration="5000" />
+		</While>
+	</Actions> 
+	<Tests> 
+		<DNSResolutionTest host="${/server}" /> 
+		<TCPConnectionTest host="${/server}" />
+		<HTTPConnectionThroughProxyTest url="${/server}" expectedResponseStatus="404" /> 
+	</Tests> 
+</Workflow>
