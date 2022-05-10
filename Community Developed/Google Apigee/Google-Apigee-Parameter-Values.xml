@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="host"         value="api.enterprise.apigee.com" />
+    <Value name="organization_name" value=""/>
+    <Value name="base64EncodedCredentials" value="" />
+</WorkflowParameterValues>
