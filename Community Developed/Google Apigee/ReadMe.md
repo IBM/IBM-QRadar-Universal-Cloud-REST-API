@@ -4,7 +4,9 @@ This workflow collects audit entries for management operations for an organizati
 
 # Authentication Policy
 
-This workflow uses a Basic Authentication policy which takes a `username` and `password`, base64 encodes them. The resulting value is written to an HTTP Authorization request header.
+This workflow uses a Basic Authentication policy which takes a `username` and `password`, base64 encodes them. The resulting value is assigned to an HTTP Authorization request header.
+
+The prerequisite is to have an Apigee Edge Account.
 
 More at [Apigee Basic Authentication Policy](https://docs.apigee.com/api-platform/reference/policies/basic-authentication-policy).
 
