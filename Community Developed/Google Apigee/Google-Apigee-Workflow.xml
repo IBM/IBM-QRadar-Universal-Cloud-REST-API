@@ -4,17 +4,18 @@
     <Parameters>
         <Parameter name="host" label="Host" required="true" />
         <Parameter name="organization_name" label="Organization Name" required="true"/>
-        <Parameter name="base64EncodedCredentials" label="base64Encoded Credentials" required="true" secret="true"/>
+        <Parameter name="base64EncodedString" label="base64EncodedString" required="true" secret="true"/>
     </Parameters>
 
     <Actions>
-    
+        <!--Initialize the Bookmark -->
+        <Initialize path="/audit_logs/bookmark" value="${time() - 3600000}" /> 
         <!-- Fetch the Events -->
         <CallEndpoint url="https://${/host}/v1/audits/organizations/${/organization_name}" method="GET" savePath="/get_audit_log_entries/response">
             <QueryParameter name="expand" value="true" />
             <QueryParameter name="timeline" value="week" />
-            <QueryParameter name="stream_position" value="${/bookmark}" omitIfEmpty="true" />
-            <RequestHeader name="Authorization" value="Basic ${/base64EncodedCredentials}" />
+            <QueryParameter name="stream_position" value="${/audit_logs/bookmark}" omitIfEmpty="true" />
+            <RequestHeader name="Authorization" value="Basic ${/base64EncodedString}" />
         </CallEndpoint>
 
         <!-- Handle Errors -->
@@ -26,9 +27,9 @@
         <If condition="count(/get_audit_log_entries/response/body/auditRecord) > 0">
             <PostEvents path="/get_audit_log_entries/response/body/auditRecord" source="${/host}" />
 
-            <!-- Update the bookmark -->
+            <!-- Update the Bookmark -->
             <Set path="/last_event_time" value="${max(/get_audit_log_entries/response/body/auditRecord/timeStamp)}" />
-            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/bookmark" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/audit_logs/bookmark" />
 
         </If>
 
