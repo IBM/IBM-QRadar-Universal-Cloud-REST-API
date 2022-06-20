@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Wiz" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
-
+​
     <Parameters>
         <Parameter name="client_id" label="Client ID" required="true" />
         <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
@@ -8,12 +8,12 @@
         <Parameter name="initial_historical_days" label="Historical Days" required="true" />
         <Parameter name="gql_query" label="GraphQL Query" required="true" />
     </Parameters>
-
+​
     <Actions>
-
+​
         <!-- Initialize the Bookmark -->
         <Initialize path="/bookmark" value="${time() - (${/initial_historical_days} * 24 * 60 * 60 * 1000)}" />
-
+​
         <!-- Format Date to be passed in fetching events -->
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
         
@@ -27,15 +27,15 @@
                 <Parameter name="audience" value="beyond-api" />
             </UrlEncodedFormRequestBody>
         </CallEndpoint>
-
+​
         <!-- Handle Errors -->
         <If condition="/get_access_token/status_code != 200">
             <Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
         </If>
-
+​
         <!-- Extract the Access Token -->
         <Set path="/access_token" value="${/get_access_token/body/access_token}" />
-
+​
         <!-- Fetch Events -->
         <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_events">
             <QueryParameter name="query" value="${/gql_query}" />
@@ -53,7 +53,9 @@
                                 },
                         "status": [
                         "OPEN",
-                        "IN_PROGRESS"
+                        "IN_PROGRESS",
+                        "REJECTED",
+                        "RESOLVED"
                         ]
                     }
                 }'
@@ -61,25 +63,25 @@
             <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
             
         </CallEndpoint>
-
+​
         <!-- Handle Errors -->
         <If condition="/get_events/status_code != 200">
             <Log type="INFO" message="WIZ Abort Reason Error:: ${/get_events/body}" />
             <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
         </If>
-
+​
         <!-- Post Events, if any -->
         <If condition="count(/get_events/body/data/issues/nodes) > 0">
-
+​
             <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
-
+​
             <!-- Update the bookmark -->
-            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
             <If condition="/current_event_time + 1000 > /bookmark" >
                 <Set path="/bookmark" value="${/current_event_time + 1000}" />
             </If>
         </If>
-
+​
         <!-- Fetch remaining events -->
         <While condition="/get_events/body/data/issues/pageInfo/hasNextPage">
             
@@ -109,37 +111,37 @@
                 <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
             
             </CallEndpoint>
-
+​
             <!-- Handle Errors -->
             <If condition="/get_events/status_code != 200">
                 <Log type="INFO" message="WIZ Abort Reason Error:: ${/get_events/body}" />
                 <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
             </If>
-
+​
             <!-- Post Events, if any -->
             <If condition="count(/get_events/body/data/issues/nodes) > 0">
-
+​
                 <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
-
+​
                 <!-- Update the bookmark -->
-                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
                 <If condition="/current_event_time + 1000 > /bookmark" >
                     <Set path="/bookmark" value="${/current_event_time + 1000}" />
                 </If>  
-
+​
             </If>
         </While>
-
+​
     </Actions>
-
+​
     <Tests>
         <DNSResolutionTest host="${/host}" />
         <TCPConnectionTest host="${/host}" />
         <SSLHandshakeTest host="${/host}" />
-
+​
         <DNSResolutionTest host="auth.wiz.io" />
         <TCPConnectionTest host="auth.wiz.io" />
         <SSLHandshakeTest host="auth.wiz.io" />
     </Tests>
-
+​
 </Workflow>
