@@ -17,7 +17,7 @@
         <Set path="/api_data_result_date_format" value="yyyy-MM-dd'T'HH:mm:ss.SSSZ" />
         <FormatDate pattern="${/api_query_param_date_format}" timeZone="UTC" time="${/bookmark}" savePath="/created_after" />
         <FormatDate pattern="${/api_query_param_date_format}" timeZone="UTC" time="${time()}" savePath="/created_before" />
-        <Set path="/limit" value="100" />
+        <Set path="/limit" value="500" />
         <Set path="/offset" value="0" />
 
         <Log type="DEBUG" message="Audit logs url: ${/audit_logs_url}" />
@@ -79,7 +79,8 @@
 
                 <!-- Update the bookmark -->
                 <ParseDate pattern="${/api_data_result_date_format}" timeZone="UTC" date="${max(/get_audit_logs/body/data/createdAt)}" savePath="/last_created_at" />
-                <Set path="/bookmark" value="${/last_created_at + 1000}" />
+                <!-- Add a millisecond so next start time does not include the last event created -->
+                <Set path="/bookmark" value="${/last_created_at + 1}" />
 
                 <!-- Prepare offset for previous page -->
                 <Set path="/offset" value="${/offset - /limit}" />
