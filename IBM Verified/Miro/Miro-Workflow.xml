@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Miro" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Miro" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
 
     <Parameters>
         <Parameter name="host" label="Host" required="true" default="api.miro.com" />
@@ -9,12 +9,12 @@
     <Actions>
         <!-- Initialize the Bookmark - Last event collected -->
         <Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" /> <!-- Initialize bookmark to 24 hours back -->
-        <Log type="DEBUG" message="Bookmark: ${/bookmark}" />
+        <Log type="INFO" message="Miro audit logs bookmark: ${/bookmark}" />
 
         <!-- Set endpoint parameters -->
         <Set path="/audit_logs_url" value="https://${/host}/v1/audit/logs" />
         <Set path="/api_query_param_date_format" value="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" />
-        <Set path="/api_data_result_date_format" value="yyyy-MM-dd'T'HH:mm:ss.SSS'+0000'" />
+        <Set path="/api_data_result_date_format" value="yyyy-MM-dd'T'HH:mm:ss.SSSZ" />
         <FormatDate pattern="${/api_query_param_date_format}" timeZone="UTC" time="${/bookmark}" savePath="/created_after" />
         <FormatDate pattern="${/api_query_param_date_format}" timeZone="UTC" time="${time()}" savePath="/created_before" />
         <Set path="/limit" value="100" />
@@ -30,11 +30,9 @@
             <QueryParameter name="createdAfter" value="${/created_after}" />
             <QueryParameter name="createdBefore" value="${/created_before}" />
             <QueryParameter name="offset" value="${/offset}" />
-            <!-- <QueryParameter name="limit" value="${/limit}" /> -->
             <QueryParameter name="limit" value="1" />
             <RequestHeader name="Accept" value="application/json" />
             <RequestHeader name="User-Agent" value="QRadar" />
-            <!-- <RequestHeader name="Authorization" value="Bearer ${/access_token}" /> -->
         </CallEndpoint>
 
         <!-- Handle Errors -->
@@ -43,65 +41,56 @@
             <Abort reason="${/get_audit_logs/status_code} ${/get_audit_logs/status_message}" />
         </If>
 
-        <!-- Post Events -->
-        <!-- <PostEvents path="/get_audit_logs/body/data" source="${/host}" />
-        <Log type="DEBUG" message="${/get_audit_logs/body}" /> -->
-
-        <!-- Update the bookmark -->
-        <!-- <ParseDate pattern="${/api_data_result_date_format}" timeZone="UTC" date="${max(/get_audit_logs/body/data/createdAt)}" savePath="/last_created_at" />
-        <Set path="/bookmark" value="${/last_created_at}" /> -->
-
         <Set path="/size" value="${/get_audit_logs/body/size}" />
-        <If condition="/size == 0">
-            <Abort reason="There aren't any new events from last bookmark '${/bookmark}'" />
-        </If>
-        
-        <!-- Prepare offset for last page -->
-        <Set path="/last_page_offset_rest" value="${/size} % ${/limit}" />
-        <If condition="/last_page_offset_rest > 0">
-            <Set path="/offset" value="${/size} - ${/last_page_offset_rest}" />
+        <If condition="/size = 0">
+            <Log type="DEBUG" message="There aren't any new events since last bookmark '${/created_after}'" />
         </If>
         <Else>
-            <Set path="/offset" value="${/size} - ${/limit}" />
-        </Else>
-
-        <!-- Fetch all pages starting from last page -->
-        <While condition="/offset >= 0">
-            <Log type="DEBUG" message="Get audit logs for offset '${/offset}'" />
-            <CallEndpoint url="${/audit_logs_url}" method="GET" savePath="/get_audit_logs">
-                <BearerAuthentication token="${/access_token}"/>
-                <QueryParameter name="createdAfter" value="${/created_after}" />
-                <QueryParameter name="createdBefore" value="${/created_before}" />
-                <QueryParameter name="offset" value="${/offset}" />
-                <QueryParameter name="limit" value="${/limit}" />
-                <RequestHeader name="Accept" value="application/json" />
-                <RequestHeader name="User-Agent" value="QRadar" />
-                <!-- <RequestHeader name="Authorization" value="Bearer ${/access_token}" /> -->
-            </CallEndpoint>
-
-            <!-- Handle Errors -->
-            <If condition="/get_audit_logs/status_code != 200">
-                <Log type="DEBUG" message="${/get_audit_logs}" />
-                <Abort reason="${/get_audit_logs/status_code} ${/get_audit_logs/status_message}" />
+            <!-- Prepare offset for last page -->
+            <Set path="/last_page_offset_rest" value="${/size % /limit}" />
+            <If condition="/last_page_offset_rest = 0">
+                <Set path="/offset" value="${/size - /limit}" />
             </If>
+            <Else>
+                <Set path="/offset" value="${/size - /last_page_offset_rest}" />
+            </Else>
 
-            <!-- Post Events -->
-            <PostEvents path="/get_audit_logs/body/data" source="${/host}" />
-            <Log type="DEBUG" message="${/get_audit_logs/body}" />
+            <!-- Fetch all pages starting from last page -->
+            <While condition="/offset >= 0">
+                <Log type="DEBUG" message="Get audit logs for offset '${/offset}'" />
+                <CallEndpoint url="${/audit_logs_url}" method="GET" savePath="/get_audit_logs">
+                    <BearerAuthentication token="${/access_token}"/>
+                    <QueryParameter name="createdAfter" value="${/created_after}" />
+                    <QueryParameter name="createdBefore" value="${/created_before}" />
+                    <QueryParameter name="offset" value="${/offset}" />
+                    <QueryParameter name="limit" value="${/limit}" />
+                    <RequestHeader name="Accept" value="application/json" />
+                    <RequestHeader name="User-Agent" value="QRadar" />
+                </CallEndpoint>
 
-            <!-- Update the bookmark -->
-            <ParseDate pattern="${/api_data_result_date_format}" timeZone="UTC" date="${max(/get_audit_logs/body/data/createdAt)}" savePath="/last_created_at" />
-            <Set path="/bookmark" value="${/last_created_at}" />
+                <!-- Handle Errors -->
+                <If condition="/get_audit_logs/status_code != 200">
+                    <Log type="DEBUG" message="${/get_audit_logs}" />
+                    <Abort reason="${/get_audit_logs/status_code} ${/get_audit_logs/status_message}" />
+                </If>
 
-            <!-- Prepare offset for previous page -->
-            <Set path="/offset" value="${/offset} - ${/limit}" />
-        </While>
+                <!-- Post Events -->
+                <PostEvents path="/get_audit_logs/body/data" source="${/host}" />
+
+                <!-- Update the bookmark -->
+                <ParseDate pattern="${/api_data_result_date_format}" timeZone="UTC" date="${max(/get_audit_logs/body/data/createdAt)}" savePath="/last_created_at" />
+                <Set path="/bookmark" value="${/last_created_at + 1000}" />
+
+                <!-- Prepare offset for previous page -->
+                <Set path="/offset" value="${/offset - /limit}" />
+            </While>
+        </Else>
     </Actions>
 
     <Tests>
         <DNSResolutionTest host="${/host}" />
-        <!-- <TCPConnectionTest host="${/host}" /> -->
-        <!-- <HTTPConnectionThroughProxyTest url="https://${/host}" /> -->
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
     </Tests>
 
 </Workflow>
