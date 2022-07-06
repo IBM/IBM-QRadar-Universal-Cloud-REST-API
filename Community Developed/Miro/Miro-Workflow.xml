@@ -9,7 +9,7 @@
     <Actions>
         <!-- Initialize the Bookmark - Last event collected -->
         <Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" /> <!-- Initialize bookmark to 24 hours back -->
-        <Log type="INFO" message="Miro audit logs bookmark: ${/bookmark}" />
+        <Log type="DEBUG" message="Miro audit logs bookmark: ${/bookmark}" />
 
         <!-- Set endpoint parameters -->
         <Set path="/audit_logs_url" value="https://${/host}/v1/audit/logs" />
