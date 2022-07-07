@@ -12,10 +12,8 @@
     <Actions>
 
         <Initialize path="/last_event_time" value="${/initial_timestamp}"></Initialize>
-        
         <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/last_event_time}" savePath="/last_event_time_unix" />
         <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/last_event_time_unix}" savePath="/last_event_date" />
-        
         <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${time()}" savePath="/today" />
 
         <!-- Create an Access Token -->
