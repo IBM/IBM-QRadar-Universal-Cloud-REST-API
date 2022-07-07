@@ -3,4 +3,6 @@
     <Value name="host"          value="api.zoom.com" />
     <Value name="api_key"       value="" />
     <Value name="api_secret"    value="" />
+    <Value name="page_size"    value="" />
+    <Value name="initial_timestamp"    value="" />
 </WorkflowParameterValues>
