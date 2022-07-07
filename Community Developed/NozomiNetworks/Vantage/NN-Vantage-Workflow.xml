@@ -1,14 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!--
-Vantage API documentation
-https://endpoint/api-docs/index.html
-Vantage APIkey panel
-https://endpoint/users/me#apikeys
-To obtain api key go to the link above,
-in the 'Generate new API key' section add 'Description' and 'Allowed IPS'.
-Then click the on "Generate" and you get the Key Name and Key Token.
--->
-
 <Workflow name="NN-Vantage" version="1.0" minimumRecurrence="180" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
   <Parameters>
     <Parameter name="host" label="Host" required="true" />
