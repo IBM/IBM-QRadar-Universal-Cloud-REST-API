@@ -8,10 +8,6 @@
   </Parameters>
 
   <Actions>
-<!--  In case you dont want to gev all the alerts, bookmark can be init to get only the alerts from the range passed  -->
-<!--  For exmple to get the Alerts from the last hour, bookmark as to be: -->
-<!--  <Initialize path="/bookmark" value="${time() - 3600000}" /> -->
-
     <Initialize path="/bookmark" value="0" />
     <Initialize path="/bookmark_assets" value="0" />
     <Initialize path="/size" value="100" />
