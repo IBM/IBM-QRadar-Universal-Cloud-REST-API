@@ -10,7 +10,8 @@ To configure the _Workflow_ the user has to add the _Workflow Parameter Values_ 
 To generate the `key_name` and the `key_token` follow the Vantage guide.  
 The _organization name_ if match more than one organization will return the data of the first one: if does not match anyone will return the data of the default organization.
 
-Every XML special characters that could be contained in the parameter values as to be escaped, examples:
+
+The organization name could contain a special character, every special characters has to be escaped, examples:
 
 `"` to  `&quot;`
 
@@ -21,3 +22,12 @@ Every XML special characters that could be contained in the parameter values as 
 `>` to `&gt;`
 
 `&` to `&amp;`
+
+
+#### Example
+
+The organization name: 
+```Dolce&Gabbana``` 
+must be written inside the XML as: 
+```Dolce&amp;Gabbana```
+
