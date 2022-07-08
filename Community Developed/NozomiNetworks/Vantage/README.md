@@ -31,3 +31,7 @@ The organization name:
 must be written inside the XML as: 
 ```Dolce&amp;Gabbana```
 
+#### Workflow
+The workflow get all the Assets and Alerts from the host configured.
+It could be useful to get the Alerts only from a given time, to do it you can modify the Workflow bookmark initialization; for example if you want to get the Alerts from the last hour you can initialize the bookmark as:
+```<Initialize path="/bookmark" value="${time() - 3600000}" />```
