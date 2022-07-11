@@ -11,6 +11,7 @@
 
         <!-- Fetch Events -->
         <CallEndpoint url="https://${/host}/api/v1/audit" method="GET" savePath="/get_events">
+            <SSLConfiguration allowUntrustedServerCertificate="true" />
             <QueryParameter name="_limit" value="400" />
             <QueryParameter name="order" value="asc" />
             <QueryParameter name="from" value="${/bookmark}" />
@@ -40,6 +41,7 @@
             
             <!-- Fetch events -->
             <CallEndpoint url="https://${/host}/api/v1/audit" method="GET" savePath="/get_events">
+                <SSLConfiguration allowUntrustedServerCertificate="true" />
                 <QueryParameter name="_limit" value="400" />
                 <QueryParameter name="order" value="asc" />
                 <QueryParameter name="from" value="${/scrollCursor}" />
@@ -71,10 +73,6 @@
         <DNSResolutionTest host="${/host}" />
         <TCPConnectionTest host="${/host}" />
         <SSLHandshakeTest host="${/host}" />
-
-        <DNSResolutionTest host="portal.zeronetworks.com" />
-        <TCPConnectionTest host="portal.zeronetworks.com" />
-        <SSLHandshakeTest host="portal.zeronetworks.com" />
     </Tests>
 
 </Workflow>
