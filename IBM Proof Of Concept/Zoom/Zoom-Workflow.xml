@@ -6,16 +6,18 @@
         <Parameter name="api_key" label="API Key" required="true" />
         <Parameter name="api_secret" label="API Secret" required="true" secret="true" />
         <Parameter name="page_size" label="Page size" required="true" default="100" />
-        <Parameter name="initial_timestamp" label="Initial timestamp" required="true" default="2022-07-07T01:40:56Z" />
     </Parameters>
 
     <Actions>
 
-        <Initialize path="/last_event_time" value="${/initial_timestamp}"></Initialize>
-        <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/last_event_time}" savePath="/last_event_time_unix" />
-        <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/last_event_time_unix}" savePath="/last_event_date" />
+         <!-- Initialize bookmark to 10 days back -->
+        <Initialize path="/bookmark" value="${time() - (60000 * 60 * 24 * 10)}"></Initialize>
+        <!-- Always set next_page_token to '' -->
+        <Set path="/next_page_token" value=""></Set>
+        
+        <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/bookmark}" savePath="/bookmark_date" />
         <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${time()}" savePath="/today" />
-
+        
         <!-- Create an Access Token -->
         <CreateJWTAccessToken savePath="/access_token">
             <Header>
@@ -28,40 +30,16 @@
             <Secret value="${/api_secret}" />
         </CreateJWTAccessToken>
 
-        <!-- Fetch the first page -->
-        <CallEndpoint url="https://${/host}/v2/report/activities" method="GET" savePath="/get_events">
-            <BearerAuthentication token="${/access_token}" />
-            <QueryParameter name="from" value="${/last_event_date}" omitIfEmpty="true" />
-            <QueryParameter name="to" value="${/today}" omitIfEmpty="true" />
-            <QueryParameter name="page_size" value="${/page_size}" omitIfEmpty="true" />
-        </CallEndpoint>
-
-        <!-- Handle Errors -->
-        <If condition="/get_events/status_code != 200">
-            <Abort reason="${/get_events/body/code}: ${/get_events/body/message}" />
-        </If>
-
-        <!-- Last event time will be that of the first element (descending order) -->
-        <If condition="count(/get_events/body/activity_logs) > 0">
-            <Set path="/save_last_event_time" value="${/get_events/body/activity_logs[0]/time}" />   
-        </If>
-        
-        <ForEach item="/current_event" items="/get_events/body/activity_logs">
-            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/current_event/time}" savePath="/current_event_time_unix" />
-            <If condition="${/current_event_time_unix} > ${/last_event_time_unix}">
-                <PostEvent path="/current_event" source="${/host}" />
-            </If>
-        </ForEach>
-
         <!-- While there are more pages fetch them -->
-        <While condition="/get_events/body/next_page_token != ''">
+        <DoWhile condition="/next_page_token != ''">
+                
             <!-- Fetch Events -->
             <CallEndpoint url="https://${/host}/v2/report/activities" method="GET" savePath="/get_events">
                 <BearerAuthentication token="${/access_token}" />
-                <QueryParameter name="from" value="${/last_event_date}" omitIfEmpty="true" />
+                <QueryParameter name="from" value="${/bookmark_date}" omitIfEmpty="true" />
                 <QueryParameter name="to" value="${/today}" omitIfEmpty="true" />
                 <QueryParameter name="page_size" value="${/page_size}" omitIfEmpty="true" />
-                <QueryParameter name="next_page_token" value="${/get_events/body/next_page_token}" omitIfEmpty="true" />
+                <QueryParameter name="next_page_token" value="${/next_page_token}" omitIfEmpty="true" />
             </CallEndpoint>
 
             <!-- Handle Errors -->
@@ -69,19 +47,34 @@
                 <Abort reason="${/get_events/body/code}: ${/get_events/body/message}" />
             </If>
 
+             <!-- During the first http request save the bookmark as the first page's first element is the newest-->
+            <If condition="/next_page_token = ''">
+                <!-- Check if the activity_logs list is empty -->
+                <If condition="count(/get_events/body/activity_logs) != 0">
+                    <Set path="/save_bookmark" value="${/get_events/body/activity_logs[0]/time}" />
+                    <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/save_bookmark}" savePath="/save_bookmark" />
+                </If>
+            </If>
+
             <!-- For each activity if not posted , post to QRadar -->
             <ForEach item="/current_event" items="/get_events/body/activity_logs">
                 <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/current_event/time}" savePath="/current_event_time_unix" />
-                <If condition="${/current_event_time_unix} > ${/last_event_time_unix}">
+                <If condition="${/current_event_time_unix} > ${/bookmark}">
                     <PostEvent path="/current_event" source="${/host}" />
                 </If>
             </ForEach>
-
-        </While>
+            <Set path="/next_page_token" value="${/get_events/body/next_page_token}" />
+        </DoWhile>
         
-        <!-- Update the state with the last event's timestamp --> 
-        <Set path="/last_event_time" value="${/save_last_event_time}" />
-       
+        
+        <!-- Update the bookmark state with the last event's timestamp if the bookmark was assigned --> 
+        <If condition="/save_bookmark != null">
+            <Set path="/bookmark" value="${/save_bookmark}" />
+        </If>
+
+        <!-- Temporary Saved bookmark from the first page must be null for the next call in order to avoid assigning it to the bookmark and losing track  --> 
+        <Delete path="/save_bookmark"></Delete>
+
     </Actions>
 
     <Tests>

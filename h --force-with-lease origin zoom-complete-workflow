@@ -1,0 +1,1402 @@
+[33mcommit 55163bca101c9388689535ae86ff889f692eaf83[m[33m ([m[1;36mHEAD -> [m[1;32mzoom-complete-workflow[m[33m)[m
+Author: xkimopro <41378192+xkimopro@users.noreply.github.com>
+Date:   Thu Jul 7 15:41:28 2022 +0300
+
+    Signing off with DCO Fix
+    
+    Signed-off-by: xkimopro <41378192+xkimopro@users.noreply.github.com>
+
+[33mcommit 4f3ecb16b5af840d8a22221948af44ede00163d5[m
+Author: Kimon Provatas <kimon.provatas@ibm.com>
+Date:   Thu Jul 7 14:12:19 2022 +0300
+
+    Zoom Workflow for /report/activities endpoint
+    
+    Signed-off-by: xkimopro <41378192+xkimopro@users.noreply.github.com>
+
+[33mcommit 664f96bbcf6c1f6b6ffac46780a2450d5166ec5b[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m
+Merge: 65825b3 e922258
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Wed Jul 6 13:57:25 2022 -0300
+
+    Merge pull request #112 from IBM/DropBox#76
+    
+    Adjust bookmark initialization #76
+
+[33mcommit e92225821efd83dee2a5f8fb63f6209bdf15aa48[m[33m ([m[1;31morigin/DropBox#76[m[33m)[m
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Wed Jul 6 13:55:59 2022 -0300
+
+    Adjust bookmark initialization
+    
+    Bookmark was originally going back as far as possible, so this updates it to only go back one day on an initial run.
+
+[33mcommit 65825b3372ca5923f0a0b3fd1c61768b29a17bcd[m
+Merge: ed738c8 cc9c6cf
+Author: Chris Collins <christopher.ian.collins@gmail.com>
+Date:   Wed Jul 6 08:42:37 2022 -0300
+
+    Merge pull request #110 from miroapp/miro-audit-logs-workflow
+
+[33mcommit cc9c6cf70ad5a4b061c9a7dcfccad420422b3db3[m
+Author: aaccurso-miro <alan.a@miro.com>
+Date:   Wed Jul 6 09:55:34 2022 +0200
+
+    Move Miro workflow to Community Developed folder
+    
+    Signed-off-by: aaccurso-miro <alan.a@miro.com>
+
+[33mcommit b201c8a125632b6e34d4e3d1eb74f0d5ece20455[m
+Author: aaccurso-miro <alan.a@miro.com>
+Date:   Thu Jun 30 11:20:43 2022 +0200
+
+    Update README.md
+    
+    Signed-off-by: aaccurso-miro <alan.a@miro.com>
+
+[33mcommit 453045fad9d7fea9fc9af5d9ab86e1b3b9138cf8[m
+Author: aaccurso-miro <alan.a@miro.com>
+Date:   Wed Jun 29 16:47:46 2022 +0200
+
+    Fix next bookmark and increase limit size
+    
+    Signed-off-by: aaccurso-miro <alan.a@miro.com>
+
+[33mcommit a96dcc35efdfe5903cb409dde0b30f0874bd6390[m
+Author: aaccurso-miro <alan.a@miro.com>
+Date:   Wed Jun 29 16:24:39 2022 +0200
+
+    Fix workflow
+    
+    Signed-off-by: aaccurso-miro <alan.a@miro.com>
+
+[33mcommit 57b36d04b4eba8e99198b3fc22c196c925ee8531[m
+Author: Alan Accurso <alan.a@miro.com>
+Date:   Tue Jun 28 15:52:48 2022 +0200
+
+    Initial version of Miro Workflow for ingesting audit log events
+    
+    Signed-off-by: aaccurso-miro <alan.a@miro.com>
+
+[33mcommit ed738c8f3ece51af7f3f2c6dce438b194883bf75[m
+Merge: 087788b df67443
+Author: Chris Collins <christopher.ian.collins@gmail.com>
+Date:   Tue Jun 28 12:55:22 2022 -0300
+
+    Merge pull request #104 from wiz-sec/Wiz-Workflow---white-space-fix
+
+[33mcommit df6744302c235bc77530189452ac7a9c302b1431[m
+Author: solalraveh <solal.raveh@gmail.com>
+Date:   Mon Jun 6 21:30:05 2022 +0300
+
+    white space bug fix in workflow xml
+    
+    white space bug fix
+
+[33mcommit 087788bc43535e8428cb8bb10ad0a418d3f83901[m
+Merge: f0fa7a3 a75672a
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Mon May 16 11:12:16 2022 -0300
+
+    Merge pull request #103 from wiz-sec/Wiz-Workflow---add-Compliance-framework-and-Issue-statuses
+    
+    Wiz Workflow - add Compliance framework and Issue statuses
+
+[33mcommit a75672a875b7b81ce851f235f9437737d6af2680[m
+Author: solalraveh <solal.raveh@gmail.com>
+Date:   Mon May 16 07:30:37 2022 -0400
+
+    Wiz Workflow - add Compliance framework and Issue statuses
+    
+    The values with the query now also pulls compliance framework attribution, for the OOB integration being released soon.
+    
+    The workflow file also maps more issue statuses.
+
+[33mcommit f0fa7a3019e18ece3e0e339638ba11bbce1c6d4e[m
+Merge: c6ba900 09b629f
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Thu May 5 10:23:00 2022 -0300
+
+    Merge pull request #100 from ChrisCollinsIBM/master
+    
+    Fix Issue with Folder name
+
+[33mcommit 09b629fb1824c7cf52cdaf7681df5765f1d47d39[m
+Author: chris.collins <chris.collins@ca.ibm.com>
+Date:   Thu May 5 10:21:59 2022 -0300
+
+    Fix Issue with Folder name
+
+[33mcommit c6ba900dc9284c35415b164f96fb293094e4c0fd[m
+Merge: 0e49584 92440d7
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Tue May 3 10:00:40 2022 -0300
+
+    Merge pull request #99 from ChrisCollinsIBM/master
+    
+    Folder Restructuring
+
+[33mcommit 92440d7f29be6c267e88a1e6f24f259450743b21[m
+Merge: 52d31ce 0e49584
+Author: chris.collins <chris.collins@ca.ibm.com>
+Date:   Tue May 3 09:59:04 2022 -0300
+
+    Merge remote-tracking branch 'upstream/master'
+    
+    Conflicts:
+            Duo/Duo-Security-Workflow.xml
+            Orca Security/Orca-Security-Workflow.xml
+            Sailpoint/Sailpoint_workflow.xml
+
+[33mcommit 52d31ceea89175fad9da417022ba476ebb328b48[m
+Author: chris.collins <chris.collins@ca.ibm.com>
+Date:   Tue May 3 09:49:17 2022 -0300
+
+    Folder Restructuring
+    
+    Community Developed - Workflows developed by the community or the
+    product vendor
+    
+    IBM Proof Of Concept - Samples of workflows to interact with products
+    that are not necessarily production ready and are meant to show workflow
+    concepts and strategies to assist in Community Development.
+    
+    IBM Verified - Workflows that are fully developed and verified by IBM
+    
+    Readme files will be updated in the near future to add additional
+    details.
+
+[33mcommit 0e495841a6ede6c602d8a3a082723f94d430f062[m
+Merge: 73dd8dd d2cd888
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Thu Apr 28 13:53:55 2022 -0300
+
+    Merge pull request #98 from ChrisCollinsIBM/master
+    
+    ISSUE-97 - New Workflow for Seculert Protection
+
+[33mcommit d2cd8889e716e75daa93d7606ed380106c4371eb[m
+Author: chris.collins <chris.collins@ca.ibm.com>
+Date:   Thu Apr 28 13:50:33 2022 -0300
+
+    ISSUE-97 - New Workflow for Seculert Protection
+
+[33mcommit 73dd8dd77299b26352c33521ef12aa575c2acc63[m
+Merge: 4bd9af8 8768923
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Tue Mar 29 09:24:33 2022 -0300
+
+    Merge pull request #90 from orcasecurity/orca
+    
+    Fix invalid next_page_token error
+
+[33mcommit 8768923de079a2d1bd292bfccd6c36cd2be68374[m
+Author: Yuri Pushnov <yuri@orca.security>
+Date:   Mon Feb 21 18:25:59 2022 +0300
+
+    Add exclude query parameter
+
+[33mcommit af94387b5f3ccefea88e2b237824009353c159dc[m
+Author: Maxim Poleley <maxim@orca.security>
+Date:   Wed Feb 9 11:13:39 2022 +0100
+
+    Clear workflow status before each run
+
+[33mcommit d199cf83937f0bb1f638fbaa1373e754b9e5658e[m
+Author: Maxim Poleley <maxim@orca.security>
+Date:   Tue Feb 8 11:10:24 2022 +0100
+
+    Fix invalid next_page_token error
+
+[33mcommit 4bd9af8e1f957fc68493ee91d221e6259282c8b3[m
+Author: MORichardsIBM <97964764+MORichardsIBM@users.noreply.github.com>
+Date:   Thu Feb 3 14:24:07 2022 -0400
+
+    Update CONTRIBUTING.md
+    
+    Updating to include more specific instructions on contribution guidelines, and an updated disclaimer.
+
+[33mcommit fe9c5c5d5b0389c3122896cd117b384b4cab85fb[m
+Merge: 4a2d87d 9c347fd
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Mon Jan 24 10:41:01 2022 -0400
+
+    Merge pull request #68 from adamdcameron/master
+    
+    Add Mulesoft Workflow #52
+
+[33mcommit 9c347fd93de3e918176dd9db897e0db6a68889f6[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Fri Jan 21 15:24:23 2022 -0400
+
+    Update README.md
+
+[33mcommit 32818879236afe7a073ef09c107faafc530c28eb[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Fri Jan 21 15:20:40 2022 -0400
+
+    Update Mulesoft_Workflow.xml
+
+[33mcommit 6edf03f4ce5deec727bcca4448a749fc4febe171[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Fri Jan 21 15:17:23 2022 -0400
+
+    Update Mulesoft_Workflow_Parameters.xml
+
+[33mcommit 4a2d87d36eb9809150be874b6c39a2c5503ab782[m
+Merge: 3e43788 ca84f26
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Mon Jan 17 09:32:09 2022 -0400
+
+    Merge pull request #84 from garyjohn-pps/master
+    
+    Add Sophos Central workflow #83
+
+[33mcommit 3e4378837839188296ba1b4adee7ab64fbb651db[m
+Merge: c6466f3 515597a
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Mon Jan 17 09:25:31 2022 -0400
+
+    Merge pull request #85 from orcasecurity/orca
+    
+    Orca Security - Reduce query limit
+
+[33mcommit ca84f269f674395a0496c84eee635edc460e82d1[m
+Author: Gary Johnston <garyjohn@uk.ibm.com>
+Date:   Mon Jan 17 10:29:15 2022 +0000
+
+    Updated Workflows and switch to V2 of the workflow schema
+
+[33mcommit cc94106aa4620014e8145c73717540dd18c7d525[m
+Author: garyjohn-pps <74053120+garyjohn-pps@users.noreply.github.com>
+Date:   Mon Jan 17 10:01:28 2022 +0000
+
+    Update README.md
+
+[33mcommit 515597a3bac700650cee4c7d44026046d5a372fb[m
+Author: Maxim Poleley <maxim@orca.security>
+Date:   Thu Jan 13 20:59:32 2022 +0100
+
+    Add comment for limit query param
+
+[33mcommit e5dd2dcd52e909e5a593744a305fbc3881c4e9d7[m
+Author: Maxim Poleley <maxim@orca.security>
+Date:   Thu Jan 13 18:23:50 2022 +0100
+
+    Reduce query limit
+
+[33mcommit bb98a05b24689cbca6d54a30eb2f5f7c59dce782[m
+Author: garyjohn-pps <74053120+garyjohn-pps@users.noreply.github.com>
+Date:   Wed Jan 12 11:03:29 2022 +0000
+
+    Update README.md
+
+[33mcommit 9daf0988db862654754ce63f9e95b1ee11fa129f[m
+Author: Gary Johnston <garyjohn@uk.ibm.com>
+Date:   Wed Jan 12 10:54:39 2022 +0000
+
+    SophosCentral-Workflow.xml
+
+[33mcommit 86b03a882de87ea9f037b665c09e140626fff417[m
+Author: Gary Johnston <garyjohn@uk.ibm.com>
+Date:   Wed Jan 12 00:13:07 2022 +0000
+
+    SophosCentral-Workflow-Parameter-Values.xml
+
+[33mcommit 5389fc75901a04ab8b1e7c04334243e25d56974a[m
+Author: garyjohn-pps <74053120+garyjohn-pps@users.noreply.github.com>
+Date:   Tue Jan 11 18:41:57 2022 +0000
+
+    Update README.md
+
+[33mcommit 3388c43b0c1d60554adf71a96b744dc8bed6357f[m
+Author: garyjohn-pps <74053120+garyjohn-pps@users.noreply.github.com>
+Date:   Tue Jan 11 18:30:50 2022 +0000
+
+    Update README.md
+
+[33mcommit c6466f3218a9250cb3f3dc713bb26272efbae3d0[m
+Merge: 60c2514 b4db565
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Tue Jan 11 09:08:20 2022 -0400
+
+    Merge pull request #81 from wiz-sec/master
+    
+    Add Wiz workflow (Issue #80)
+
+[33mcommit 920a8aa79893966bf7584d72dbb968bf4cdf5ebf[m
+Author: garyjohn-pps <74053120+garyjohn-pps@users.noreply.github.com>
+Date:   Mon Jan 10 16:15:11 2022 +0000
+
+    Create README.md
+
+[33mcommit 8388ef1d4f86590ce791ec0f014457857813b5aa[m
+Author: garyjohn-pps <74053120+garyjohn-pps@users.noreply.github.com>
+Date:   Mon Jan 10 16:13:39 2022 +0000
+
+    Create SophosCentral-Workflow-Parameter-Values.xml
+
+[33mcommit 4bcece617c6f91c857ee3d06c6dac841ceb482dd[m
+Author: garyjohn-pps <74053120+garyjohn-pps@users.noreply.github.com>
+Date:   Mon Jan 10 16:12:38 2022 +0000
+
+    Create SophosCentral-Workflow.xml
+
+[33mcommit b4db565b84d87b8014e46b5fbcfd2dae304b60ef[m
+Author: solalraveh <solal.raveh@wiz.io>
+Date:   Fri Jan 7 14:45:27 2022 +0200
+
+    review - chris
+    
+    change the way time is being saved for bookmark iterations
+
+[33mcommit 60c2514dcf095e55e3fe224cf1c37a5c39e24df6[m
+Merge: 1c175c5 67eec0a
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Thu Jan 6 12:28:40 2022 -0400
+
+    Merge pull request #82 from orcasecurity/orca
+    
+    Orca Security: fix fetch events loop
+
+[33mcommit 67eec0a575ef324ae32ad03e18ac486405375058[m
+Author: Maxim Poleley <maxim@orca.security>
+Date:   Wed Jan 5 17:54:21 2022 +0100
+
+    fix fetch events loop
+
+[33mcommit 69e5cf6f05bcfeea3a67d7a17955a5a8aca22ec5[m
+Author: solalraveh <solal.raveh@wiz.io>
+Date:   Wed Jan 5 17:47:31 2022 +0200
+
+    Delete .gitignore
+    
+    Review from Chris
+
+[33mcommit f5b04e2385bbf96fddebe99ae4a08744b970e465[m
+Author: solalraveh <solal.raveh@wiz.io>
+Date:   Wed Jan 5 17:46:04 2022 +0200
+
+    review from Chris - value name change initial_historical_days
+
+[33mcommit d8bd5894f4d1203cfbc39822f3d42b133379eeb2[m
+Author: solalraveh <solal.raveh@wiz.io>
+Date:   Thu Dec 30 14:52:36 2021 +0200
+
+    New Wiz integration
+
+[33mcommit 1c175c557ed69c25d8c61119f950104f42548c9f[m
+Merge: b467dda 85c0c9a
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Thu Dec 16 11:16:09 2021 -0400
+
+    Merge pull request #78 from ermescs/master
+    
+    Add Ermes For Enterprise Workflow (Issue #77)
+
+[33mcommit 85c0c9af20a4ed5fb505e34ba359120722949abc[m
+Author: Alessandro Maurizio <a.maurizio@ermes.company>
+Date:   Thu Dec 16 15:24:34 2021 +0100
+
+    Updated ReadMe
+
+[33mcommit d281a13bfd952bf0ff283f1a52909dc7304cb8ae[m
+Merge: 55c9f48 b467dda
+Author: Alessandro Maurizio <info@alexmaurizio.com>
+Date:   Tue Nov 23 15:44:03 2021 +0100
+
+    Merge branch 'ibm-security-intelligence:master' into master
+
+[33mcommit 55c9f4890c650e0ebbc40fc828ecedab563b09ef[m
+Author: Alessandro Maurizio <a.maurizio@ermes.company>
+Date:   Tue Nov 23 15:06:55 2021 +0100
+
+    Add Ermes for Enterprise Workflow Integration
+    
+    This commit adds a working ErmesForEnterprise Integration
+    workflow XML and XML Params required to use the REST API
+    for ingestion in QRadar via an Universal Cloud REST API Log Source
+
+[33mcommit b467dda86876eb1508ad74cb61add80d32e36e31[m
+Merge: 898e9ee c32f914
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Wed Nov 17 09:20:14 2021 -0400
+
+    Merge pull request #75 from steve-neill/Resolves-minLength-valid-and-JPathParseException
+    
+    Resolves minLength-valid and JPathParseException
+
+[33mcommit c32f914ef8050d42a38c521964592fdfab872408[m
+Author: Steven <83458585+steve-neill@users.noreply.github.com>
+Date:   Mon Nov 1 15:42:27 2021 +0000
+
+    Resolves minLength-valid and JPathParseException
+    
+    1. Updated Parameters to include valid Labels which removes the cvc-minLength-valid: Value '' with length = '0' is not facet-valid with respect to minLength '1' for type 'nonEmptyString' error
+    
+    2. Updated Payload section to resolve the JPathParseException: The value 'host' is not a valid JPath expression error
+
+[33mcommit 898e9ee4ca86a0ea76c31441a2823401bf5fa6ae[m
+Merge: bf47667 addc4d5
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Tue Sep 28 22:32:48 2021 -0300
+
+    Merge pull request #67 from Fa6s/master
+    
+     Add workflow for Trend Micro Vision One API - Issue #66
+
+[33mcommit bf476678b0ce82cc09bb3b3449c6adb72223fa92[m
+Merge: c34b81c 1a16714
+Author: Chris Collins <christopher.ian.collins@gmail.com>
+Date:   Tue Sep 28 13:47:52 2021 -0300
+
+    Merge pull request #65 from rka/master
+    
+    [DUO] Use V2 API handler for auth logs
+
+[33mcommit addc4d5354289897e9afd8cdf38c2de2f1ae7449[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Tue Sep 28 17:24:42 2021 +0200
+
+    Fixed space/tabs issue
+
+[33mcommit 4353a12383efe5ea289afbd93df0e9eeea49472d[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Tue Sep 28 17:15:05 2021 +0200
+
+    Update README.md
+
+[33mcommit cec56a13e86a48a28c143f30b219e6a4e36cab51[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Tue Sep 28 16:56:52 2021 +0200
+
+    Updated according to ChrisCollinsIBM's comments
+
+[33mcommit bd94654089ca9751f121b1f7c4a6d4efb724667a[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Tue Sep 28 16:47:39 2021 +0200
+
+    Update TrendMicroVisionOne-Parameter-Values.xml
+
+[33mcommit 5ae239a9d6d0093eb5dcf2f9cdf7cc01f9a058a4[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Tue Sep 28 16:33:05 2021 +0200
+
+    Update README.md
+
+[33mcommit c34b81cfb2405f25b7f1f4cea53949d2cdca7ec1[m
+Author: Chris Collins <christopher.ian.collins@gmail.com>
+Date:   Tue Sep 28 11:21:52 2021 -0300
+
+    Update Readme.md
+
+[33mcommit d53444df378732f35f6bbb54337066ecfa0f76e0[m
+Author: Chris Collins <christopher.ian.collins@gmail.com>
+Date:   Tue Sep 28 11:21:20 2021 -0300
+
+    Update Readme.md with guidelines on Issues
+
+[33mcommit 1a167140855ce4f8b0eb20d1c0188dab10b7a9af[m
+Author: rka <rkakoma@gmail.com>
+Date:   Tue Sep 28 16:14:03 2021 +0200
+
+    Added some explanation regarding Limit parameter
+
+[33mcommit 959fdc98f5e15b478ce191147748e6f323291248[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Tue Sep 28 09:21:45 2021 +0200
+
+    Update README.md
+
+[33mcommit 6151858b49d81063425955a1f9826b4ca531a69c[m
+Author: Chris Collins <chris.collins@ca.ibm.com>
+Date:   Mon Sep 27 18:15:52 2021 -0300
+
+    Adjust indentation
+
+[33mcommit 28f0d26fb71b496e7f219256ede6eb850dc0eb59[m
+Author: rka <rkakoma@gmail.com>
+Date:   Wed Sep 22 16:49:47 2021 +0200
+
+    Added ClearStatus
+
+[33mcommit a9d27d857bea271a6e88354d873c3f70e1e331c8[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Tue Sep 21 16:12:03 2021 +0200
+
+    Update README.md
+
+[33mcommit 1f0153d39e899452fd6c68f6e275c4ee7438a3b2[m
+Author: rka <rkakoma@gmail.com>
+Date:   Sat Sep 18 08:44:55 2021 +0200
+
+    Fixed issue when no new logs are found
+    
+    Also added some logging.
+
+[33mcommit e3af29606a38cec16c69478dc42a9370c13646e3[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Fri Sep 17 16:24:08 2021 +0200
+
+    Create README.md
+
+[33mcommit ba608d36a9af0f582de31d16251c6722d3743598[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Fri Sep 17 16:17:30 2021 +0200
+
+    Create TrendMicroVisionOne-Parameter-Values.xml
+
+[33mcommit 0133d8814f5258e62e17e3fb55ead22143beb5b0[m
+Author: Fa6s <90915748+Fa6s@users.noreply.github.com>
+Date:   Fri Sep 17 16:14:37 2021 +0200
+
+    Create TrendMicroVisionOne-Workflow.xml
+
+[33mcommit d0f81f196ec63c406e6a18b45689f92693c0d870[m
+Author: rka <rkakoma@gmail.com>
+Date:   Thu Sep 16 18:16:58 2021 +0200
+
+    fix bookmark updating to avoid duplicates
+
+[33mcommit f35386ce53d355c5526a4aed8bd0f2b87b516ab7[m
+Author: rka <rkakoma@gmail.com>
+Date:   Thu Sep 16 12:16:24 2021 +0200
+
+    Use V2 API handler for auth logs
+
+[33mcommit 2f6fd44d2adc8a1882259a3f55b2ce304338193e[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:34:08 2021 -0300
+
+    Update README.md
+
+[33mcommit 57228f5f09bc94eb843c8de630aced0a9ccc5472[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:27:52 2021 -0300
+
+    Rename mulesoft_README.md to README.md
+
+[33mcommit 8ac341c6dbcdaa1181e8178abc9dcde9446faffa[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:26:33 2021 -0300
+
+    Delete test.txt
+
+[33mcommit 90b0e09a74762335855460ae48989964cf5e35f8[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:26:16 2021 -0300
+
+    Rename mulesoft_README.md to Mulesoft/mulesoft_README.md
+
+[33mcommit 7d532bcc3f55c4cc30908ddee98266c1a8236fab[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:26:00 2021 -0300
+
+    Rename Mulesoft_Workflow_Parameters.xml to Mulesoft/Mulesoft_Workflow_Parameters.xml
+
+[33mcommit 95228566b417785e08dcf59411dc18107febf9d4[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:25:46 2021 -0300
+
+    Rename Mulesoft_Workflow.xml to Mulesoft/Mulesoft_Workflow.xml
+
+[33mcommit 1c1e240f041b6be2848e62cedabdf278dc0110f5[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:25:19 2021 -0300
+
+    Create test.txt
+
+[33mcommit d3e33d327d868770cc765f4340edb27aac0fb8a9[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Thu Aug 5 13:23:07 2021 -0300
+
+    Add files via upload
+
+[33mcommit 88eb184d2f62f7c29aaf132dec4097cd581ead8a[m
+Merge: 230f52e f581e4e
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Wed Aug 4 09:17:58 2021 -0300
+
+    Merge pull request #56 from sivaranjinipanneerselvam/patch-7
+    
+    Sailpoint_workflow.parameter.values.xml
+
+[33mcommit 230f52ed14522988dcb65a916075980f2b3d39b9[m
+Merge: c85837e a4be28b
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Wed Aug 4 09:16:50 2021 -0300
+
+    Merge pull request #55 from sivaranjinipanneerselvam/patch-6
+    
+    Please validate Sailpoint Workflow
+
+[33mcommit c85837e26835fe215697005ddbfc07c1f5b087d7[m
+Merge: 36cfa7a d57493d
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Wed Aug 4 09:16:07 2021 -0300
+
+    Merge pull request #53 from sivaranjinipanneerselvam/patch-4
+    
+    Validate Sophos_workflow.parameter.values.xml
+
+[33mcommit 36cfa7abfbefb7d5c5c3521c31459c5287ec3e7f[m
+Merge: c767e12 6efbcd9
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Wed Aug 4 09:15:42 2021 -0300
+
+    Merge pull request #54 from sivaranjinipanneerselvam/patch-5
+    
+    Workflow for Sophos Cloud integration
+
+[33mcommit c767e12eb17075cc1cc4eb8422c19b2d526f88cd[m
+Merge: 6cb1af7 c071ef8
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Wed Aug 4 09:13:52 2021 -0300
+
+    Merge pull request #48 from sivaranjinipanneerselvam/patch-3
+    
+    Forcepoint_Workflow.parameter.values.xml
+
+[33mcommit 6cb1af7a92633d572358931b19e3da3a2840c2f9[m
+Merge: 120185f 531d18d
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Wed Aug 4 09:12:31 2021 -0300
+
+    Merge pull request #49 from sivaranjinipanneerselvam/patch-2
+    
+    Forcepoint_Workflow.xml
+
+[33mcommit f581e4e1756a290c6a54d594a47cf742441d3e88[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:30:41 2021 +0530
+
+    Sailpoint_workflow.parameter.values.xml
+    
+    Tested and working as expected
+
+[33mcommit a4be28b9b70fb16fface3aa69f3c8fb9d33ab380[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:28:33 2021 +0530
+
+    Sailpoint Workflow
+    
+    >Uses JWT authentication
+    >API endpoints can be changed based on event of interest
+    > APIs for Sailpoint can be found in https://developer.sailpoint.com/apis/v3/
+
+[33mcommit 6efbcd99e26e7911fc3e3ed17603d90dda594dfc[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:16:59 2021 +0530
+
+    Rename myworkflow.xml to Sophos_workflow.xml
+
+[33mcommit d57493d5976e491ebd15e71b6893637e95dcbaea[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:15:33 2021 +0530
+
+    Rename myworkflow.parameter.values.xml to Sophos_workflow.parameter.values.xml
+
+[33mcommit 075894a7e1c1d7ece34a68efb497061561c4f205[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:14:32 2021 +0530
+
+    Workflow for Sophos Cloud integration
+
+[33mcommit 2a9723d3ddbcb3f8a2e2932f6e2e627c3ee431f9[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:11:33 2021 +0530
+
+    Create myworkflow.parameter.values.xml
+
+[33mcommit 531d18d70811779b481c1acac61359d17e9aec05[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:05:08 2021 +0530
+
+    Update Workflow.xml
+
+[33mcommit 677178f61a991c8d8eddb6c8305d46d5ee935598[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 17:04:18 2021 +0530
+
+    Update Workflow.xml
+    
+    Updated with detailed parameters, do check and let know for more details
+
+[33mcommit c071ef8beb967b689c2cca593adab18f1f86a472[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 16:44:49 2021 +0530
+
+    Update Workflow.parameter.values.xml
+
+[33mcommit 2ceee7a79f4ec8e0c56c7a8f3adadea3b6b468f8[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 16:40:53 2021 +0530
+
+    Update Workflow.parameter.values.xml
+
+[33mcommit 290e962497685d6a616e1871084de5c1274b5216[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 16:39:38 2021 +0530
+
+    Update Workflow.xml
+
+[33mcommit dafb70c975d24dcc836301d1bb3de6eb5cb66b4a[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Wed Aug 4 16:37:58 2021 +0530
+
+    Update Workflow.xml
+    
+    Provided detailed Workflow with Post events and Test parameters
+
+[33mcommit 120185f8d63508365664c7221fb914e1232b99cb[m
+Merge: 67e6d84 11379bc
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Tue Aug 3 21:17:15 2021 -0300
+
+    Merge pull request #51 from ajeeshneelamkavil/master
+    
+    ServiceNow API Integration using QRadar-Universal-Cloud-REST-API #50
+
+[33mcommit 67e6d8461de657402139d837ff8c85ad7fff1d7f[m
+Merge: 3aa4b3b 447397f
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Tue Aug 3 21:15:09 2021 -0300
+
+    Merge pull request #46 from sepi1996/master
+    
+    Add Elasticsearch workflow #45
+
+[33mcommit 3aa4b3bafa25a8812fdefa245a88d1a262b281eb[m
+Merge: b2ce8cc 0b7108a
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Tue Aug 3 21:14:23 2021 -0300
+
+    Merge pull request #44 from orcasecurity/orca
+    
+    Add Orca Security Workflow #43
+
+[33mcommit b2ce8cc69e2edeafd025baec015bc52e503bffeb[m
+Merge: ea9637a 447fe94
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Tue Aug 3 21:13:28 2021 -0300
+
+    Merge pull request #41 from klaubert/master
+    
+    Add Imperva Incapsula workflow using Universal Cloud REST API
+
+[33mcommit 358008260d83b85dfcddb4c26fd2419897167a0a[m
+Author: adamdcameron <84872105+adamdcameron@users.noreply.github.com>
+Date:   Fri Jul 30 17:08:15 2021 -0300
+
+    Create mulesoft_README.md
+
+[33mcommit 11379bc539c9e4d79bdac0442fc9ea7adf065d09[m
+Author: ajeeshneelamkavil <86436000+ajeeshneelamkavil@users.noreply.github.com>
+Date:   Thu Jun 24 13:58:41 2021 -0700
+
+    Update ServiceNow-Workflow-Parameter-Values.xml
+
+[33mcommit d55a94f5e4044cb91d5ffdf5187126e92e5be619[m
+Author: ajeeshneelamkavil <86436000+ajeeshneelamkavil@users.noreply.github.com>
+Date:   Thu Jun 24 13:55:23 2021 -0700
+
+    Update hostname, Integration_ID and Password
+    
+    Make sure to grab the hostname and credential details from servicenow engineer to update I the workflow parameters which will be added and masked in the log source configurations.
+
+[33mcommit d37b5c6f07aa656688ed59f0a4e1d867738e9fb9[m
+Author: ajeeshneelamkavil <86436000+ajeeshneelamkavil@users.noreply.github.com>
+Date:   Thu Jun 24 13:52:30 2021 -0700
+
+    Update readme.txt
+
+[33mcommit 5489cdf5f50ee8c2d0c1ac9972b5cd48b4e280a2[m
+Author: ajeeshneelamkavil <86436000+ajeeshneelamkavil@users.noreply.github.com>
+Date:   Thu Jun 24 13:48:42 2021 -0700
+
+    Update the Url information in the Query string
+    
+    Make sure to add the servicenow URL parameters part of URL in the Query string of this file. Workflow parameter will have only hostname, so rest of the URL needs to be updated in the URL to fetch the correct wervicenow instance.
+
+[33mcommit b018b0440fa4c32d93d6e336bbc68163c43c6a76[m
+Author: ajeeshneelamkavil <86436000+ajeeshneelamkavil@users.noreply.github.com>
+Date:   Thu Jun 24 13:45:50 2021 -0700
+
+    Create readme.txt
+
+[33mcommit 8213ffc3b7a3b29d9bf37c96ff206f58ee2ffe8c[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Thu Jun 24 22:00:06 2021 +0530
+
+    Create Workflow.parameter.values.xml
+
+[33mcommit ac9f2ade7755ecdd907d28ded156515025b06ea9[m
+Author: Sivaranjini Panneerselvam <39902166+sivaranjinipanneerselvam@users.noreply.github.com>
+Date:   Thu Jun 24 21:57:59 2021 +0530
+
+    Create Workflow.xml
+
+[33mcommit 447397fc27c5ec645628122d8367c13c9f510f64[m
+Author: sepi1996 <sepi1996@users.noreply.github.com>
+Date:   Fri Jun 11 17:22:17 2021 +0200
+
+    Create Elasticsearch-Workflow-Parameter-Values.xml
+
+[33mcommit a98969f7feb777157887d8163db8a5b329b46081[m
+Author: sepi1996 <sepi1996@users.noreply.github.com>
+Date:   Fri Jun 11 17:20:59 2021 +0200
+
+    Create Elasticsearch-Workflow.xml
+
+[33mcommit 0b7108a5c9c17b4d5de78739b3ef318d8432ccd7[m
+Author: Yuri Pushnov <yuri@orca.security>
+Date:   Wed Jun 9 15:56:12 2021 +0300
+
+    Add Orca Security Workflow #43
+
+[33mcommit ea9637aa17d083d766ebd05a8c622fb91fbe6fee[m
+Merge: e6a81ed 83ffc42
+Author: Charlie Ma <79324992+charlieqma@users.noreply.github.com>
+Date:   Wed May 5 11:14:19 2021 -0300
+
+    Merge pull request #42 from charlieqma/IBM_MaaS360
+    
+    Added IBM MaaS360 Security and removed IBM Fiberlink
+
+[33mcommit 83ffc42ab2b0113bcb20fc9e9a7329a5e832ec49[m
+Author: Charlie Ma <charlie.ma@ca.ibm.com>
+Date:   Wed May 5 11:12:42 2021 -0300
+
+    Added IBM MaaS360 Security and removed IBM Fiberlink
+
+[33mcommit 447fe94510cf7483968d4ddb8442f2bbba5e48b8[m
+Author: Klaubert Herr <klaubert@gmail.com>
+Date:   Mon May 3 15:37:00 2021 -0300
+
+    Create README.md
+    
+    Write some important information to use this workflow
+
+[33mcommit 808fc8370837f3b208cc8bf11ab415a418898988[m
+Author: Klaubert Herr <klaubert@gmail.com>
+Date:   Mon May 3 15:31:21 2021 -0300
+
+    Add files via upload
+
+[33mcommit e6a81edf741bd67c1f3841557cefc02236ae639f[m
+Merge: d37bffc 2af5b65
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Apr 21 13:31:33 2021 -0300
+
+    Merge pull request #39 from hcrisgnya/master
+    
+    SB Workflow 1.4
+
+[33mcommit 2af5b65650d01ec72e9190b7f902f1e9cd1bd0f4[m
+Author: hcrisgnya <christoph.nagy@abap-experts.com>
+Date:   Wed Apr 21 17:50:39 2021 +0200
+
+    Remove git conflict annotations
+
+[33mcommit 7872e5201ccb4f6099fa456bbbcfeefd401becaf[m
+Author: hcrisgnya <christoph.nagy@abap-experts.com>
+Date:   Tue Apr 20 21:23:44 2021 +0200
+
+    SB Workflow 1.4
+
+[33mcommit d37bffc3184cde450e272b2a986d6b8aa345e1cc[m
+Merge: ff78725 61e4888
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Mar 17 06:22:45 2021 -0300
+
+    Merge pull request #36 from Hysolate/hysolate
+    
+    Add Hysolate workflow #35
+
+[33mcommit 61e48881baee8953b9c7a4607f8d092e8e4d04a8[m
+Author: Boris Figovsky <boris@hysolate.com>
+Date:   Wed Mar 17 10:50:21 2021 +0200
+
+    Add Hysolate workflow #35
+
+[33mcommit ff78725e3e1a6c040864d8f8079ed4a70e94cc4e[m
+Merge: 7935bf6 ad65bf1
+Author: wendywillner <41927058+wendywillner@users.noreply.github.com>
+Date:   Fri Feb 19 13:15:03 2021 -0500
+
+    Merge pull request #33 from charlieqma/master
+    
+    Added MCAS - Microsoft Cloud App Security workfolw
+
+[33mcommit ad65bf172b4d750f43391eddac76add468287770[m
+Author: Charlie Ma <charlie.ma@ca.ibm.com>
+Date:   Fri Feb 19 12:01:43 2021 -0400
+
+    Added MCAS - Microsoft Cloud App Security workfolw
+
+[33mcommit 7935bf6ff24b53bf931bed5278ed446fd5925e2c[m
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Tue Jan 26 15:22:48 2021 -0400
+
+    Delete "Default" workflow.
+    
+    There are enough examples in this rep.  A "Default" workflow provides little value and is even a bit confusing.
+
+[33mcommit c6c54f4f3db31ed36222e890b62576917d6d819a[m
+Merge: f13fd0d 326c217
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Thu Dec 10 10:25:21 2020 -0400
+
+    Merge pull request #28 from kdegrace/symantec-cloud-worklow-protection
+    
+    Add Symantec Cloud Workload Protection workflow
+
+[33mcommit 326c217724f86c43644d0f6a5a95da51646b7fe5[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Thu Dec 10 10:24:33 2020 -0400
+
+    Add Symantec Cloud Workload Protection workflow
+
+[33mcommit f13fd0dcd53e2ba2164dc86d7ad819f90683abae[m
+Merge: 83bc0ed 3d4bdcb
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Tue Dec 8 14:21:20 2020 -0400
+
+    Merge pull request #27 from kdegrace/proxy-test-fix
+    
+    Fix a few proxy tests
+
+[33mcommit 3d4bdcb9587143b5b11e6815034532acf559e918[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Tue Dec 8 14:13:17 2020 -0400
+
+    Fix a few proxy tests
+
+[33mcommit 83bc0ed1a360168c6a8fab55cd2f8b14c03fad81[m
+Merge: 237a120 1636a5f
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Tue Dec 1 10:35:29 2020 -0400
+
+    Merge pull request #25 from kdegrace/prisma_cloud
+    
+    Add pagination to Prisma Cloud workflow (Issue #22)
+
+[33mcommit 1636a5f4a8e1e317f61c99e4bf9bd00ac4183bbf[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Mon Nov 30 21:47:48 2020 -0400
+
+    Add pagination to Prisma Cloud workflow (Issue #22)
+
+[33mcommit 237a120d4c246e129b9ad88f59b20444c62c96a8[m
+Merge: 49957f2 ecf0400
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Fri Nov 27 10:47:44 2020 -0400
+
+    Merge pull request #24 from kdegrace/otka
+    
+    Forgot to increase version in previous commit
+
+[33mcommit ecf04006ee2ec54644c869e209afd5451a3caf13[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Fri Nov 27 10:47:00 2020 -0400
+
+    Forgot to increase version in previous commit
+
+[33mcommit 49957f2389463e5a36b361b49007356981987256[m
+Merge: d765ac0 48d77eb
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Fri Nov 27 10:37:18 2020 -0400
+
+    Merge pull request #23 from kdegrace/otka
+    
+    Fix issue with Otka workflow
+
+[33mcommit 48d77eb381ceb0e1f7f76582e2258e6c777a6489[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Fri Nov 27 10:32:53 2020 -0400
+
+    Fix issue with Otka workflow
+
+[33mcommit d765ac0e2e96145cc4f4201c6c733fb18f462670[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Tue Nov 10 13:57:16 2020 -0400
+
+    Add missing "port" parameter to TCPConnectionTest
+
+[33mcommit 2d259dbd560ed890e7ee65f5b96b1b0fed36562f[m
+Merge: 02e6378 483ec3c
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Tue Nov 10 12:52:40 2020 -0400
+
+    Merge pull request #19 from sqa-consulting/patch-1
+    
+    Update ReadMe.md
+
+[33mcommit 483ec3cb9d8af3fdb04a4e88f12ed12d0c08f4b4[m
+Author: SQA Consulting <54617922+sqa-consulting@users.noreply.github.com>
+Date:   Tue Nov 10 14:46:29 2020 +0000
+
+    Update ReadMe.md
+    
+    Updated with the actual steps for generating the key as the provided steps were wrong
+
+[33mcommit 02e6378079b4d8af0722963b781af4a31e260488[m
+Merge: 2be707f 91f764e
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Thu Nov 5 10:57:23 2020 -0400
+
+    Merge pull request #18 from sqa-consulting/master
+    
+    Added CyberArk Idaptive Workflow #17
+
+[33mcommit 91f764e73167f652ca920e8eb5246059f626985e[m
+Author: Simon Gurney (SQA) <simon.gurney@sqa-consulting.com>
+Date:   Thu Nov 5 14:08:01 2020 +0000
+
+    Reworded and made some more params required
+
+[33mcommit 3a6e49f80c49e350bb9181624c1b6a672b32a0cf[m
+Author: Simon Gurney (SQA) <simon.gurney@sqa-consulting.com>
+Date:   Thu Nov 5 13:27:37 2020 +0000
+
+    Add CyberArk Idaptive Workflow
+
+[33mcommit 2be707fc8fed708a986600be257a0ba58468e7ea[m
+Merge: 806d4c5 519f3e1
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Tue Nov 3 08:09:49 2020 -0400
+
+    Merge pull request #13 from kdegrace/master
+    
+    Update Prisma Cloud documentation and add SSL test.
+
+[33mcommit 519f3e1d61842d7cfdbcc8637e9819dd7ea00660[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Tue Nov 3 08:08:14 2020 -0400
+
+    Update Prisma Cloud workflow documentation.
+
+[33mcommit e3555b77b9650d24e4119cbcd9bf7c3c0238db46[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Tue Nov 3 07:50:26 2020 -0400
+
+    Add SSL test to Prisma Cloud workflow
+
+[33mcommit 806d4c5c17e7741978d23f734717a42440e44559[m
+Merge: 2dbd8c1 0931165
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Mon Oct 26 13:44:28 2020 -0300
+
+    Merge pull request #12 from hcrisgnya/master
+    
+    Updates for SecurityBridge
+
+[33mcommit 093116576ef7990a9d0da934bf9e66eed532f139[m
+Merge: 28d0892 2dbd8c1
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Mon Oct 26 13:44:02 2020 -0300
+
+    Merge branch 'master' into master
+
+[33mcommit 28d0892a75c4df5e138d124d0501c5be553c799c[m
+Author: hcrisgnya <christoph.nagy@abap-experts.com>
+Date:   Mon Oct 26 15:28:28 2020 +0100
+
+    #10 Optimization of readme.md and commented text.
+
+[33mcommit 2dbd8c17ab07d38d206a18b67a6c99ca334b7e0d[m
+Merge: 4a2544a 3fddbaf
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Mon Oct 26 10:49:51 2020 -0300
+
+    Merge pull request #11 from kdegrace/master
+    
+    Add workflow for McAfee MVISION, LogDNA and Qualys.  Plus a few minor fixes here and there.
+
+[33mcommit 3fddbaf2da9c96fcb4c8b4ad39bac5e07cc9390d[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Mon Oct 26 10:18:15 2020 -0300
+
+    Add Qualys workflow
+
+[33mcommit 241ef8f9a89179c770e7bebeb79c64a4e58d8313[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Mon Oct 26 10:15:11 2020 -0300
+
+    Add missing "secret" flags the sensitive parameters.
+
+[33mcommit 016842c5cdd9e3776b510424e9065bb8291cfd44[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Mon Oct 26 10:09:35 2020 -0300
+
+    Add LogDNA workflow
+
+[33mcommit e10deda68db52ae263eb7e96e062345bedb6a638[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Mon Oct 26 06:28:52 2020 -0300
+
+    Add workflow for McAfee MVISION
+
+[33mcommit 6767c2c154874a5cdb43763c015a6e676f1981cb[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Mon Oct 26 06:23:30 2020 -0300
+
+    Add bookmarking to SecurityBridge
+
+[33mcommit 4410a0dde9ec7b64494501d6289e3ee32512197d[m
+Author: hcrisgnya <christoph.nagy@abap-experts.com>
+Date:   Mon Oct 26 14:14:02 2020 +0100
+
+    Update securitybridge/readme.md and bookmarking
+
+[33mcommit 4a2544a408dc38edc2cafaf926a94d4435fa4a5b[m
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Oct 21 11:26:50 2020 -0300
+
+    Add contributing details #8 (#9)
+
+[33mcommit bea72a9765bc3dc70000f5201d8e37966c5c4562[m
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Oct 21 10:17:57 2020 -0300
+
+    Update README.md
+    
+    Remove contributing section.  Added draft to main repo by mistake.
+
+[33mcommit 1cdfd44fc9985b3cb6d7e60cc1e806d9b83706d1[m
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Oct 21 10:17:18 2020 -0300
+
+    Delete CONTRIBUTING.md
+    
+    Added draft to main repo by mistake.
+
+[33mcommit ba4f4ef69a6a0d34165a5f006a1e1e170f71f478[m
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Oct 21 10:14:59 2020 -0300
+
+    Create CONTRIBUTING.md
+
+[33mcommit 85e8276fb53e110e0b3935e2e6c0fe5bbe0541e5[m
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Oct 21 09:46:51 2020 -0300
+
+    Update README.md
+
+[33mcommit 9f0a2046f71cd9ec9304ade044fda7682ed01343[m
+Merge: 67918f8 cbd9d10
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Tue Oct 20 15:22:45 2020 -0300
+
+    Merge pull request #6 from kdegrace/master
+    
+    Fix a few issues with SecurityBridge-Workflow.xml (was meant to be in…
+
+[33mcommit cbd9d10118f05eefcd3d597319ee40021d533f41[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Tue Oct 20 15:22:11 2020 -0300
+
+    Fix a few issues with SecurityBridge-Workflow.xml (was meant to be in the previous commit)
+
+[33mcommit 67918f86a3dfdb02b6e903571a4766e969a3cd3b[m
+Merge: 85895b2 9b236d5
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Tue Oct 20 15:17:56 2020 -0300
+
+    Merge pull request #5 from kdegrace/master
+    
+    Add SecurityBridge workflow
+
+[33mcommit 9b236d50c207162a581c585ec58574ffd6a84a4f[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Tue Oct 20 14:19:23 2020 -0300
+
+    Change all versions from "0.1" to "1.0".
+
+[33mcommit 96d14f5586f5f1fbf1aa14fe072f5e7b01243312[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Tue Oct 20 12:06:50 2020 -0300
+
+    Add SecurityBridge workflow
+
+[33mcommit 85895b231671a3650670f591ad788bdba7b9cd4c[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Mon Oct 5 09:01:23 2020 -0300
+
+    Update README.md
+    
+    Updated the description and included the IBM Official Documentation link.
+
+[33mcommit a88e3cd56e73e4afe51cfbed4b6af0bc880905f9[m
+Merge: bc0d6fa 34ab1a3
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Sep 30 16:32:48 2020 -0300
+
+    Merge pull request #4 from kdegrace/master
+    
+    Update for GA
+
+[33mcommit 34ab1a320157543b59504d310e49e159adbf56b8[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Sep 30 16:32:04 2020 -0300
+
+    Update for GA
+
+[33mcommit bc0d6fa682bb1b85b0271c44c1e7b8f25b0a033a[m
+Merge: 432098b 76fa4fb
+Author: Keith Degrace <32196820+kdegrace@users.noreply.github.com>
+Date:   Wed Sep 30 16:30:13 2020 -0300
+
+    Merge pull request #3 from kdegrace/master
+    
+    Update for GA
+
+[33mcommit 76fa4fb5025c3815d0b23fb5182b1f7d9eb088e7[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Sep 30 16:27:33 2020 -0300
+
+    Update for GA
+
+[33mcommit 432098b70daffa1ab579e5cbb7f3b205fbe5334e[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Mon Aug 10 20:35:15 2020 -0300
+
+    Create ReadMe.md
+
+[33mcommit 099c85e7d17a02b75dde4e9ea8c3b4c5300b9a94[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Mon Aug 10 20:26:30 2020 -0300
+
+    Create ReadMe.md
+
+[33mcommit aef806a2c499d5270ee2969f5c8eb981852e2849[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Mon Aug 10 20:17:52 2020 -0300
+
+    Update README.md
+
+[33mcommit c8b04918468acc535f0411ba486a44d28705e18b[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Thu Aug 6 18:20:41 2020 -0300
+
+    Add files via upload
+
+[33mcommit 1c1d9376b20b44fc4fbeb965fc5c5c42a6bfcaf2[m
+Merge: 9d6011c 7075a07
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Wed Aug 5 14:17:35 2020 -0300
+
+    Merge pull request #2 from kdegrace/master
+    
+    Add XML schema files
+
+[33mcommit 7075a07484f1c15de244f1bb39fc3f6deb7a5f05[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 14:03:54 2020 -0300
+
+    Add XML schema files
+
+[33mcommit 9d6011cf68dc6f445997a9725d7323ddc876a573[m
+Merge: 14ec8e5 297e5e4
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Wed Aug 5 11:31:02 2020 -0300
+
+    Merge pull request #1 from kdegrace/master
+    
+    Changes
+
+[33mcommit 297e5e49ad26fe88f3477d60a1a361f2b49a21f4[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 10:57:54 2020 -0300
+
+    Add a few more vendor workflows.
+
+[33mcommit fd66f9d81af480d0b67aad0213879651a53b5bd6[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 10:44:59 2020 -0300
+
+    Remove "Cloud" references
+
+[33mcommit c475961a438eaa2ef02ce58171aede8466401d55[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 10:41:22 2020 -0300
+
+    Add Workflow Protocol Parameter Value files.
+
+[33mcommit 3dad0eb107e075bd84bfd8973e16aa34a30f1373[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 10:36:36 2020 -0300
+
+    Remove "Cloud" references
+
+[33mcommit d656261263529fb0ae3989921b4034bd9fa29b60[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 10:19:46 2020 -0300
+
+    Fix default workflow name.
+
+[33mcommit b366039bb908d20373a4c6e98565455753b5b69c[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 10:13:39 2020 -0300
+
+    Move vendor workflows into folders.
+
+[33mcommit c7ba4af45025b62c2ef8dda8de575d732c785ece[m
+Author: Keith Degrace <degrace@ca.ibm.com>
+Date:   Wed Aug 5 10:11:24 2020 -0300
+
+    Added .xml extension.
+
+[33mcommit 14ec8e52cd91151897f9989ceb1fafdcb0a80fbf[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:28:31 2020 -0300
+
+    Create Default-Workflow-Template
+
+[33mcommit e066ca25c562a24be67cc8db8909aa9fd1934cef[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:15:45 2020 -0300
+
+    Create MongoDB-Workflow-Template
+
+[33mcommit 7db952f75ae1373091e271cdca05d7d77f849281[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:15:12 2020 -0300
+
+    Create Zoom-Workflow-Template
+
+[33mcommit 0887318c379f3e271d730de66bd791d090c0a1f9[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:14:47 2020 -0300
+
+    Create PingOne-Workflow-Template
+
+[33mcommit 4e9fbe663b4eb7c284976a70f4fbd4aec6126eca[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:14:19 2020 -0300
+
+    Create OneLogin-Workflow-Template
+
+[33mcommit f1884bafeba1b231ea0a8816ed31093e29588f73[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:13:37 2020 -0300
+
+    Create Dropbox-Workflow-Template
+
+[33mcommit 7494c739dc4dcc9896c4f73b49ad58259d3a194d[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:12:47 2020 -0300
+
+    Create Duo-Security-Workflow-Template
+
+[33mcommit f8572cc64b5a5d70d050cf6b51eb95ca86779046[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:10:56 2020 -0300
+
+    Update README.md
+
+[33mcommit bb3cc8cda3f7e698eb3d32da49b9b6a9b81ffbc0[m
+Author: sophia-sudo <68284892+sophia-sudo@users.noreply.github.com>
+Date:   Tue Aug 4 14:10:20 2020 -0300
+
+    Initial commit
