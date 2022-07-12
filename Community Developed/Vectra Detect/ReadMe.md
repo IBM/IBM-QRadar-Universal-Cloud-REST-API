@@ -1,4 +1,4 @@
-**Collect authentication info from Vectra Detect**
+﻿**Collect authentication info from Vectra Detect**
 
 To integrate with QRadar, you need to add a Vectra Detect connector in QRadar's Universal REST connector. To do so, you'll need to first collect the following authentication information from Vectra Detect:
 
@@ -51,4 +51,4 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 1. clientId: The Client ID obtained from Vectra Detect portal.
 2. secretKey: The Secret Key obtained from Vectra Detect portal.
 3. vectraSaaSHostName: The API Endpoint Hostname to fetch the events from Vectra Detect. If your URL is https://example.com/accounts then enter example.com
-4. historical: true or false flag to convey whether to do historical data collection or not, by default value would be false.
+4. historical: This flag will be considered only in the first run of the workflow, so that you can configure whether to pull all the historical data in the first pull. If set true it will pull all the historical data.

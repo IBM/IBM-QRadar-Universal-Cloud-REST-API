@@ -25,7 +25,7 @@
         <Initialize path="/historicalSince" value="10000000" />
         <Initialize path="/limit" value="1000" />
         <Initialize path="/refreshToken" value="refresh_token" />
-        <Initialize path="/backOffTime" value="15000" />
+        <Initialize path="/defaultSleepTime" value="30" />
         
         <!-- Score checkpoint -->
         <Initialize path="/scoreNextCheckpoint" value="0" />
@@ -64,19 +64,21 @@
                     <If condition="${/refreshTokenResponse/status_code} = 429">
                         <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                         <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
-                        <If condition="${/rateLimitErrorCount = 3}">
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
                             <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
                             <Abort reason="Number of retries exceeded for status code 429." />
                         </If>
 
-                        <!-- Calculating back off time -->
-                        <Set path="/sleepTime" value="${/rateLimitErrorCount * ${/backOffTime}}" />
-                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime / 1000} seconds." />
-                        <Sleep duration="${/sleepTime}" />
-                        <Set path="/sleepTime" value="0" />
+                        <!-- Calculating back off time, if it is not present in header take default time -->
+                        <Set path="/sleepTime" value="${/refreshTokenResponse/headers/retry-after}" />
+                        <If condition="${/sleepTime = ''}">
+                            <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                        </If>
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                        <Sleep duration="${/sleepTime * 1000}" />
                     </If>
                     <Else>
-                        <Set path="/rateLimitErrorCount" value="3" />
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                     </Else>
                 </While>
 
@@ -116,19 +118,21 @@
                     <If condition="${/accessTokenResponse/status_code} = 429">
                         <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                         <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
-                        <If condition="${/rateLimitErrorCount = 3}">
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
                             <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
                             <Abort reason="Number of retries exceeded for status code 429." />
                         </If>
 
-                        <!-- Calculating back off time -->
-                        <Set path="/sleepTime" value="${/rateLimitErrorCount * ${/backOffTime}}" />
-                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime / 1000} seconds." />
-                        <Sleep duration="${/sleepTime}" />
-                        <Set path="/sleepTime" value="0" />
+                        <!-- Calculating back off time, if it is not present in header take default time -->
+                        <Set path="/sleepTime" value="${/accessTokenResponse/headers/retry-after}" />
+                        <If condition="${/sleepTime = ''}">
+                            <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                        </If>
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                        <Sleep duration="${/sleepTime * 1000}" />
                     </If>
                     <Else>
-                        <Set path="/rateLimitErrorCount" value="3" />
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                     </Else>
                 </While>
 
@@ -164,19 +168,21 @@
                         <If condition="${/refreshTokenResponse/status_code} = 429">
                             <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                             <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
-                            <If condition="${/rateLimitErrorCount = 3}">
+                            <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
                                 <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
                                 <Abort reason="Number of retries exceeded for status code 429." />
                             </If>
 
-                            <!-- Calculating back off time -->
-                            <Set path="/sleepTime" value="${/rateLimitErrorCount * ${/backOffTime}}" />
-                            <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime / 1000} seconds." />
-                            <Sleep duration="${/sleepTime}" />
-                            <Set path="/sleepTime" value="0" />
+                            <!-- Calculating back off time, if it is not present in header take default time -->
+                            <Set path="/sleepTime" value="${/refreshTokenResponse/headers/retry-after}" />
+                            <If condition="${/sleepTime = ''}">
+                                <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                            </If>
+                            <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                            <Sleep duration="${/sleepTime * 1000}" />
                         </If>
                         <Else>
-                            <Set path="/rateLimitErrorCount" value="3" />
+                            <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                         </Else>
                     </While>
 
@@ -189,7 +195,7 @@
 
                     <!-- Aborting execution of workflow for failed API call -->
                     <Else>
-                        <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access token with status code - ${/refreshTokenResponse/status_code}" />
+                        <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access token with status code - ${/refreshTokenResponse/status_code}, Body - ${/refreshTokenResponse/body}" />
                         <Abort reason="API call failed while creating Access token with status code - ${/refreshTokenResponse/status_code}" />
                     </Else>
                 </ElseIf>
@@ -232,19 +238,21 @@
                             <If condition="${/historicalData/response/status_code} = 429">
                                 <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                                 <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
-                                <If condition="${/rateLimitErrorCount = 3}">
+                                <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
                                     <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
                                     <Abort reason="Number of retries exceeded for status code 429." />
                                 </If>
 
-                                <!-- Calculating back off time -->
-                                <Set path="/sleepTime" value="${/rateLimitErrorCount * ${/backOffTime}}" />
-                                <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime / 1000} seconds." />
-                                <Sleep duration="${/sleepTime}" />
-                                <Set path="/sleepTime" value="0" />
+                                <!-- Calculating back off time, if it is not present in header take default time -->
+                                <Set path="/sleepTime" value="${/historicalData/response/headers/retry-after}" />
+                                <If condition="${/sleepTime = ''}">
+                                    <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                                </If>
+                                <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                                <Sleep duration="${/sleepTime * 1000}" />
                             </If>
                             <Else>
-                                <Set path="/rateLimitErrorCount" value="3" />
+                                <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                             </Else>
                         </While>
 
@@ -269,8 +277,8 @@
 
                         <!-- Abort in case of http status code not 200 -->
                         <Else>
-                            <Log type="INFO" message="${/logPrefix} API call failed while collecting latest checkpoint id with status code - ${/historicalData/response/status_code}, Body -  ${/historicalData/response/body}" />
-                            <Abort reason="API call failed while collecting latest checkpoint id with status code - ${/accessTokenResponse/status_code}" />
+                            <Log type="INFO" message="${/logPrefix} API call failed while collecting latest checkpoint id with status code - ${/historicalData/response/status_code}, Body - ${/historicalData/response/body}" />
+                            <Abort reason="API call failed while collecting latest checkpoint id with status code - ${/historicalData/response/status_code}" />
                         </Else>
                     </While>
                 </If>
@@ -306,19 +314,21 @@
                     <If condition="${/score/response/status_code} = 429">
                         <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                         <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
-                        <If condition="${/rateLimitErrorCount = 3}">
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
                             <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
                             <Abort reason="Number of retries exceeded for status code 429." />
                         </If>
 
-                        <!-- Calculating back off time -->
-                        <Set path="/sleepTime" value="${/rateLimitErrorCount * ${/backOffTime}}" />
-                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime / 1000} seconds." />
-                        <Sleep duration="${/sleepTime}" />
-                        <Set path="/sleepTime" value="0" />
+                        <!-- Calculating back off time, if it is not present in header take default time -->
+                        <Set path="/sleepTime" value="${/score/response/headers/retry-after}" />
+                        <If condition="${/sleepTime = ''}">
+                            <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                        </If>
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                        <Sleep duration="${/sleepTime * 1000}" />
                     </If>
                     <Else>
-                        <Set path="/rateLimitErrorCount" value="3" />
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                     </Else>
                 </While>
 
@@ -334,7 +344,7 @@
                     <Set path="/scoreNextCheckpoint" value="${/score/response/body/next_checkpoint}" />
                     <If condition="${count(/score/response/body/events) != ${/limit}}">
                         <Set path="/loopBreaker" value="true"/>
-                        <Set path="/errorCount" value="3"/>
+                        <Set path="/errorCount" value="${/maxRetry}"/>
                         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${time()}" savePath="/formattedCurrentTime" />
                         <Log type="INFO" message="${/logPrefix} Score collection completed at ${/formattedCurrentTime}" />
                     </If>
