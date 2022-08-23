@@ -6,6 +6,7 @@
 		<Parameter name="username" label="Username" required="true" />
 		<Parameter name="password" label="Password" required="true" secret="true" />
 		<Parameter name="limit" label="Limit" required="true" />
+		<Parameter name="ignore_selfsigned_certificate" label="Insecure" required="false" />
 	</Parameters>
 	
 	<Actions>
@@ -17,7 +18,9 @@
 
 			<!-- Authenticate and request API Token -->
 		<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="GET" savePath="/getFeApiToken" >
-			<SSLConfiguration allowUntrustedServerCertificate="true" />
+			<If condition="/ignore_selfsigned_certificate == 1">
+				<SSLConfiguration allowUntrustedServerCertificate="true" />
+			</If>
 			<BasicAuthentication username="${/username}" password="${/password}" />
 			<RequestHeader name="Accept" value="application/json" />
 		</CallEndpoint>
@@ -36,6 +39,9 @@
 			<Set path="/offset" value="0" />
 
 			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getAlerts">
+				<If condition="/ignore_selfsigned_certificate == 1">
+					<SSLConfiguration allowUntrustedServerCertificate="true" />
+				</If>
 				<QueryParameter name="offset" value="${/offset}" />
 				<QueryParameter name="limit" value="${/limit}" />
 				<QueryParameter name="sort" value="_id" />
@@ -58,6 +64,9 @@
 						<!-- Enrich Alerts -->
 						<ForEach item="/alert" items="/alerts">
 							<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/hosts/${/alert/agent/_id}" method="GET" savePath="/getAagent">
+								<If condition="/ignore_selfsigned_certificate == 1">
+									<SSLConfiguration allowUntrustedServerCertificate="true" />
+								</If>
 								<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 								<RequestHeader name="Accept" value="application/json" />
 							</CallEndpoint>
@@ -81,6 +90,9 @@
 						<Set path="/offset" value="${/offset + /limit - 1}" />
 						<!-- Get next page of alerts -->
 						<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getAlerts">
+							<If condition="/ignore_selfsigned_certificate == 1">
+								<SSLConfiguration allowUntrustedServerCertificate="true" />
+							</If>
 							<QueryParameter name="offset" value="${/offset}" />
 							<QueryParameter name="limit" value="${/limit}" />
 							<QueryParameter name="sort" value="_id" />
@@ -100,7 +112,9 @@
 			</Else>
 			<!-- Dispose generated token to clear active session -->
 			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="DELETE" savePath="/delFeApiToken" >
-				<SSLConfiguration allowUntrustedServerCertificate="true" />
+				<If condition="/ignore_selfsigned_certificate == 1">
+					<SSLConfiguration allowUntrustedServerCertificate="true" />
+				</If>
 				<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 				<RequestHeader name="Accept" value="application/json" />
 			</CallEndpoint>
