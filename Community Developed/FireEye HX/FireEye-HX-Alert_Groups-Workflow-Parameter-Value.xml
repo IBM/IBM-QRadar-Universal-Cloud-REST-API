@@ -6,4 +6,5 @@
     <Value name="password" value="api_analyst" />
     <!-- Number of alert records to fetch per request -->
     <Value name="limit" value="100" />
+    <Value name="ignore_selfsigned_certificate" value="0" />
 </WorkflowParameterValues>
