@@ -1,5 +1,5 @@
 # QRadar Workflow for FireEye HX
-IBM QRadar Universal Cloud Connector Workflow for reading FireEye HX alerts through REST API
+IBM QRadar Universal Cloud Connector Workflow for reading Trellix/FireEye HX alerts through REST API
 
 ## Requirements:
 User account to access FireEye HX Controller with api_analyst role
