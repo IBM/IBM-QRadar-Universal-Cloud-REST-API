@@ -7,7 +7,7 @@ User account to access FireEye HX Controller with api_analyst role
 ## Workflow information
 - Author Name: Mohamed Al-Shabrawy
 - Maintainer Name: @M-Shabrawy
-- Version: 1.0.2
+- Version: 1.0.3
 - Endpoint Documentation:
   - - https://fireeye.dev/
   - - https://fireeye.dev/apis/lighthouse/
