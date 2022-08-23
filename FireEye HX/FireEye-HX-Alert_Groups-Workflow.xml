@@ -68,7 +68,7 @@
 
 			<!-- Handle Errors -->
 			<If condition="/del_feapi_token/status_code != 204">
-				<Log type="Error" message="FE HX API: Error Deleteing Session: ${/del_feapi_token/body/message}" />
+				<Log type="Error" message="FE HX API: Error Deleting Session: ${/del_feapi_token/body/message}" />
 				<Abort reason="${/get_feapi_token/body/message}" />
 			</If>
 		</Else>
