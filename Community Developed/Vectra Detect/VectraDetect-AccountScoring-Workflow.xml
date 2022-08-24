@@ -135,6 +135,7 @@
                         <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                     </Else>
                 </While>
+
                 <!-- Storing Access token from API response -->
                 <If condition="${/accessTokenResponse/status_code} = 200">
                     <Log type="INFO" message="${/logPrefix} - Access token created successfully." />
