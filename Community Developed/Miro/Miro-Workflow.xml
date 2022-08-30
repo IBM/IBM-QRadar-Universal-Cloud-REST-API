@@ -32,7 +32,7 @@
             <QueryParameter name="offset" value="${/offset}" />
             <QueryParameter name="limit" value="1" />
             <RequestHeader name="Accept" value="application/json" />
-            <RequestHeader name="User-Agent" value="IBM-QRadar" />
+            <RequestHeader name="User-Agent" value="IBM-QRadar/1.0" />
         </CallEndpoint>
 
         <!-- Handle Errors -->
@@ -65,7 +65,7 @@
                     <QueryParameter name="offset" value="${/offset}" />
                     <QueryParameter name="limit" value="${/limit}" />
                     <RequestHeader name="Accept" value="application/json" />
-                    <RequestHeader name="User-Agent" value="QRadar" />
+                    <RequestHeader name="User-Agent" value="IBM-QRadar/1.0" />
                 </CallEndpoint>
 
                 <!-- Handle Errors -->
