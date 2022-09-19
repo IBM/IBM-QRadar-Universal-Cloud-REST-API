@@ -36,3 +36,7 @@ The workflow get all the Assets and Alerts from the host configured.
 It could be useful to get the Alerts only from a given time, to do it you can modify the Workflow bookmark initialization; for example if you want to get the Alerts from the last hour you can initialize the bookmark as:
 
 ```<Initialize path="/bookmark" value="${time() - 3600000}" />```
+
+It's important that, when you set the "Recurrence" time property of the LogSource, it must be big enough for the Workflow to get all the data before another LogSource job run. If concurrency between parallel LogSource jobs happens some events could be imported twice. 
+You have to be mostly aware of this if the `bookmark` initial value it's set to `0`, it means that all the events will be imported in the first run.
+
