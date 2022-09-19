@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+    
+    <!-- Do not add http or https in the below value of Vectra SaaS Hostname-->
+    <Value name="vectraSaaSHostName" value=""/>
+    <Value name="clientId" value=""/>
+    <Value name="secretKey" value=""/>
+    <Value name="historical" value="false"/>
+</WorkflowParameterValues>
