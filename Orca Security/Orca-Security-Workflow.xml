@@ -22,11 +22,13 @@ Parameters:
 
         <DoWhile condition="count(/get_alerts/body/next_page_token) != 0">
 
-            <CallEndpoint url="https://${/api_host}/api/query/alerts" method="GET" savePath="/get_alerts">
-                <BearerAuthentication token="${/api_key}" />
-                <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
-                <QueryParameter name="limit" value="100" />
-                <QueryParameter name="next_page_token" value="${/get_alerts/body/next_page_token}" omitIfEmpty="true" />
+            <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
+                <RequestHeader name="authorization" value="Token ${/api_key}" />
+                <UrlEncodedFormRequestBody>
+                    <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
+                    <Parameter name="limit" value="100" />
+                    <Parameter name="next_page_token" value="${/get_alerts/body/next_page_token}" />
+                </UrlEncodedFormRequestBody>
             </CallEndpoint>
 
             <!-- Handle Errors -->
@@ -35,7 +37,7 @@ Parameters:
             </If>
 
             <If condition="/get_alerts/status_code != 200">
-                <Abort reason="${/get_alerts/body/error}" />
+                <Abort reason="${/get_alerts/body}" />
             </If>
 
             <Log type="DEBUG" message="ORCA: Fetched ${count(/get_alerts/body/data)} Orca Alerts." />
