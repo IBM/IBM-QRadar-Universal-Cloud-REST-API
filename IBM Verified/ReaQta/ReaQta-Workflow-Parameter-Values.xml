@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+        <Value name="app_id"            value="App ID goes here"/>
+        <Value name="secret_key"        value="Secret Key Goes here"/>
+        <Value name="reaqta_host"       value="reaqta hosname or ip goes here"/>
+</WorkflowParameterValues>
