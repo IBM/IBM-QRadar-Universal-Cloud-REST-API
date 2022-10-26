@@ -11,9 +11,9 @@
     <Actions>
 
          <!-- Initialize bookmark to 10 days back -->
-        <Initialize path="/bookmark" value="${time() - (60000 * 60 * 24 * 10)}"></Initialize>
+        <Initialize path="/bookmark" value="${time() - (60000 * 60 * 24 * 10)}"/>
         <!-- Always set next_page_token to '' -->
-        <Set path="/next_page_token" value=""></Set>
+        <Set path="/next_page_token" value=""/>
         
         <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/bookmark}" savePath="/bookmark_date" />
         <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${time()}" savePath="/today" />
@@ -73,7 +73,7 @@
         </If>
 
         <!-- Temporary Saved bookmark from the first page must be null for the next call in order to avoid assigning it to the bookmark and losing track  --> 
-        <Delete path="/save_bookmark"></Delete>
+        <Delete path="/save_bookmark"/>
 
     </Actions>
 
