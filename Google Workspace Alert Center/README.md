@@ -16,9 +16,7 @@ Configuring access to Google Alert Center API:
     
     Alert Center API scope to add at step '5': https://www.googleapis.com/auth/apps.alerts
     
-- Make sure you saved the JSON file for your service account, this file contain the Private Key required to call Google Alert Center API:
-
-    https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating
+- Make sure you saved the JSON file for your service account, this file contain the Private Key required to call Google Alert Center API: https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating
     
 IMPORTANT: Copy the entire private key from your service account JSON Key file replacing all the '\n' with line breaks and encode the key using Base64 before paste it in the Paramenter Values file.
 
