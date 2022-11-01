@@ -1,7 +1,7 @@
-Author Name: Paulo Dantas
-Maintainer Name: @paulofdantas
-Version Number: 0
-Event type: Supported sources are any of the following: Google Operations, Mobile device management, Gmail phishing, Data Loss Prevention, Domain wide takeout, State sponsored attack, Google identity, Apps outage.
+- Author Name: Paulo Dantas
+- Maintainer Name: @paulofdantas
+- Version Number: 0
+- Event type: Supported sources are any of the following: Google Operations, Mobile device management, Gmail phishing, Data Loss Prevention, Domain wide takeout, State sponsored attack, Google identity, Apps outage.
 
 
 # Google Alert Center Configuration
