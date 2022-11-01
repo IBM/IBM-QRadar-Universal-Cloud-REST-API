@@ -3,6 +3,11 @@
 - Version Number: 0
 - Event type: Supported sources are any of the following: Google Operations, Mobile device management, Gmail phishing, Data Loss Prevention, Domain wide takeout, State sponsored attack, Google identity, Apps outage.
 
+Workflow Operation sample:
+
+![Screenshot 2022-11-01 at 09 49 04](https://user-images.githubusercontent.com/20095130/199236919-aab6de0f-48c2-4f84-90a0-acf3772387c4.png)
+![Screenshot 2022-11-01 at 09 46 45](https://user-images.githubusercontent.com/20095130/199236934-a1db44de-218a-418f-b667-cf3265e0a12d.png)
+
 
 # Google Alert Center Configuration
 
