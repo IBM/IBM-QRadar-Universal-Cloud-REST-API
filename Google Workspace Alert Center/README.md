@@ -11,9 +11,13 @@ https://support.google.com/a/answer/9105276?hl=en
 Configuring access to Google Alert Center API:
 
 - Follow the IBM docs for Google G Suite Activity Reports and just change/add the Alert Center API scope at step '5' on Granting API client access to a service account' section.
+
     IBM G-Suite Activity Reports to use as a reference: https://www.ibm.com/docs/en/dsm?topic=ggsar-configuring-google-g-suite-activity-reports-communicate-qradar
+    
     Alert Center API scope to add at step '5': https://www.googleapis.com/auth/apps.alerts
+    
 - Make sure you saved the JSON file for your service account, this file contain the Private Key required to call Google Alert Center API:
+
     https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating
     
 IMPORTANT: Copy the entire private key from your service account JSON Key file replacing all the '\n' with line breaks and encode the key using Base64 before paste it in the Paramenter Values file.
