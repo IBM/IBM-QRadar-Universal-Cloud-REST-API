@@ -9,6 +9,9 @@
 
     <Actions>
 
+        <!-- Clear the log source status before a new workflow run starts -->
+	    <ClearStatus />
+
         <!-- Create a JSON Web Token (JWT) before obtain an access token to call Google API -->
 
         <CreateJWTAccessToken savePath="/jwt_assertion">
@@ -77,6 +80,7 @@
     <Tests>
         <DNSResolutionTest host="${/host}" />
         <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
         <HTTPConnectionThroughProxyTest url="https://${/host}" />
     </Tests>
 
