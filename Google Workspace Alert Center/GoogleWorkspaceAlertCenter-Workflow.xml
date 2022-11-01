@@ -1,0 +1,83 @@
+<Workflow name="Google Workspace Alert Center" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="user_email" label="User e-mail" required="true" />
+        <Parameter name="client_email" label="Client e-mail" required="true" />
+        <Parameter name="key_id" label="Key ID" required="true" />
+        <Parameter name="private_key" label="Private Key" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Create a JSON Web Token (JWT) before obtain an access token to call Google API -->
+
+        <CreateJWTAccessToken savePath="/jwt_assertion">
+            <Header>
+                <Value name="alg" value="RS256" />
+                <Value name="typ" value="JWT" />
+                <Value name="kid" value="${/key_id}" />
+            </Header>
+            <Payload>
+                <Value name="iat" value="${time() / 1000 }" />
+                <Value name="exp" value="${time() / 1000 + 360 }" />
+                <Value name="iss" value="${/client_email}" />
+                <Value name="aud" value="https://${/host}/token" />
+                <Value name="sub" value="${/user_email}" />
+                <Value name="scope" value="https://www.googleapis.com/auth/apps.alerts" />
+            </Payload>
+            <Secret value="${/private_key}" />
+        </CreateJWTAccessToken>
+
+        <!-- Call Google API to obtain an Access Token -->
+
+        <CallEndpoint url="https://${/host}/token" method="POST" savePath="/get_access_token" >
+            
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="urn:ietf:params:oauth:grant-type:jwt-bearer" />
+                <Parameter name="assertion" value="${/jwt_assertion}" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <!-- Extracting the Access Token -->
+
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+        <!-- Fetch events to correlate -->
+
+        <CallEndpoint url="https://alertcenter.googleapis.com/v1beta1/alerts/" method="GET" savePath="/get_logs" >
+            <RequestHeader  name="Content-Type" value="application/json" />
+            <RequestHeader  name="Authorization" value="Bearer ${/access_token}" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+
+        <If condition="/get_logs/status_code != 200">
+            <Abort reason="${/get_logs}" />
+        </If>
+
+        <If condition="count(/get_logs/body/alerts) > 0">
+
+            <CallEndpoint url="https://alertcenter.googleapis.com/v1beta1/alerts/" method="GET" savePath="/get_logs" >
+                <QueryParameter name="filter"   value='(createTime >= &quot;${/bookmark}&quot;)' omitIfEmpty="true" />
+                <RequestHeader  name="Content-Type" value="application/json" />
+                <RequestHeader  name="Authorization" value="Bearer ${/access_token}" />
+            </CallEndpoint>
+
+            <PostEvents path="/get_logs/body/alerts" source="${/host}" />
+
+         <!-- Define the last event timestamp as the new bookmark -->
+
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${max(/get_logs/body/alerts/createTime)}" savePath="/last_event_time" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/bookmark" />
+
+        </If>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
