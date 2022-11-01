@@ -9,9 +9,6 @@
 
     <Actions>
 
-        <!-- Clear the log source status before a new workflow run starts -->
-	    <ClearStatus />
-
         <!-- Create a JSON Web Token (JWT) before obtain an access token to call Google API -->
 
         <CreateJWTAccessToken savePath="/jwt_assertion">
@@ -55,7 +52,7 @@
         <!-- Handle Errors -->
 
         <If condition="/get_logs/status_code != 200">
-            <Abort reason="${/get_logs}" />
+            <Abort reason="${/get_logs/body}" />
         </If>
 
         <If condition="count(/get_logs/body/alerts) > 0">
@@ -75,12 +72,16 @@
 
         </If>
 
+        <!-- Clear the log source status before a new workflow run starts -->
+	<ClearStatus />
+
     </Actions>
 
     <Tests>
         <DNSResolutionTest host="${/host}" />
         <TCPConnectionTest host="${/host}" />
         <SSLHandshakeTest host="${/host}" />
+        <TCPConnectionTest host="https://alertcenter.googleapis.com" />
         <HTTPConnectionThroughProxyTest url="https://${/host}" />
     </Tests>
 
