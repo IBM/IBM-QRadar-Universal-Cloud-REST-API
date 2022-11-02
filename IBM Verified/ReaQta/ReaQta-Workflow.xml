@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="ReaQta" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+  <Parameters>
+    <Parameter name="app_id"            label="ReaQta Application ID"       required="true" />
+    <Parameter name="secret_key"        label="ReaQta secret key"           required="true" secret = "true"/>
+    <Parameter name="reaqta_host"       label="ReaQta Host / IP Address"    required="true" />
+  </Parameters>
+  <Actions>
+    <!-- Initialize receivedAfter timestamp -->
+    <!-- 60 mins prior. Get updated at end of doWhile to current time to prepare for next run. -->
+    <Initialize path="/reaqtaData/receivedAfterMilli" value="${time()}" />
+    <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/reaqtaData/receivedAfterMilli}" savePath="/reaqtaData/receivedAfter_Formatted" />
+    <!-- set the path to just be /alerts at first, but we will modify this as required in the DoWhile loop -->
+    <Set path="/reaqtaData/url" value="https://${/reaqta_host}/rqt-api/1/alerts"/>
+    <!-- Get Auth Token -->
+    <CallEndpoint url="https://${/reaqta_host}/rqt-api/1/authenticate" method="POST" savePath="/reaqtaAuth/response">
+      <RequestHeader name="Content-Type" value="application/json" />
+      <RequestBody type="application/json" encoding="UTF-8">
+        {
+          "secret":"${/secret_key}",
+          "id": "${/app_id}"
+        }
+      </RequestBody>
+    </CallEndpoint>
+
+    <If condition="/reaqtaAuth/response/status_code != 200">
+      <Abort reason="${/reaqtaAuth/response/status_code}: ${/reaqtaAuth/response/status_message}" />
+    </If>
+    <Set path="/reaqtaAuth/token" value="${/reaqtaAuth/response/body/token}"/>
+    <Log type="DEBUG" message="We received an auth token: ${/reaqtaAuth/token}." />
+
+    <!-- Get alerts -->
+
+    <DoWhile condition="not empty(/reaqtaData/response/body/nextPage)"> <!-- There are still alerts to post to QRadar -->
+      <CallEndpoint url="${/reaqtaData/url}" method="GET" savePath="/reaqtaData/response">
+        <QueryParameter name="receivedAfter" value="${/reaqtaData/receivedAfter_Formatted}" omitIfEmpty="true" />
+        <QueryParameter name="sortBy" value="receivedAt:asc" />
+        <RequestHeader name="Content-Type" value="application/json" />
+        <RequestHeader name="Authorization" value="Bearer ${/reaqtaAuth/token}" />
+      </CallEndpoint>
+
+      <Log type="DEBUG" message="We received a total of ${count(/reaqtaData/response/body/result)} Offenses." />
+      <Log type="DEBUG" message="Remaining alerts to retrieve: ${/reaqtaData/response/body/remainingItems}" />
+
+      <If condition="/reaqtaData/response/status_code != 200">
+        <Abort reason="${/reaqtaData/response/status_code}: ${/reaqtaData/response/status_message}" />
+      </If>
+      <Else>
+        <ClearStatus />
+      </Else>
+
+      <If condition="${count(/reaqtaData/response/body/result)} > 0">
+        <!-- Post the alerts -->
+        <!-- Set host as the LSI -->
+        <PostEvents path="/reaqtaData/response/body/result" source="${/reaqta_host}" />
+        <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" date="${max(/reaqtaData/response/body/result/receivedAt)}" timeZone="UTC" savePath="/reaqtaData/receivedAfterMilli"/>
+        <Set path="/reaqtaData/receivedAfterMilli" value="${/reaqtaData/receivedAfterMilli + 1}" />
+        <!-- unset this for subsequent loops -->
+        <Set path="/reaqtaData/receivedAfter_Formatted" value="" />
+      </If>
+
+      <!-- Set the next page if present -->
+      <If condition="not empty(/reaqtaData/response/body/nextPage)">
+        <Log type="DEBUG" message="Response contained a next page link." />
+        <Set path="/reaqtaData/url" value="${/reaqtaData/response/body/nextPage}" />
+      </If>
+    </DoWhile>
+  </Actions>
+  <Tests>
+    <DNSResolutionTest host="https://${/reaqta_host}"/>
+    <TCPConnectionTest host="https://${/reaqta_host}"/>
+    <HTTPConnectionThroughProxyTest url="https://${/reaqta_host}"/>
+  </Tests>
+</Workflow>
