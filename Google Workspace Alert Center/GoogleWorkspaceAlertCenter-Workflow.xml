@@ -48,9 +48,9 @@
 
         <!-- Initialize bookmark -->
         
-        <Initialize path="/bookmark" value="${time() - 3600000}" />
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/bookmark" />
-
+        <Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark + 1000}" savePath="/bookmark" />
+	    
         <!-- Fetch events -->
         
         <CallEndpoint url="https://alertcenter.googleapis.com/v1beta1/alerts/" method="GET" savePath="/get_logs" >
@@ -63,10 +63,9 @@
 
         <!-- Define the last event timestamp as the new bookmark -->
 
-        <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${max(/get_logs/body/alerts/createTime)}" savePath="/last_event_time" />
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/bookmark" />
-
-         <!-- Handle Errors -->
+        <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${max(/get_logs/body/alerts/createTime)}" savePath="/bookmark" />
+	    
+        <!-- Handle Errors -->
 
         <If condition="/get_logs/status_code != 200">
             <Abort reason="${/get_logs/body}" />
