@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
     <Value name="host"          value="oauth2.googleapis.com" />
+    <Value name="api_host"      value="alertcenter.googleapis.com" />
     <Value name="key_id"        value="private_key_id" />
-    <Value name="user_email"    value="UserWithAccessToAlertCenterPortal@your_domain.com" />
+    <Value name="user_email"    value="an_alert_center_user@your_domain.com" />
     <Value name="client_email"  value="service_account_name@your_project_name_id.iam.gserviceaccount.com" />
     <Value name="private_key"   value="your_private_key_base64_encoded_and_signed_with_keycert"/>
 </WorkflowParameterValues>
