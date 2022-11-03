@@ -27,6 +27,11 @@ IMPORTANT: Copy the entire private key from your service account JSON Key file r
 
     grep -o -e "-----BEGIN PRIVATE KEY-----[^\"]\+" your_service_account_credentials_file.json | awk '{gsub("\\\\n","\n")};1' | base64 -w0
 
+IMPORTANT! Be sure to configure an user that have access to Google Alert Center Admin Console in the 'GoogleWorkspaceAlertCenter-Workflow-Parameter-Values.xml' for use in the 'sub' parameter at the moment of JTW configuration. This user is crucial once it will be impersonated in the API calls.
+
+    <Value name="user_email"    value="an_alert_center_user@your_domain.com" />
+
+
 # QRadar Log Source Configuration
 
 1. Log in to QRadar.
