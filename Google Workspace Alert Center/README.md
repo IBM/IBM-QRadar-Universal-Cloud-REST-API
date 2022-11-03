@@ -23,7 +23,9 @@ Configuring access to Google Alert Center API:
     
 - Make sure you saved the JSON file for your service account, this file contain the Private Key required to call Google Alert Center API: https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating
     
-IMPORTANT: Copy the entire private key from your service account JSON Key file replacing all the '\n' with line breaks and encode the key using Base64 before paste it in the 'GoogleWorkspaceAlertCenter-Workflow-Parameter-Values.xml' file.
+IMPORTANT: Copy the entire private key from your service account JSON Key file replacing all the '\n' with line breaks and encode the key using Base64 before paste it in the 'GoogleWorkspaceAlertCenter-Workflow-Parameter-Values.xml' file. Take a look at the following command, it could be very helpful to do that.
+
+    grep -o -e "-----BEGIN PRIVATE KEY-----[^\"]\+" your_service_account_credentials_file.json | awk '{gsub("\\\\n","\n")};1' | base64 -w0
 
 # QRadar Log Source Configuration
 
