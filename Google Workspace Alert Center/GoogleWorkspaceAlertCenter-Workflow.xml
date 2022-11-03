@@ -46,29 +46,25 @@
 
         <Set path="/access_token" value="${/get_access_token/body/access_token}" />
 
-        <!--    <Initialize path="/bookmark" value="0" />-->
+        <!-- Initialize bookmark -->
         
-        <Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" />
-       <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/createTime" />
+        <Initialize path="/bookmark" value="${time() - 3600000}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/bookmark" />
 
         <!-- Fetch events -->
         
-            <CallEndpoint url="https://alertcenter.googleapis.com/v1beta1/alerts/" method="GET" savePath="/get_logs" >
-                <QueryParameter name="filter"   value='(createTime >= &quot;${/createTime}&quot;)' />
-                <RequestHeader  name="Content-Type" value="application/json" />
-                <RequestHeader  name="Authorization" value="Bearer ${/access_token}" />
-            </CallEndpoint>
+        <CallEndpoint url="https://alertcenter.googleapis.com/v1beta1/alerts/" method="GET" savePath="/get_logs" >
+            <QueryParameter name="filter"   value='(createTime >= &quot;${/bookmark}&quot;)' />
+            <RequestHeader  name="Content-Type" value="application/json" />
+            <RequestHeader  name="Authorization" value="Bearer ${/access_token}" />
+        </CallEndpoint>
 
-        <If condition="count(/get_logs/body/alerts) > 0">
-
-            <PostEvents path="/get_logs/body/alerts" source="${/host}" />
+        <PostEvents path="/get_logs/body/alerts" source="${/host}" />
 
         <!-- Define the last event timestamp as the new bookmark -->
 
-            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${max(/get_logs/body/alerts/createTime)}" savePath="/last_event_time" />
-            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/bookmark" />
-
-        </If>
+        <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${max(/get_logs/body/alerts/createTime)}" savePath="/last_event_time" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/bookmark" />
 
          <!-- Handle Errors -->
 
