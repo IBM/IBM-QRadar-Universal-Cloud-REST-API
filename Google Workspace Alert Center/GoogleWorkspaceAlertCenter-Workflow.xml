@@ -57,11 +57,15 @@
 
         <PostEvents path="/get_logs/body/alerts" source="${/host}" />
 
-        <!-- Define the last event timestamp as the new bookmark -->
-
-        <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${max(/get_logs/body/alerts/createTime)}" savePath="/last_event_time" />
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/new_query_time" />
-        <Set path="/bookmark" value="${/new_query_time}"/>
+        <If condition="${count(/get_logs/body/alerts)}  != 0 " >
+        
+            <!-- Define the last event timestamp as the new bookmark -->
+        
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${max(/get_logs/body/alerts/createTime)}" savePath="/last_event_time" />
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/last_event_time + 1000}" savePath="/new_query_time" />
+        
+            <Set path="/bookmark" value="${/new_query_time}"/>
+        </If>
 
         <!-- Handle Errors -->
 
