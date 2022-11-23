@@ -18,14 +18,14 @@ Then click the on "Generate" and you get the Key Name and Key Token.
   </Parameters>
 
   <Actions>
-<!--    <Initialize path="/bookmark" value="0" />-->
-    <Initialize path="/bookmark" value="${time() - 7200000}" />
-<!--    <Initialize path="/bookmark_assets" value="0" />-->
-    <Initialize path="/bookmark_assets" value="${time() - 7200000}" />
-    <Initialize path="/size" value="1000" />
+<!--        <Initialize path="/bookmark_alert" value="0" />-->
+    <Initialize path="/bookmark_alert" value="${time() - 3600000}" />
+<!--        <Initialize path="/bookmark_assets" value="0" />-->
+    <Initialize path="/bookmark_assets" value="${time() - 3600000}" />
+    <Initialize path="/size" value="500" />
     <Initialize path="/alert_page" value="1" />
     <Initialize path="/asset_page" value="1" />
-    <Initialize path="/first_run" value="true" />
+    <Initialize path="/first_run_alert" value="true" />
     <Initialize path="/first_run_asset" value="true" />
 
     <CallEndpoint url="https://${/host}/api/v1/keys/sign_in" method="POST" savePath="/sign_in">
@@ -38,7 +38,7 @@ Then click the on "Generate" and you get the Key Name and Key Token.
     </If>
     <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
 
-    <Log type="INFO" message="NN Vantage Sign in successfully done alert bookmark ${/bookmark} - asset_bookmark ${/bookmark_assets}" />
+    <Log type="INFO" message="NN Vantage Sign in successfully done alert bookmark ${/bookmark_alert} - asset_bookmark ${/bookmark_assets}" />
 
     <!--  Find organization id from org name passed -->
     <CallEndpoint url="https://${/host}/api/v1/admin/organizations?filter[name]=${/org}" method="GET" savePath="/organizations">
@@ -60,13 +60,14 @@ Then click the on "Generate" and you get the Key Name and Key Token.
     <Log type="INFO" message="NN Vantage Organization id found from org name ${/org}" />
 
     <!--  GET ALERTS-->
-    <DoWhile condition="${/first_run} = true or ${count(/alerts/body/data)} = ${/size}">
-      <Log type="INFO" message="NN Vantage Alerts alert_page ${/alert_page} and bookmark ${/bookmark}" />
+    <DoWhile condition="${/first_run_alert} = true or ${count(/alerts/body/data)} = ${/size}">
+      <Log type="INFO" message="NN Vantage Alerts alert_page ${/alert_page} and bookmark ${/bookmark_alert}" />
       <CallEndpoint url="https://${/host}/api/v1/alerts" method="GET" savePath="/alerts">
         <QueryParameter name="size" value="${/size}"/>
         <QueryParameter name="page" value="${/alert_page}"/>
         <QueryParameter name="sort[record_created_at]" value="asc"/>
-        <QueryParameter name="filter[record_created_at][gt]" value="${/bookmark}" omitIfEmpty="true"/>
+        <QueryParameter name="filter[record_created_at][gt]" value="${/bookmark_alert}" omitIfEmpty="true"/>
+        <QueryParameter name="skip_total_count" value="true"/>
         <RequestHeader name="Authorization" value="${/bearer_token}"/>
         <RequestHeader name="Vantage-Org" value="${/org_id}"/>
       </CallEndpoint>
@@ -78,15 +79,15 @@ Then click the on "Generate" and you get the Key Name and Key Token.
 
       <PostEvents path="/alerts/body/data" source="${/host}" />
 
-      <Set path="/first_run" value="false" />
+      <Set path="/first_run_alert" value="false" />
       <Set path="/alert_page" value="${/alert_page + 1}" />
 
       <If condition="${count(/alerts/body/data)} != ${/size}">
         <Set path="/alert_page" value="1" />
         <Log type="INFO" message="NN Vantage Alerts alert_page rollback ${/alert_page}" />
         <If condition="max(/alerts/body/data/attributes/record_created_at) != null">
-          <Set path="/bookmark" value="${max(/alerts/body/data/attributes/record_created_at)}" />
-          <Log type="INFO" message="NN Vantage Alerts bookmark upgraded to ${/bookmark}" />
+          <Set path="/bookmark_alert" value="${max(/alerts/body/data/attributes/record_created_at)}" />
+          <Log type="INFO" message="NN Vantage Alerts bookmark upgraded to ${/bookmark_alert}" />
         </If>
       </If>
 
@@ -101,6 +102,7 @@ Then click the on "Generate" and you get the Key Name and Key Token.
         <QueryParameter name="page" value="${/asset_page}"/>
         <QueryParameter name="sort[created_at]" value="asc"/>
         <QueryParameter name="filter[created_at][gt]" value="${/bookmark_assets}" omitIfEmpty="true"/>
+        <QueryParameter name="skip_total_count" value="true"/>
         <RequestHeader name="Authorization" value="${/bearer_token}"/>
         <RequestHeader name="Vantage-Org" value="${/org_id}"/>
       </CallEndpoint>
