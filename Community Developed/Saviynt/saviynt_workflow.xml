@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Saviynt" version="1.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+	<Parameters>
+		<!-- Enter API host here -->
+		<Parameter name="api_host" label="API Host" required="true" default="[ORG].saviyntcloud.com" />
+		<Parameter name="username" label="Username" required="true" />
+		<Parameter name="password" label="Password" required="true" secret="true"/>
+	</Parameters>
+
+	<Actions>
+		<!-- Enter Get Token endpoint here -->
+		<CallEndpoint url="https://${/api_host}/ECMv6/api/auth/login" method="POST" savePath="/get_access_token">
+			<!-- Request Body is the body of the request you can pass body data here -->
+			<RequestBody type="application/json" encoding="UTF-8">{"username":"${/username}","password":"${/password}"}</RequestBody>
+		</CallEndpoint>
+
+		<!-- Check statuscode of token request -->
+		<If condition="/get_access_token/status_code != 200">
+			<Abort reason="${/get_access_token/body}" />
+		</If>
+
+		<!-- Extract the Access Token -->
+		<Set path="/access_token" value="${/get_access_token/body/accessToken}" />
+
+		<!-- Fetch the Events -->
+		<CallEndpoint url="https://${/api_host}/ECM/api/v5/fetchRuntimeControlsDataV2" method="POST" savePath="/get_events">
+			<BearerAuthentication token="${/access_token}" />
+			<QueryParameter name="limit" value="100" />
+			<RequestBody type="application/json" encoding="UTF-8">{"analyticsname": "siem", "attributes": {"timeFrame": "5"}}</RequestBody>
+		</CallEndpoint>
+
+		<!-- Handle Errors -->
+		<If condition="/get_events/status_code != 200">
+			<Abort reason="${/get_events/body}" />
+		</If>
+
+		<!-- Post the event -->
+		<If condition="count(/get_events/body/results) > 0">
+			<PostEvents path="/get_events/body/results" source="${/api_host}" />
+		</If>
+
+    </Actions>
+
+	<!-- Tests -->
+	<Tests>
+		<DNSResolutionTest host="${/api_host}" />
+		<TCPConnectionTest host="${/api_host}" />
+		<SSLHandshakeTest host="${/api_host}" />
+		<HTTPConnectionThroughProxyTest url="https://${/api_host}" />
+	</Tests>
+</Workflow>
