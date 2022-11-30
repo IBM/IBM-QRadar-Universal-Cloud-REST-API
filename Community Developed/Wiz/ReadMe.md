@@ -9,6 +9,12 @@ To find your API endpoint URL:
 1. Log in to Wiz, then open your <a href="https://app.wiz.io/user/profile" target="_blank">user profile</a>
 2. Copy the **API Endpoint URL** to a local file for use below.
 
+### Token URL
+To find your Token URL:
+1. Go to <a href="https://app.wiz.io/settings/service-accounts" target="_blank">Settings > Service Accounts</a>
+2. The token URL is near the top of the screen.
+3. Copy the token URL to a local file for use below.
+
 ### Client ID and client secret
 To generate a client ID and client secret:
 1. Go to <a href="https://app.wiz.io/settings/service-accounts" target="_blank">Settings > Service Accounts</a>, then click **Add Service Account**.
@@ -44,6 +50,8 @@ Parameter Values).
 
 1. client_id : The Client ID obtained from Wiz portal.
 2. client_secret : The Client Secret obtained from Wiz portal.
-3. host : The API Endpoint URL to fetch the events from Wiz. If your host is `https://api.us1.app.wiz.io/graphql` then enter `api.us1.app.wiz.io`.
-4. historical_days : Number of historical days to fetch data from Wiz (default value is 10 days) .
-5. gql_query : The GraphQL query to be used while fetching the events from Wiz (default GraphQL query already present).
+3. token_url_domain : The Token URL Domain to fetch the JWT Token from Wiz.
+4. host : The API Endpoint URL Domain to fetch the events from Wiz.
+5. historical_days : Number of historical days to fetch data from Wiz (default value is 10 days) .
+6. auth_type : The Authentication type used to fetch JWT Token from Wiz.
+7. gql_query : The GraphQL query to be used while fetching the events from Wiz (default GraphQL query already present).

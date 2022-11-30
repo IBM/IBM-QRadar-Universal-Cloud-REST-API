@@ -4,7 +4,9 @@
     <Parameters>
         <Parameter name="client_id" label="Client ID" required="true" />
         <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+        <Parameter name="token_url_domain" label="JWT Auth Endpoint" required="true" />
         <Parameter name="host" label="API Endpoint" required="true" />
+        <Parameter name="auth_type" label="Authentication Type" required="true" />
         <Parameter name="initial_historical_days" label="Historical Days" required="true" />
         <Parameter name="gql_query" label="GraphQL Query" required="true" />
     </Parameters>
@@ -14,17 +16,24 @@
         <!-- Initialize the Bookmark -->
         <Initialize path="/bookmark" value="${time() - (${/initial_historical_days} * 24 * 60 * 60 * 1000)}" />
 
+        <!-- Initialize the Audience Parameter -->
+        <Initialize path="/audience_parameter" value="wiz-api" />
+        
         <!-- Format Date to be passed in fetching events -->
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
+
+        <If condition="'${/auth_type}' = 'auth0'">
+            <Set path="/audience_parameter" value="beyond-api" />
+        </If>
         
         <!-- Fetch API Token -->
-        <CallEndpoint url="https://auth.wiz.io/oauth/token" method="POST" savePath="/get_access_token">
+        <CallEndpoint url="https://${/token_url_domain}/oauth/token" method="POST" savePath="/get_access_token">
             <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
             <UrlEncodedFormRequestBody>
                 <Parameter name="grant_type" value="client_credentials" />
                 <Parameter name="client_id" value="${/client_id}" />
                 <Parameter name="client_secret" value="${/client_secret}" />
-                <Parameter name="audience" value="beyond-api" />
+                <Parameter name="audience" value="${/audience_parameter}" />
             </UrlEncodedFormRequestBody>
         </CallEndpoint>
 
@@ -139,9 +148,9 @@
         <TCPConnectionTest host="${/host}" />
         <SSLHandshakeTest host="${/host}" />
 
-        <DNSResolutionTest host="auth.wiz.io" />
-        <TCPConnectionTest host="auth.wiz.io" />
-        <SSLHandshakeTest host="auth.wiz.io" />
+        <DNSResolutionTest host="${/token_url_domain}" />
+        <TCPConnectionTest host="${/token_url_domain}" />
+        <SSLHandshakeTest host="${/token_url_domain}" />
     </Tests>
 
 </Workflow>
