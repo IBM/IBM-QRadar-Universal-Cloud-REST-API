@@ -9,11 +9,11 @@
 
     <Actions>
 
-        <Initialize path="/get_logs/offset" value="0" />
+        <Initialize path="/get_logs/bookmark" value="0" />
         <CallEndpoint url="https://${/host}/rest/api/3/auditing/record" method="GET" savePath="/get_logs">
 	    <SSLConfiguration allowUntrustedServerCertificate="true" />
 	    <BasicAuthentication username="${/user_id}" password="${/token}" />
-	    <QueryParameter name="offset=" value="${/get_logs/offset}" />
+	    <QueryParameter name="offset=" value="${/get_logs/bookmark}" />
 	    <QueryParameter name="limit=" value="1000" />
             <RequestHeader name="Content-Type" value="application/json" />
         </CallEndpoint>
@@ -27,7 +27,7 @@
         <PostEvents path="/get_logs/body/records" source="${/host}"/>
 
         <!-- Update the bookmark -->
-        <Set path="/get_logs/offset" value="${/get_logs/body/total}" />
+        <Set path="/get_logs/bookmark" value="${/get_logs/body/total}" />
 
     </Actions>
 
