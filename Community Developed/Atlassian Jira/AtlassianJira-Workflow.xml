@@ -20,7 +20,7 @@
 
         <!-- Handle Errors -->
         <If condition="/get_logs/status_code != 200">
-            <Abort reason="${/get_logs}" />
+            <Abort reason="${/get_logs/status_code}" />
         </If>
 
         <!-- Post Events -->
