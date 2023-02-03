@@ -24,7 +24,7 @@
         <Initialize path="/detectionEndpoint" value="/api/v3/events/account_detection" />
         <Initialize path="/historicalSince" value="10000000" />
         <Initialize path="/limit" value="1000" />
-        <Initialize path="/refreshToken" value="refresh_token" />
+        <Initialize path="/refreshToken" value="" />
         <Initialize path="/defaultSleepTime" value="30" />
 
         <!-- Detection checkpoint -->
@@ -39,7 +39,7 @@
         <While condition="${/errorCount != ${/maxRetry}}">
 
             <!-- Create Refresh Token if it is not created -->
-            <If condition="${/refreshToken = 'refresh_token'}">
+            <If condition="${empty(/refreshToken)} = 'true'">
 
                 <Log type="INFO" message="${/logPrefix} - Refresh token not found. Creating new Access and Refresh token using provided credentials." />
 

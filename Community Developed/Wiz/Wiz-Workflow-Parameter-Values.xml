@@ -2,8 +2,18 @@
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
     <Value name="client_id"     value="" />
     <Value name="client_secret" value="" />
+
+    <!-- Enter the domain for Token URL. Eg: auth.app.wiz.io -->
+    <Value name="token_url_domain"     value="" />
+
+    <!-- Enter the domain for Endpoint URL. Eg: api.eu.app.wiz.io -->
     <Value name="host"  value="" />
+
     <Value name="initial_historical_days" value="10" />
+
+    <!-- Defines Authentication for Wiz Server. Accepted values=cognito/auth0 -->
+    <Value name="auth_type"     value="cognito" />
+
     <Value
         name="gql_query"
         value="query IssuesTable(
