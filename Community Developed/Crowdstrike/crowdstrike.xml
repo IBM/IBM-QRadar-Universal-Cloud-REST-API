@@ -1,0 +1,41 @@
+<Workflow name="Crowdstrike Detections" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    <Parameters>
+        <Parameter name="api_host" label="API Host" required="true" />
+        <Parameter name="client_id" label="Client id" required="true" />
+        <Parameter name="client_secret" label="Client secret" required="true" />
+    </Parameters>
+    <Actions>
+        <CallEndpoint url="https://${/api_host}/oauth2/token" method="POST" savePath="/get_access_token">
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestHeader name="Content-Type" value="application/x-www-form-urlencoded" />
+            <UrlEncodedFormRequestBody>
+                <Parameter name="client_id" value="${/client_id}" />
+                <Parameter name="client_secret" value="${/client_secret}" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+        <Set path="/bearer_token" value="${/get_access_token/body/access_token}" />
+        <FormatDate pattern="YYYY-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${time() - 60 * 1000}" savePath="/created_timestamp" />
+        <CallEndpoint url="https://${/api_host}/detects/queries/detects/v1" method="GET" savePath="/get_detections_ids">
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestHeader name="Authorization" value="Bearer ${/bearer_token}" />
+        </CallEndpoint>
+        <Set path="/total" value="${count(/get_detections_ids/body/resources)}" />
+        <CallEndpoint url="https://${/api_host}/detects/entities/summaries/GET/v1?filter=created_timestamp:>'${/created_timestamp}'" method="POST" savePath="/get_detection_details">
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestHeader name="Authorization" value="Bearer ${/bearer_token}" />
+            <RequestBody type="application/json" encoding="UTF-8">
+                {"ids":${/get_detections_ids/body/resources}}
+            </RequestBody>
+        </CallEndpoint>
+        <Set path="/total_detections" value="${count(/get_detection_details/body/resources)}" />
+        <Set path="/i" value="0" />
+        <Set path="/j" value="${/total_detections}" />
+        <If condition="${/total_detections} > 0">
+            <While condition="/i != /j">
+                <Set path="/evento" value="${/get_detection_details/body/resources[/i]}" />
+                <PostEvent path="/evento" source="${/api_host}" />
+                <Set path="/i" value="${/i + 1}" />
+            </While>
+        </If>
+    </Actions>
+</Workflow>
