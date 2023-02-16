@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+
+    <!-- "hostname" - CyberInt API host -->
+	<Value name="hostname" value=""/>
+
+    <!-- "api_key" - CyberInt API key for QRadar (required) -->
+	<Value name="api_key" value=""/>
+</WorkflowParameterValues>

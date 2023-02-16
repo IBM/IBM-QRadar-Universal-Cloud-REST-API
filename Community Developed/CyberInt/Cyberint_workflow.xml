@@ -1,0 +1,83 @@
+<Workflow name="Qmasters CyberInt workflow for QRadar" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    <Parameters>
+        <Parameter name="hostname" label="Host Name" required="true" />
+        <Parameter name="api_key" label="API Key" required="true" secret="true" />
+        <Parameter name="severity" label="Severity" required="false" />
+        <Parameter name="status" label="Status" required="false" default="false" />
+    </Parameters>
+
+    <Actions>
+        <!-- Clear the log source status before a new workflow run starts -->
+        <ClearStatus />
+
+        <!-- Initialize the risingValue filter for the first run. -->
+        <Initialize path="/bookmark" value="${time() - 604800000}" />
+        
+        <!-- Prepare the start date filter, based on the current bookmark -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" time="${/bookmark}" timeZone="UTC" savePath="/start_date" />
+
+        <!-- Prepare the end date filter, which is the current time. -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" savePath="/end_date" />
+
+        <!-- Get Alerts -->				
+        <CallEndpoint url="${/hostname}/alert/api/v1/alerts" method="POST" savePath="/get_alerts" >
+            <RequestHeader name="Cookie" value="access_token=${/api_key}; Path=/;" />
+            <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "page": 1,
+                    "size": 100,
+                    "include_csv_attachments_as_json_content": true,
+                    "filters":
+                        {   
+                            "status": 
+                                [
+                                    ${/status}
+                                ],
+                            "severity": 
+                                [
+                                    ${/severity}
+                                ],
+                            "created_date": 
+                                {
+                                    "from": "${/start_date}",
+                                    "to": "${/end_date}"
+                                }
+                        }
+                }
+            </RequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_alerts/status_code != 200">
+            <If condition="/get_alerts/status_code = 403" >
+                <Abort reason="The user or team account does not have access to the endpoint/feature/resource." />
+            </If>
+
+            <If condition="/get_alerts/status_code = 422" >
+                <Abort reason="Bad input parameter. The response body is a plaintext message with more information." />
+            </If>
+
+            <If condition="/get_alerts/status_code >= 500" >
+                <Abort reason="Cyberint API is not available" />
+            </If>
+
+            <Abort reason="Cyberint abort reason:  ${/get_alerts}" />
+        </If>
+
+        <!-- Post Events, if any -->
+            <If condition="count(/get_alerts/body/alerts) > 0">
+                <PostEvents path="/get_alerts/body/alerts" source="${/hostname}" />
+
+                <!-- Update the bookmark -->
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" date="${max(/get_alerts/body/alerts/created_date)}" savePath="/last_event_time" />
+                <Set path="/bookmark" value="${/last_event_time + 1}" />
+    
+            </If>
+    </Actions>	
+    <Tests>
+        <DNSResolutionTest host="${/hostname}" />
+        <TCPConnectionTest host="${/hostname}" />
+        <SSLHandshakeTest host="${/hostname}" />
+        <HTTPConnectionThroughProxyTest url="${/hostname}" expectedResponseStatus="404" />
+    </Tests>
+</Workflow>
