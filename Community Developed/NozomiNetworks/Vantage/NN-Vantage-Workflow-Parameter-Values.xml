@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8" ?>
 <!--
 Vantage API documentation
 https://endpoint/api-docs/index.html
@@ -12,7 +13,6 @@ youcompany.vantage.nozominetworks.io
 without the protocol.
 -->
 
-<?xml version="1.0" encoding="UTF-8" ?>
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
   <Value name="host" value="" />
   <Value name="org" value="" />
