@@ -2,7 +2,7 @@
 <Workflow name="ZeroNetworks" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
     <Parameters>
         <Parameter name="api_token" label="API Token" required="true" secret="true" />
-        <Parameter name="host" label="Portal URL" required="true" />
+        <Parameter name="host" label="Portal Hostname" required="true" />
         <Parameter name="initial_historical_days" label="Historical Days" required="true" />
     </Parameters>
     <Actions>
@@ -11,7 +11,6 @@
 
         <!-- Fetch Events -->
         <CallEndpoint url="https://${/host}/api/v1/audit" method="GET" savePath="/get_events">
-            <SSLConfiguration allowUntrustedServerCertificate="true" />
             <QueryParameter name="_limit" value="400" />
             <QueryParameter name="order" value="asc" />
             <QueryParameter name="from" value="${/bookmark}" />

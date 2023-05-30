@@ -37,3 +37,6 @@ Parameter Values).
 1. api_token : The API Token obtained from the portal.
 2. host : The portal hostname
 3. historical_days : Number of historical days to fetch data from Zero Networks Audit Log (default value is 30 days) .
+
+***NOTE:*** Some operating systems may not have the root CA installed.  You can download the **[USERTrust RSA Certification Authority](https://ssl-tools.net/subjects/cd30d24c343a82ab1f0570158ad7a107762992e9)** and install it.
+
