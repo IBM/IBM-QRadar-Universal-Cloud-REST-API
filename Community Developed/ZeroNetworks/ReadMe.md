@@ -35,5 +35,5 @@ Parameter Values).
 
 ## Workflow Parameter Description
 1. api_token : The API Token obtained from the portal.
-2. host : The portal url
+2. host : The portal hostname
 3. historical_days : Number of historical days to fetch data from Zero Networks Audit Log (default value is 30 days) .
