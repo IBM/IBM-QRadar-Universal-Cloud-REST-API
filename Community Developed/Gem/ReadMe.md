@@ -17,7 +17,7 @@ Official documentation can be found [here](https://www.ibm.com/docs/en/dsm?topic
 
 You'll also need to install "Gem Threats" DSM from the App Exchange.
 
-1. Login to QRadar Console.
+1. Login to QRadar Console
 2. Click the _Admin_ tab.
 3. Click the _QRadar Log Source Management_ app icon (if it's not installed, you can find it in [QRadar App Exchange](https://exchange.xforce.ibmcloud.com/hub)).
 4. Click _New Log Source_ and then select _Single Log Source_.
