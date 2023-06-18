@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="clientId" value=""/>
+    <Value name="clientSecret" value=""/>
+    <Value name="tokenUrlDomain" value="login.gem.security"/>
+    <Value name="apiUrl" value="app.gem.security"/>
+    <Value name="audienceUrl" value="https://backend.gem.security"/>
+</WorkflowParameterValues>
