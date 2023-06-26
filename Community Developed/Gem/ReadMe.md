@@ -15,7 +15,7 @@ You'll need to collect authentication information from Gem in order to ingest da
 In order to configure new log source in QRadar that will ingest data using Universal Cloud Rest API, you'll need to make sure that you have the protocol installed in your environment.
 Official documentation can be found [here](https://www.ibm.com/docs/en/dsm?topic=configuration-universal-cloud-rest-api-protocol).
 
-You'll also need to install "Gem Threats" DSM from the App Exchange.
+You'll also need to install "Gem" DSM from the App Exchange.
 
 1. Login to QRadar Console
 2. Click the _Admin_ tab.
