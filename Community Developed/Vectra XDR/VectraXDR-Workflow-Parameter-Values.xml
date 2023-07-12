@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+
+    <!-- Do not add http or https in the below value of Vectra Hostname-->
+    <Value name="vectraHostName" value=""/>
+    <Value name="clientId" value=""/>
+    <Value name="secretKey" value=""/>
+    <!-- If historical set to true will start collection from past 24 hours else from current time. Must be from [true, false]. -->
+    <!-- It will be applicable in case of initial configuration only. -->
+    <Value name="historical" value="true"/>
+</WorkflowParameterValues>
