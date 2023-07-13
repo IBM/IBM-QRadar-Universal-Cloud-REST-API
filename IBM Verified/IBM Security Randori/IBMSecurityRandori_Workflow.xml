@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="IBMSecurityRandoriRestAPI" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+
+    <Parameters>
+        <Parameter name="organizationName"	label="organizationName"	required="true" />
+        <Parameter name="apiKey"	label="API Key"                     secret="true"	required="true" />
+        <Parameter name="minimumPriority"	label="Minimum Priority" required="true"	/>
+        <Parameter name="minimumTemptation"	label="Minimum Temptation"	required="true" />
+    </Parameters>
+
+    <Actions>
+        <Initialize path="/randoriDetections/detections/status_code" value="200"/> <!-- Sets the initial status to 200. Once we get a value from the API, if the value is not 200 we will sleep an additional 20 seconds. This prevents the protocol test event retriever from running multiple times on failures. -->
+
+    	<If condition="${/randoriDetections/detections/status_code} != 200">
+	    	<!-- __________________________ Setting an internal sleep to slow down the protocol test. Also applies in the main code, but only applies when the status code is in a bad state.________________________ -->
+			<Sleep duration="20000" />
+		</If>
+
+        <!-- _________________________ Clears the status and sets the workflow to running _________________________ -->
+		<ClearStatus />
+		<SetStatus type="INFO" message="Workflow has started." />
+
+		<!-- __________________________Initialization Code_________________________ -->
+        <Initialize path="/randoriDetections/startTimeFirstSeenUnixTime" value="${time() - (60000 * 60 * 24 * 7)}"/> <!-- 7 days previous to initialize -->
+        <Initialize path="/randoriDetections/startTimeTemptationLastModifiedUnixTime" value="${time() - (60000 * 60 * 24 * 7)}"/> <!-- 7 days previous to initialize -->
+
+        <Initialize path="/randoriDetections/limit" 	value="2000"/>          <!-- How many we pullback at once, maximum of 2000 per request -->
+
+        <!-- __________________________Set the query bounds based off time values _________________________ -->
+        <Set path="/randoriDetections/detectionOffset" 	value="0"/>
+        <Set path="/randoriDetections/startTimeFirstSeenUnixTime"	value="${/randoriDetections/startTimeFirstSeenUnixTime}"/>
+        <Set path="/randoriDetections/startTimeTemptationLastModifiedUnixTime"	value="${/randoriDetections/startTimeTemptationLastModifiedUnixTime}"/>
+
+                <!-- __________________________Creates the formatted date for both temptation and first seen in ISO-8601 format _________________________ -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX" savePath="/randoriDetections/startTimeFirstSeen" time="${/randoriDetections/startTimeFirstSeenUnixTime}"/>
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX" savePath="/randoriDetections/startTimeTemptationLastModified" time="${/randoriDetections/startTimeTemptationLastModifiedUnixTime}"/>
+
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX" savePath="/randoriDetections/endtime" time="${/randoriDetections/endtimeMilli}"/>
+
+        <!-- _________________________ Sets the query that will be used for API Calls _________________________ -->
+        <Set path="/randoriDetections/query" value='{"condition":"AND","rules":[{"field":"table.authority","operator":"equal","value":"True"},{"field":"table.affiliation_state","operator":"equal","value":"None"},{"condition":"OR","rules":[{"condition":"AND","rules":[{"ui_id":"target_first_seen","id":"table.target_first_seen","field":"table.target_first_seen","type":"datetime","input":"text","randoriOnly":false,"label":"after","operator":"greater","value":"${/randoriDetections/startTimeFirstSeen}"},{"ui_id":"target_first_seen","id":"table.target_first_seen","field":"table.target_first_seen","type":"datetime","input":"text","randoriOnly":false,"label":"before","operator":"less_or_equal","value":"${/randoriDetections/endtime}"},{"field":"table.priority_score","operator":"greater_or_equal","value":${/minimumPriority}}]},{"condition":"AND","rules":[{"field":"table.temptation_last_modified","id":"table.temptation_last_modified","input":"text","type":"datetime","ui_id":"temptation_last_modified","randoriOnly":false,"label":"after","operator":"greater","value":"${/randoriDetections/startTimeTemptationLastModified}"},{"field":"table.temptation_last_modified","id":"table.temptation_last_modified","input":"text","type":"datetime","ui_id":"temptation_last_modified","randoriOnly":false,"label":"before","operator":"less_or_equal","value":"${/randoriDetections/endtime}"},{"field":"table.target_temptation","operator":"greater_or_equal","value":${/minimumTemptation}}]}]}]}'/>
+
+        <!-- _________________________ Stores the Tracked Newest Time in a separate variable. This is updated and used only once the doWhile ends. _________________________ -->
+        <Set path="/randoriDetections/startTimeFirstSeenUnixTimeTemp" value="${/randoriDetections/startTimeFirstSeenUnixTime}"/>
+		<Set path="/randoriDetections/startTimeTemptationLastModifiedUnixTimeTemp" value="${/randoriDetections/startTimeTemptationLastModifiedUnixTime}"/>
+
+        <!--Note the following : We do not have a way to check this at the moment, but the data can change between calls. Shouldn't happen, but if it does there should be minimal risk. -->
+		 <!-- _________________________ Request events and loop if the event count = the offset limit. _________________________ -->
+        <DoWhile condition="${/randoriDetections/detections/body/count} = ${/randoriDetections/limit}">
+            <CallEndpoint url="https://${/organizationName}/recon/api/v1/all-detections-for-target" method="GET" savePath="/randoriDetections/detections">
+                <BearerAuthentication token="${/apiKey}" />
+
+                <QueryParameter name="limit"    value="${/randoriDetections/limit}" />
+                <QueryParameter name="offset" value="${/randoriDetections/detectionOffset}"/>
+                <QueryParameter name="sort"     value="id" />
+
+                <!-- The query must be in base64 encoding. -->
+                <QueryParameter name="q" value="${base64_encode(/randoriDetections/query)}" />
+
+                <RequestHeader name="Accept" value="application/json" />
+                <RequestHeader name="Content-Type" value="application/json" />
+            </CallEndpoint>
+
+			<!-- _________________________ Catch any status code other than 200 (success). Note 502's for this protocol are throttle issues. _________________________ -->
+			<If condition="${/randoriDetections/detections/status_code} != 200">
+				<If condition="${/randoriDetections/detections/status_code} = 502">
+					<Log type="ERROR" message="A 502 exception indicates the API throttle limit was hit." />
+				</If>
+				<Log type="ERROR" message="${/randoriDetections/detections/status_code}: ${/randoriDetections/detections/status_message}" />
+			    <Abort reason="${/randoriDetections/detections/status_code}: ${/randoriDetections/detections/status_message}" />
+			</If>
+			<Else>
+			    <SetStatus type="INFO" message="Successfully Queried for events."/>
+			</Else>
+
+			<!-- _________________________ Post Events _________________________ -->
+            <PostEvents path="/randoriDetections/detections/body/data" source="${/organizationName}" />
+            <Log type="INFO" message="We received a total of ${count(/randoriDetections/detections/body/data)} detections." />
+
+            <!-- _________________________ Update the last event time. Checks each event for the time. _________________________ -->
+            <ForEach items="/randoriDetections/detections/body/data" item="/randoriDetections/individualEventData">
+
+                 <!-- _________________________ Formats the events first seen and temptation values into usuable unix timestamps _________________________ -->
+				<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX" date="${/randoriDetections/individualEventData/target_first_seen}" savePath="/randoriDetections/tempfirstseen" />
+            	<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX" date="${/randoriDetections/individualEventData/temptation_last_modified}" savePath="/randoriDetections/temptemptationlastmodified" />
+
+            	<!-- _________________________ Checks the doWhile loops tracked temp value against each events time stamp to get the newest time value for temptation and first seen. _________________________ -->
+            	<If condition="/randoriDetections/tempfirstseen > /randoriDetections/startTimeFirstSeenUnixTimeTemp">
+            		<Set path="/randoriDetections/startTimeFirstSeenUnixTimeTemp" value="${/randoriDetections/tempfirstseen}"/>
+            	</If>
+
+            	<If condition="/randoriDetections/temptemptationlastmodified > /randoriDetections/startTimeTemptationLastModifiedUnixTimeTemp">
+            		<Set path="/randoriDetections/startTimeTemptationLastModifiedUnixTimeTemp" value="${/randoriDetections/temptemptationlastmodified}"/>
+            	</If>
+            </ForEach>
+
+            <!-- _________________________ Set new offset value for next query. _________________________ -->
+            <Set path="/randoriDetections/detectionOffset" value="${/randoriDetections/detectionOffset + count(/randoriDetections/detections/body/data)}"/>
+            <Log type="INFO" message="New offset to use: ${/randoriDetections/detectionOffset}" />
+        </DoWhile>
+
+        <!-- _________________________ Updates the tracked unix time with the value obtained through the doWhile to only get new data from the next call._________________________ -->
+        <Set path="/randoriDetections/startTimeFirstSeenUnixTime" value="${/randoriDetections/startTimeFirstSeenUnixTimeTemp}"/>
+        <Set path="/randoriDetections/startTimeTemptationLastModifiedUnixTime" value="${/randoriDetections/startTimeTemptationLastModifiedUnixTimeTemp}"/>
+
+        <Log type="INFO" message="Completed receiving all of the detections for the current time period." />
+
+        <!-- No need to increment as the end time is excluded from the query-->
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest              host="${/organizationName}"/>
+        <TCPConnectionTest              host="${/organizationName}"/>
+        <SSLHandshakeTest             	host="${/organizationName}"/>
+        <HTTPConnectionThroughProxyTest url ="${/organizationName}"/>
+    </Tests>
+</Workflow>

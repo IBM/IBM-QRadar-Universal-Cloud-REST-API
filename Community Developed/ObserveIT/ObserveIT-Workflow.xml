@@ -1,0 +1,241 @@
+<Workflow name="Qmasters ObserveIT" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+		<Parameter name="hostname" label="Host Name" description="IP for the instance." required="true" default="myobserveit.com" />
+		<Parameter name="client_id" label="Organization Key"
+            description="Can be received through the Developer Portal by selecting Credentials and pressing the Create App button."
+             required="true" />
+		<Parameter name="client_secret" label="API Secret"
+            description="Can be received through the Developer Portal by selecting Credentials and pressing the Create App button."
+            required="true" secret="true" />
+
+        <Parameter name="events_per_poll" label="Events Per Poll"
+            description="Max number of records to return per poll" default="100" />
+        <Parameter name="exclude_pii" label="Exclude Personal Information"
+            description="Exclude Personal Identifiable Information from the reports." default="false" />
+
+        <Parameter name="poll_alert" label="Poll Alert" description="Alert Events." default="false" />
+        <Parameter name="poll_configuration_activity" label="Poll Configuration Activity" description="Audit Configuration Activity." default="false" />
+        <Parameter name="poll_login_activity" label="Poll Login Activity" description="Audit Login Activity." default="false" />
+        <Parameter name="poll_saved_session_activity" label="Poll Saved Session Activity" description="Audit Saved Sessions Activity." default="false" />
+        <Parameter name="poll_session_playback_activity" label="Poll Session Playback Activity" description="Audit Session Playback Activity." default="false" />
+        <Parameter name="poll_system_event" label="Poll System Event" description="System Events." default="false" />
+        <Parameter name="poll_command_activity_with_output" label="Poll Command Activity with Output" description="UNIX Command Events." default="false" />
+        <Parameter name="poll_command_output_stream" label="Poll Command Output Stream" description="UNIX Output Streams" default="false" />
+        <Parameter name="poll_dba_activity" label="Poll Database Activity" description="Database Events." default="false" />
+        <Parameter name="poll_file_activity" label="Poll File Activity" description="File Monitoring Activity Events." default="false" />
+        <Parameter name="poll_interface_activity" label="Poll Interface Activity" description="Windows/Mac user interface interaction events." default="false" />
+        <Parameter name="poll_messaging_actions_activity" label="Poll Messaging Action Activity" description="Messaging Actions Activity Events." default="false" />
+        <Parameter name="poll_session" label="Poll Session Activity" description="Summary of Activity for a completed or in-progress user session." default="false" />
+    </Parameters>
+
+    <Actions>
+		<!-- Clear the log source status before a new workflow run starts. -->
+        <ClearStatus />
+		<!-- Get Bearer Token. -->
+		<CallEndpoint url="https://${/hostname}/v2/apis/auth/oauth/token" method="POST" savePath="/get_bearer_token" >
+            <!-- <SSLConfiguration allowUntrustedServerCertificate="true" /> -->
+			<UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+                <Parameter name="client_id" value="${/client_id}" />
+                <Parameter name="client_secret" value="${/client_secret}" />
+                <Parameter name="scope" value="*" />
+            </UrlEncodedFormRequestBody>
+		</CallEndpoint>
+
+		<!-- Handle errors. -->
+        <If condition="/get_bearer_token/status_code != 200">
+            <If condition="/get_bearer_token/status_code = 400">
+                <Abort reason="${/get_bearer_token}" />
+                <Log type="ERROR" message="ObserveIT abort at get token, reason: ${/get_bearer_token/body/_status/message}" />
+            </If>
+            <If condition="/get_bearer_token/status_code = 401">
+                <Abort reason="${/get_bearer_token}" />
+                <Log type="ERROR" message="ObserveIT abort at get token, reason: Authentication error!" />
+            </If>
+            <If condition="/get_bearer_token/status_code = 404">
+                <Abort reason="${/get_bearer_token}" />
+                <Log type="ERROR" message="ObserveIT abort at get token, reason: URL not found!" />
+            </If>
+            <If condition="/get_bearer_token/status_code = 500">
+                <Abort reason="${/get_bearer_token}" />
+                <Log type="ERROR" message="ObserveIT abort at get token, reason: Invalid client_id" />
+            </If>
+
+            <Abort reason="${/get_bearer_token}" />
+			<Log type="ERROR" message="ObserveIT abort at get token, reason: ${/get_bearer_token}" />
+        </If>
+
+        <!-- Save the bearer token. -->
+		<Set path="/bearer_token" value="${/get_bearer_token/body/access_token}" />
+
+        <!-- Create a list of report types to include. -->
+        <Set path="/included_report_types" value="[]" />
+
+        <!-- Add report types to the list according to the user input. -->
+        <If condition="${/poll_alert}">
+            <Add path="/included_report_types" value="alert_v0" />
+        </If>
+        <If condition="${/poll_configuration_activity}">
+            <Add path="/included_report_types" value="audit_configuration_v0" />
+        </If>
+        <If condition="${/poll_login_activity}">
+            <Add path="/included_report_types" value="audit_logins_v0" />
+        </If>
+        <If condition="${/poll_saved_session_activity}">
+            <Add path="/included_report_types" value="audit_saved_sessions_v0" />
+        </If>
+        <If condition="${/poll_session_playback_activity}">
+            <Add path="/included_report_types" value="audit_session_playback_v0" />
+        </If>
+        <If condition="${/poll_system_event}">
+            <Add path="/included_report_types" value="system_events_v0" />
+        </If>
+        <If condition="${/poll_command_activity_with_output}">
+            <Add path="/included_report_types" value="user_command_activity_with_output_v0" />
+        </If>
+        <If condition="${/poll_command_output_stream}">
+            <Add path="/included_report_types" value="user_command_output_stream_v0" />
+        </If>
+        <If condition="${/poll_dba_activity}">
+            <Add path="/included_report_types" value="user_dba_activity_v0" />
+        </If>
+        <If condition="${/poll_file_activity}">
+            <Add path="/included_report_types" value="user_file_activity_v0" />
+        </If>
+        <If condition="${/poll_interface_activity}">
+            <Add path="/included_report_types" value="user_interface_activity_v0" />
+        </If>
+        <If condition="${/poll_messaging_actions_activity}">
+            <Add path="/included_report_types" value="user_messaging_actions_activity_v0" />
+        </If>
+        <If condition="${/poll_session}">
+            <Add path="/included_report_types" value="user_session_v0" />
+        </If>
+
+        <!-- Incase the user has set all poll parameters to false. -->
+        <If condition="count(/included_report_types) = 0">
+            <Abort reason="${/included_report_types}" />
+            <Log type="ERROR" message="ObserveIT abort reason: Please choose at least one report type to poll." />
+        </If>
+
+        <ForEach item="/report_type" items="/included_report_types">
+            <!-- Initialize the risingValue filter for the first run. -->
+            <Initialize path="/risingValue_${/report_type}" value="${time() - 604800000}" />
+
+            <!-- Handle PII. -->
+            <If condition="${/exclude_pii}">
+                <!-- Create a list of PIIs to exclude. -->
+                <Initialize
+                value="[loginName,secondaryLoginName,endpointName,remoteHostName,windowTitle,accessedUrl,domainName,secondaryDomainName,remoteAddress,sqlUserName,sessionServerName,sessionLoginName,savedSessionName,operatorUsername,operatorDomainName,userName,machineName]"
+                path="/piis_to_exclude" />
+
+                <!-- Get a report type fields. -->
+                <CallEndpoint url="https://${/hostname}/v2/apis/report;realm=observeit/reports/${/report_type}" method="GET" savePath="/get_${/report_type}_fields" >
+                    <!-- <SSLConfiguration allowUntrustedServerCertificate="true" /> -->
+                    <BearerAuthentication token="${/bearer_token}" />
+                </CallEndpoint>
+
+                <!-- Handle errors. -->
+                <If condition="/get_${/report_type}_fields/status_code != 200">
+                    <If condition="/get_${/report_type}_fields/status_code = 401">
+                        <Abort reason="${/get_${/report_type}_fields}" />
+                        <Log type="ERROR" message="ObserveIT abort at get ${/report_type} report fields, reason: Authentication error!" />
+                    </If>
+                    <If condition="/get_${/report_type}_fields/status_code = 404">
+                        <Abort reason="${/get_${/report_type}_fields}" />
+                        <Log type="ERROR" message="ObserveIT abort at get ${/report_type} report fields, reason: URL not found!" />
+                    </If>
+
+                    <Abort reason="${/get_${/report_type}_fields}" />
+		        	<Log type="ERROR" message="ObserveIT abort at get ${/report_type} report fields, reason: ${/get_${/report_type}_fields}" />
+                </If>
+
+                <!-- Create an empty string that will hold the included fields.  -->
+                <Set path="/${/report_type}_field_string" value="" />
+                <!-- Create an empty list that will hold the included fields.  -->
+                <Set path="/included_${/report_type}_fields" value="[]" />
+
+                <!-- Create a list with all fields except for PII. -->
+                <ForEach item="/${/report_type}_fields" items="/get_${/report_type}_fields/body/data[0]/columns">
+                    <Set path="/is_pii" value="false" />
+
+                    <!-- Check if the current field is a PII. -->
+                    <ForEach item="/pii_to_exclude" items="/piis_to_exclude">
+                        <If condition="'${/${/report_type}_fields/name}' = '${/pii_to_exclude}'">
+                            <Set path="/is_pii" value="true" />
+                        </If>
+                    </ForEach>
+
+                    <!-- If the current field isn't a PII, save it in the include list. -->
+                    <If condition="${/is_pii} = false">
+                        <Add path="/included_${/report_type}_fields" value="${/${/report_type}_fields/name}" />
+                    </If>
+                </ForEach>
+
+                <Set path="/${/report_type}_field_string" value="${/included_${/report_type}_fields[0]}" />
+
+                <!-- Create a string from the included fields. -->
+                <ForEach item="/${/report_type}_fields" items="/included_${/report_type}_fields">
+                    <Set path="/${/report_type}_field_string" value="${/${/report_type}_field_string},${/${/report_type}_fields}" />
+                </ForEach>
+            </If>
+
+            <!-- Get the reports. -->
+            <CallEndpoint url="https://${/hostname}/v2/apis/report;realm=observeit/reports/${/report_type}/data" method="GET" savePath="/get_${/report_type}_reports" >
+                <!-- <SSLConfiguration allowUntrustedServerCertificate="true" /> -->
+                <BearerAuthentication token="${/bearer_token}" />
+                <QueryParameter name="rql"
+                    value="and(gt(risingValue,epoch:${/risingValue_${/report_type}}),select(${/${/report_type}_field_string}),limit(${/events_per_poll},0))" />
+            </CallEndpoint>
+
+            <!-- Handle errors. -->
+            <If condition="/get_${/report_type}_reports/status_code != 200">
+                <If condition="/get_${/report_type}_reports/status_code = 400">
+                    <Abort reason="${/get_${/report_type}_reports}" />
+                    <Log type="ERROR" message="ObserveIT abort at get ${/report_type} reports, reason: ${/get_${/report_type}_reports}/body/_status/message" />
+                </If>
+                <If condition="/get_${/report_type}_reports/status_code = 401">
+                    <Abort reason="${/get_${/report_type}_reports}" />
+                    <Log type="ERROR" message="ObserveIT abort at get ${/report_type} reports, reason: Authentication error!" />
+                </If>
+                <If condition="/get_${/report_type}_reports/status_code = 404">
+                    <Abort reason="${/get_${/report_type}_reports}" />
+                    <Log type="ERROR" message="ObserveIT abort at get ${/report_type} reports, reason: URL not found!" />
+                </If>
+
+                <Abort reason="${/get_${/report_type}_reports}" />
+		    	<Log type="ERROR" message="ObserveIT abort at get ${/report_type} reports, reason: ${/get_${/report_type}_reports}" />
+            </If>
+
+            <!-- Create a dictionary of the report type. -->
+            <Set path="/report_type_dict" value="{'report_type': ${/report_type}}" />
+            <!-- Initialize an empty list for events -->
+            <Set path="/report_events" value="[]" />
+
+            <!-- Merge the report type to each event and then post it. -->
+            <ForEach item="/report_data" items="/get_${/report_type}_reports/body/data">
+                <Merge sourcePath="/report_type_dict" targetPath="/report_data" />
+                <Add path="/report_events" value="${/report_data}" />
+            </ForEach>
+
+            <!-- If there were any events, post them and update the risingValue timer to the latest one. -->
+            <If condition="count(/get_${/report_type}_reports/body/data) > 0">
+                <PostEvents path="/report_events" source="${/hostname}" />
+
+                <Initialize path="/time_format" value="yyyy-MM-dd'T'HH:mm:ss[.SSS]'Z'" />
+                <Initialize path="/time_zone" value="UTC" />
+
+		    	<!-- Update the risingValue for next run. -->
+                <ParseDate pattern="${/time_format}" timeZone="${/time_zone}" date="${max(/report_events/risingValue)}" savePath="/last_risingValue_${/report_type}" />
+                <FormatDate pattern="${/time_format}" timeZone="${/time_zone}" time="${/last_risingValue_${/report_type}}" savePath="/risingValue_${/report_type}" />
+		    	<ParseDate pattern="${/time_format}" timeZone="${/time_zone}" date="${/risingValue_${/report_type}}" savePath="/risingValue_${/report_type}" />
+            </If>
+        </ForEach>
+	</Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/hostname}" />
+        <TCPConnectionTest host="${/hostname}" />
+        <HTTPConnectionThroughProxyTest url="${/hostname}" expectedResponseStatus="404" />
+    </Tests>
+</Workflow>

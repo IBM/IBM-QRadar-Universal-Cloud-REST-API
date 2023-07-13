@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+    <Value name="organizationName" 	value=""/>
+    <Value name="apiKey" 	value=""/>
+    <Value name="minimumPriority" value=""/>
+    <Value name="minimumTemptation" value=""/>
+</WorkflowParameterValues>

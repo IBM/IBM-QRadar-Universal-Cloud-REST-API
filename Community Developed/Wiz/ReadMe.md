@@ -52,6 +52,5 @@ Parameter Values).
 2. client_secret : The Client Secret obtained from Wiz portal.
 3. token_url_domain : The Token URL Domain to fetch the JWT Token from Wiz.
 4. host : The API Endpoint URL Domain to fetch the events from Wiz.
-5. historical_days : Number of historical days to fetch data from Wiz (default value is 10 days) .
-6. auth_type : The Authentication type used to fetch JWT Token from Wiz.
-7. gql_query : The GraphQL query to be used while fetching the events from Wiz (default GraphQL query already present).
+5. auth_type : The Authentication type used to fetch JWT Token from Wiz.
+6. gql_query : The GraphQL query to be used while fetching the events from Wiz (default GraphQL query already present).

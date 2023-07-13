@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Gem" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="clientId" label="Client ID" required="true"/>
+        <Parameter name="clientSecret" label="Client Secret" required="true" secret="true"/>
+        <Parameter name="tokenUrlDomain" label="Auth URL" required="true"/>
+        <Parameter name="apiUrl" label="API URL" required="true"/>
+        <Parameter name="audienceUrl" label="Audience URL" required="true"/>
+    </Parameters>
+
+    <Actions>
+        <!-- Get Gem token -->
+
+        <CallEndpoint url="https://${/tokenUrlDomain}/oauth/token" method="POST" savePath="/gemToken/response">
+            <RequestHeader name="content-type" value="application/x-www-form-urlencoded"/>
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials"/>
+                <Parameter name="client_id" value="${/clientId}"/>
+                <Parameter name="client_secret" value="${/clientSecret}"/>
+                <Parameter name="audience" value="${/audienceUrl}"/>
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <Log type="INFO" message="Auth Token API call status code:: ${/gemToken/response/status_code}"/>
+
+        <If condition="/gemToken/response/status_code != 200">
+            <Log type="ERROR" message="Workflow Aborting.. API Token Failure. Error:: ${/gemToken/response/body}"/>
+            <Abort reason="Failed requesting API token. Error: ${/gemToken/response/body}, status: ${/gemToken/response/status_code}"/>
+        </If>
+
+        <Set path="/access_token" value="${/gemToken/response/body/access_token}"/>
+
+        <!-- List Alerts -->
+        <!-- Initialize the bookmark request filter-->
+
+        <Log type="INFO" message="About to list alerts from Gem API"/>
+
+        <If condition="/bookmark != null">
+            <!-- Format Date to be passed in fetching events -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}"
+                        savePath="/gem_alerts/from"/>
+        </If>
+        <Else>
+            <Initialize path="/bookmark" value="${time() - (60000 * 60 * 24 * 2)}"/> <!-- 2 days prior -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}"
+                        savePath="/gem_alerts/from"/>
+        </Else>
+
+        <CallEndpoint url="https://${/apiUrl}/api/integrations/notification/" method="GET"
+                      savePath="/gem_alerts/response">
+            <QueryParameter name="ordering" value="created"/>
+            <QueryParameter name="created__gt" value="${/gem_alerts/from}"/>
+            <RequestHeader name="authorization" value="Bearer ${/access_token}"/>
+            <RequestHeader name="content-type" value="application/json"/>
+        </CallEndpoint>
+
+        <If condition="/gem_alerts/response/status_code != 200">
+            <Log type="ERROR" message="Got non-200 status code then trying to get Gem notifications, error: ${/gem_alerts/response/body}"/>
+            <Abort reason="Abort ${/access_token} ${/gem_alerts/response/status_code} ${/gem_alerts/response/body}"/>
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/gem_alerts/response/body) > 0">
+            <Log type="INFO" message="GEM: We received a total of ${count(/gem_alerts/response/body)} notifications."/>
+
+            <PostEvents path="/gem_alerts/response/body" source="${/apiUrl}"/>
+
+            <!-- Update the bookmark -->
+            <If condition="max(/gem_alerts/response/body/created) != null">
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC"
+                           date="${max(/gem_alerts/response/body/created)}" savePath="/current_event_time"/>
+                <If condition="/current_event_time + 1000 > /bookmark">
+                    <Set path="/bookmark" value="${/current_event_time + 1000}"/>
+                    <Log type="INFO" message="Updated bookmark value to: ${/bookmark}"/>
+                </If>
+            </If>
+        </If>
+
+        <If condition="/bookmark != null">
+            <!-- Format Date to be passed in fetching events -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}"
+                        savePath="/formatted_bookmark"/>
+        </If>
+
+        <Log type="INFO" message="Workflow actions are completed. Final bookmark: ${/formatted_bookmark}"/>
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/apiUrl}"/>
+        <TCPConnectionTest host="${/apiUrl}"/>
+        <SSLHandshakeTest host="${/apiUrl}"/>
+
+        <DNSResolutionTest host="${/tokenUrlDomain}"/>
+        <TCPConnectionTest host="${/tokenUrlDomain}"/>
+    </Tests>
+</Workflow>
