@@ -5,13 +5,19 @@
         <Parameter name="host" label="Host" required="true" default="api.zoom.us" />
         <Parameter name="api_key" label="API Key" required="true" />
         <Parameter name="api_secret" label="API Secret" required="true" secret="true" />
+        <Parameter name="page_size" label="Page size" required="true" default="100" />
     </Parameters>
 
     <Actions>
 
-        <!-- Initialize the Bookmark -->
-        <Initialize path="/bookmark" value="1970-01-01" />
-
+         <!-- Initialize bookmark to 10 days back -->
+        <Initialize path="/bookmark" value="${time() - (60000 * 60 * 24 * 10)}"/>
+        <!-- Always set next_page_token to '' -->
+        <Set path="/next_page_token" value=""/>
+        
+        <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/bookmark}" savePath="/bookmark_date" />
+        <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${time()}" savePath="/today" />
+        
         <!-- Create an Access Token -->
         <CreateJWTAccessToken savePath="/access_token">
             <Header>
@@ -24,27 +30,50 @@
             <Secret value="${/api_secret}" />
         </CreateJWTAccessToken>
 
-        <!-- Fetch Events -->
-        <CallEndpoint url="https://${/host}/v2/report/activities" method="GET" savePath="/get_events">
-            <BearerAuthentication token="${/access_token}" />
-            <QueryParameter name="from" value="${/bookmark}" omitIfEmpty="true" />
-        </CallEndpoint>
+        <!-- While there are more pages fetch them -->
+        <DoWhile condition="/next_page_token != ''">
+                
+            <!-- Fetch Events -->
+            <CallEndpoint url="https://${/host}/v2/report/activities" method="GET" savePath="/get_events">
+                <BearerAuthentication token="${/access_token}" />
+                <QueryParameter name="from" value="${/bookmark_date}" omitIfEmpty="true" />
+                <QueryParameter name="to" value="${/today}" omitIfEmpty="true" />
+                <QueryParameter name="page_size" value="${/page_size}" omitIfEmpty="true" />
+                <QueryParameter name="next_page_token" value="${/next_page_token}" omitIfEmpty="true" />
+            </CallEndpoint>
 
-        <!-- Handle Errors -->
-        <If condition="/get_events/status_code != 200">
-            <Abort reason="${/get_events/body/code}: ${/get_events/body/message}" />
+            <!-- Handle Errors -->
+            <If condition="/get_events/status_code != 200">
+                <Abort reason="${/get_events/body/code}: ${/get_events/body/message}" />
+            </If>
+
+             <!-- During the first http request save the bookmark as the first page's first element is the newest-->
+            <If condition="/next_page_token = ''">
+                <!-- Check if the activity_logs list is empty -->
+                <If condition="count(/get_events/body/activity_logs) != 0">
+                    <Set path="/save_bookmark" value="${/get_events/body/activity_logs[0]/time}" />
+                    <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/save_bookmark}" savePath="/save_bookmark" />
+                </If>
+            </If>
+
+            <!-- For each activity if not posted , post to QRadar -->
+            <ForEach item="/current_event" items="/get_events/body/activity_logs">
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${/current_event/time}" savePath="/current_event_time_unix" />
+                <If condition="${/current_event_time_unix} > ${/bookmark}">
+                    <PostEvent path="/current_event" source="${/host}" />
+                </If>
+            </ForEach>
+            <Set path="/next_page_token" value="${/get_events/body/next_page_token}" />
+        </DoWhile>
+        
+        
+        <!-- Update the bookmark state with the last event's timestamp if the bookmark was assigned --> 
+        <If condition="/save_bookmark != null">
+            <Set path="/bookmark" value="${/save_bookmark}" />
         </If>
 
-        <!-- Post Events, if any -->
-        <If condition="count(/get_events/body/activity_logs) > 0">
-
-            <PostEvents path="/get_events/body/activity_logs" source="${/host}" />
-
-            <!-- Update the bookmark -->
-            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" date="${max(/get_events/body/activity_logs/time)}" savePath="/last_event_time" />
-            <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/last_event_time + 86400000}" savePath="/bookmark" />
-
-        </If>
+        <!-- Temporary Saved bookmark from the first page must be null for the next call in order to avoid assigning it to the bookmark and losing track  --> 
+        <Delete path="/save_bookmark"/>
 
     </Actions>
 

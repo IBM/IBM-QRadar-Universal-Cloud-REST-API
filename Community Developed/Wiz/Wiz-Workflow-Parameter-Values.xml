@@ -2,109 +2,101 @@
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
     <Value name="client_id"     value="" />
     <Value name="client_secret" value="" />
+
+    <!-- Enter the domain for Token URL. Eg: auth.app.wiz.io -->
+    <Value name="token_url_domain"     value="" />
+
+    <!-- Enter the domain for Endpoint URL. Eg: api.eu.app.wiz.io -->
     <Value name="host"  value="" />
-    <Value name="initial_historical_days" value="10" />
+
+    <!-- Defines Authentication for Wiz Server. Accepted values=cognito/auth0 -->
+    <Value name="auth_type"     value="cognito" />
+
     <Value
         name="gql_query"
-        value="query IssuesTable(
-                $filterBy: IssueFilters
-                $first: Int
-                $after: String
-                $orderBy: IssueOrder
-                ) {
-                issues(
-                    filterBy: $filterBy
-                    first: $first
-                    after: $after
-                    orderBy: $orderBy
-                ) {
-                    nodes {
-                    ...IssueDetails
-                    }
-                    pageInfo {
-                    hasNextPage
-                    endCursor
-                    }
-                    totalCount
-                    informationalSeverityCount
-                    lowSeverityCount
-                    mediumSeverityCount
-                    highSeverityCount
-                    criticalSeverityCount
-                    uniqueEntityCount
-                }
-                }
-            
-                fragment IssueDetails on Issue {
-                id
-                control {
+        value="
+            query IssuesTable(
+            $filterBy: IssueFilters
+            $first: Int
+            $after: String
+            $orderBy: IssueOrder
+            ) {
+            issues(filterBy: $filterBy, first: $first, after: $after, orderBy: $orderBy) {
+                nodes {
+                    __typename
                     id
-                    name
-                    query
-                    securitySubCategories {
+                    control {
                         id
-                        title
-                        category {
+                        name
+                        resolutionRecommendation
+                        securitySubCategories {
                             id
-                            name
-                            framework {
+                            title
+                            category {
                                 id
+                                name
+                                framework {
+                                    id
+                                }
                             }
                         }
                     }
-                }
-                createdAt
-                updatedAt
-                projects {
-                    id
-                    name
-                    slug
-                    businessUnit
-                    riskProfile {
-                    businessImpact
+                    createdAt
+                    updatedAt
+                    dueAt
+                    statusChangedAt
+                    projects {
+                        id
+                        name
+                        slug
+                        businessUnit
+                        riskProfile {
+                            businessImpact
+                        }
                     }
-                }
-                status
-                severity
-                entity {
-                    id
-                    name
-                    type
-                }
-                entitySnapshot {
-                    id
-                    type
-                    nativeType
-                    name
-                    subscriptionId
-                    subscriptionExternalId
-                    subscriptionName
-                    resourceGroupId
-                    resourceGroupExternalId
-                    region
-                    cloudPlatform
-                    cloudProviderURL
-                    providerId
                     status
-                    tags
-                    subscriptionTags
-                }
-                note
-                serviceTicket {
-                    externalId
-                    name
-                    url
-                }
-                serviceTickets {
-                    externalId
-                    name
-                    url
-                    action {
-                    id
-                    type
+                    severity
+                    entitySnapshot {
+                        id
+                        type
+                        nativeType
+                        name
+                        externalId
+                        subscriptionExternalId
+                        subscriptionName
+                        resourceGroupExternalId
+                        region
+                        cloudPlatform
+                        cloudProviderURL
+                        providerId
+                        status
+                        tags
+                        subscriptionTags
+                    }
+                    notes{
+                        text
+                        user{
+                            name
+                            email
+                        }
+                        serviceAccount{
+                            name
+                        }
+                        createdAt
+                        updatedAt
+                    }
+                    serviceTickets {
+                        externalId
+                        name
+                        url
                     }
                 }
+                pageInfo {
+                    hasNextPage
+                    endCursor
                 }
-            "
+            }
+            }
+        "
     />
 </WorkflowParameterValues>

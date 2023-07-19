@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+	<!-- Instance IP -->
+	<Value name="hostname" value=""/>
+	<!-- Can be received through the Developer Portal by selecting Credentials and pressing the Create App button. -->
+	<Value name="client_id" value=""/>
+	<Value name="client_secret" value=""/>
+
+	<!-- Max number of records to return per poll -->
+	<Value name="events_per_poll" value="100"/>
+	<!-- Exclude Personal Identifiable Information from the reports. -->
+	<Value name="exclude_pii" value="false"/>
+
+	<!-- Report types to poll. -->
+	<Value name="poll_alert" value="true"/>
+	<Value name="poll_configuration_activity" value="true"/>
+	<Value name="poll_login_activity" value="true"/>
+	<Value name="poll_saved_session_activity" value="true"/>
+	<Value name="poll_session_playback_activity" value="true"/>
+	<Value name="poll_system_event" value="true"/>
+	<Value name="poll_command_activity_with_output" value="true"/>
+	<Value name="poll_command_output_stream" value="true"/>
+	<Value name="poll_dba_activity" value="true"/>
+	<Value name="poll_file_activity" value="true"/>
+	<Value name="poll_interface_activity" value="true"/>
+	<Value name="poll_messaging_actions_activity" value="true"/>
+	<Value name="poll_session" value="true"/>
+</WorkflowParameterValues>

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+The Workflow is used to get XMCyber events via REST API.
+Parameters:
+- "api_host" - XMCyber API host (required)
+- "api_key" - XMCyber API key (required)
+-->
+<Workflow name="XMCyber" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+
+	<Parameters>
+		<Parameter name="api_host" label="API Host" required="true"/>
+		<Parameter name="api_key" label="API Key" required="true" secret="true"/>
+	</Parameters>
+	
+	<Actions>
+
+		<Initialize path="/first_run" value="1"/>
+		<!-- If first application run -->
+		<If condition="/first_run = 1">
+			<CallEndpoint url="https://${/api_host}/api/systemReport/entities" method="GET" savePath="/entities">
+				<QueryParameter  name="timeId" value="timeAgo_days_30" />
+				<QueryParameter  name="filter" value="{&quot;asset&quot;:true}" />
+				<QueryParameter  name="sort" value="attackComplexity.avg.value" />
+				<RequestHeader name="X-Api-Key" value="${/api_key}"/>
+				<RequestHeader name="Accept" value="application/json" />
+				<RequestHeader name="User-Agent" value="IBM-QRadar/1.0" />
+			</CallEndpoint>
+			<!-- Post Events -->
+			<ForEach item="/current_event" items="/entities/body/data">
+				<Set path="/current_event/event_id" value="New asset compromised" />
+				<Set path="/current_event/event_category" value="XM Cyber" />
+				<PostEvent path="/current_event" source="XM Cyber"/>
+			</ForEach>
+			<While condition="/entities/body/paging/nextLink != null" >
+				<CallEndpoint url="https://${/api_host}${/entities/body/paging/nextLink}" method="GET" savePath="/entities">
+					<RequestHeader name="X-Api-Key" value="${/api_key}"/>
+					<RequestHeader name="Accept" value="application/json" />
+					<RequestHeader name="User-Agent" value="IBM-QRadar/1.0" />
+				</CallEndpoint>
+				<!-- Post Events -->
+				<ForEach item="/current_event" items="/entities/body/data">
+					<Set path="/current_event/event_id" value="New asset compromised" />
+					<Set path="/current_event/event_category" value="XM Cyber" />
+					<PostEvent path="/current_event" source="XM Cyber"/>
+				</ForEach>
+			</While>
+			<!-- Save that first run has completed -->
+			<Set path="/first_run" value="0"/>
+		</If>
+		
+		<CallEndpoint url="https://${/api_host}/api/systemReport/newAssetsComrpomised" method="GET" savePath="/newAssetsComrpomised">
+			<RequestHeader name="X-Api-Key" value="${/api_key}"/>
+		</CallEndpoint>
+		<If condition="/newAssetsComrpomised/status_code = 401">
+			<Abort reason="Invalid XMCyber API Key"/>
+		</If>
+		<If condition="/newAssetsComrpomised/status_code >= 500">
+			<Abort reason="XMCyber API is not available"/>
+		</If>
+		<If condition="/newAssetsComrpomised/status_code != 200">
+			<Abort reason="${/newAssetsComrpomised/body}"/>
+		</If>
+		<!-- Post Events -->
+		<ForEach item="/current_event" items="/newAssetsComrpomised/body">
+			<Set path="/current_event/event_id" value="New asset compromised" />
+			<Set path="/current_event/event_category" value="XM Cyber" />
+			<PostEvent path="/current_event" source="XM Cyber"/>
+		</ForEach>
+		
+		<CallEndpoint url="https://${/api_host}/api/systemReport/newAttackTechniques" method="GET" savePath="/newAttackTechniques">
+			<RequestHeader name="X-Api-Key" value="${/api_key}"/>
+		</CallEndpoint>
+		<If condition="/newAttackTechniques/status_code = 401">
+			<Abort reason="Invalid XMCyber API Key"/>
+		</If>
+		<If condition="/newAttackTechniques/status_code >= 500">
+			<Abort reason="XMCyber API is not available"/>
+		</If>
+		<If condition="/newAttackTechniques/status_code != 200">
+			<Abort reason="${/newAttackTechniques/body}"/>
+		</If>
+		<!-- Post Events -->
+		<ForEach item="/current_event" items="/newAttackTechniques/body">
+			<Set path="/current_event/event_id" value="New attack Technique" />
+			<Set path="/current_event/event_category" value="XM Cyber" />
+			<PostEvent path="/current_event" source="XM Cyber"/>
+		</ForEach>
+
+		<CallEndpoint url="https://${/api_host}/api/systemReport/scenarioGradeDownEvents" method="GET" savePath="/scenarioGradeDownEvents">
+			<RequestHeader name="X-Api-Key" value="${/api_key}"/>
+		</CallEndpoint>
+		<If condition="/scenarioGradeDownEvents/status_code = 401">
+			<Abort reason="Invalid XMCyber API Key"/>
+		</If>
+		<If condition="/scenarioGradeDownEvents/status_code >= 500">
+			<Abort reason="XMCyber API is not available"/>
+		</If>
+		<If condition="/scenarioGradeDownEvents/status_code != 200">
+			<Abort reason="${/scenarioGradeDownEvents/body}"/>
+		</If>
+		<!-- Post Events -->
+		<ForEach item="/current_event" items="/scenarioGradeDownEvents/body">
+			<Set path="/current_event/event_id" value="Scenario grade down" />
+			<Set path="/current_event/event_category" value="XM Cyber" />
+			<PostEvent path="/current_event" source="XM Cyber"/>
+		</ForEach>
+
+		<CallEndpoint url="https://${/api_host}/api/systemReport/scenarioGradeUpEvents" method="GET" savePath="/scenarioGradeUpEvents">
+			<RequestHeader name="X-Api-Key" value="${/api_key}"/>
+		</CallEndpoint>
+		<If condition="/scenarioGradeUpEvents/status_code = 401">
+			<Abort reason="Invalid XMCyber API Key"/>
+		</If>
+		<If condition="/scenarioGradeUpEvents/status_code >= 500">
+			<Abort reason="XMCyber API is not available"/>
+		</If>
+		<If condition="/scenarioGradeUpEvents/status_code != 200">
+			<Abort reason="${/scenarioGradeUpEvents/body}"/>
+		</If>
+		<!-- Post Events -->
+		<ForEach item="/current_event" items="/scenarioGradeUpEvents/body">
+			<Set path="/current_event/event_id" value="Scenario grade up" />
+			<Set path="/current_event/event_category" value="XM Cyber" />
+			<PostEvent path="/current_event" source="XM Cyber"/>
+		</ForEach>
+
+	</Actions>
+	<!-- Performing some connectivity tests -->
+	<Tests>
+		<DNSResolutionTest host="${/api_host}"/>
+		<TCPConnectionTest host="${/api_host}"/>
+		<SSLHandshakeTest host="${/api_host}"/>
+		<HTTPConnectionThroughProxyTest url="https://${/api_host}"/>
+	</Tests>
+</Workflow>
