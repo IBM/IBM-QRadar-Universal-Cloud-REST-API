@@ -15,19 +15,20 @@ Parameters:
 
     <Parameters>
         <Parameter name="api_host" label="API Host" required="true" default="api.orcasecurity.io" />
-        <Parameter name="api_key" label="API Key" required="true" secret="true" />
+        <Parameter name="api_token" label="API Token" required="true" secret="true" />
     </Parameters>
 
     <Actions>
         <!-- Clear the log source status before a new workflow run starts -->
         <ClearStatus />
 
-        <CallEndpoint url="https://${/api_host}/api/query/alerts" method="GET" savePath="/get_alerts">
-            <BearerAuthentication token="${/api_key}" />
-            <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
-            <QueryParameter name="limit" value="100" />
-            <!-- keep this parameter to reduce the response size -->
-            <QueryParameter name="exclude" value="object.model,object.findings" />
+        <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
+            <RequestHeader name="authorization" value="Token ${/api_token}" />
+            <UrlEncodedFormRequestBody>
+                <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
+                <Parameter name="limit" value="100" />
+                <Parameter name="next_page_token" value="${/get_alerts/body/next_page_token}" />
+            </UrlEncodedFormRequestBody>
         </CallEndpoint>
 
         <If condition="/get_alerts/status_code = 403">
@@ -48,13 +49,13 @@ Parameters:
 
         <!-- Fetch the rest of alerts -->
         <While condition="/get_alerts/body/has_next_page_token">
-            <CallEndpoint url="https://${/api_host}/api/query/alerts" method="GET" savePath="/get_alerts">
-                <BearerAuthentication token="${/api_key}" />
-                <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
-                <QueryParameter name="limit" value="100" />
-                <!-- keep this parameter to reduce the response size -->
-                <QueryParameter name="exclude" value="object.model,object.findings" />
-                <QueryParameter name="next_page_token" value="${/get_alerts/body/next_page_token}" />
+            <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
+                <RequestHeader name="authorization" value="Token ${/api_token}" />
+                <UrlEncodedFormRequestBody>
+                    <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
+                    <Parameter name="limit" value="100" />
+                    <Parameter name="next_page_token" value="${/get_alerts/body/next_page_token}" />
+                </UrlEncodedFormRequestBody>
             </CallEndpoint>
 
             <!-- Handle Errors -->

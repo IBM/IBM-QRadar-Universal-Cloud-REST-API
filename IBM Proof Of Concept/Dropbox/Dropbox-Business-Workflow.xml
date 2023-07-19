@@ -24,7 +24,7 @@ To use:
     <Actions>
 
         <!-- Initialize the Bookmark -->
-        <Initialize path="/bookmark" value="1" />
+        <Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" />
 
         <!-- Fetch the first page -->
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/start_time" />
