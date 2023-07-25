@@ -79,9 +79,8 @@ Then click the on "Generate" and you get the Key Name and Key Token.
       <Set path="/asset_page" value="${/asset_page + 1}" />
 
       <If condition="${count(/assets/body/data)} != ${/size} or ${/asset_page} = 100">
-        <Set path="/asset_page" value="1" />
-        <Log type="INFO" message="NN Vantage Asset asset_page rollback ${/asset_page}" />
         <If condition="max(/assets/body/data/attributes/record_created_at) != null">
+          <Set path="/asset_page" value="1" />
           <Set path="/bookmark_assets" value="${max(/assets/body/data/attributes/record_created_at)}" />
           <Log type="INFO" message="NN Vantage Asset bookmark_assets upgraded to ${/bookmark_assets}" />
         </If>
