@@ -313,7 +313,7 @@
                             </Else>
                         </If>
                         <Else>
-                            <Set path="/currentEvent/detail/src_external_host" value="'${/currentEvent/detail/src_external_host}'" />
+                            <Set path="/currentEvent/detail" value="'${/currentEvent/detail}'" />
                             <Add path="/newEvents" value="${/currentEvent}" />
                         </Else>
                     </ForEach>
