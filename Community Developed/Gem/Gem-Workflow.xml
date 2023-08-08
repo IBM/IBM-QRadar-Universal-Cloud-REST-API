@@ -12,24 +12,24 @@
     <Actions>
         <!-- Get Gem token -->
 
-        <CallEndpoint url="https://${/tokenUrlDomain}/oauth/token" method="POST" savePath="/gemToken/response">
-            <RequestHeader name="content-type" value="application/x-www-form-urlencoded"/>
-            <UrlEncodedFormRequestBody>
-                <Parameter name="grant_type" value="client_credentials"/>
-                <Parameter name="client_id" value="${/clientId}"/>
-                <Parameter name="client_secret" value="${/clientSecret}"/>
-                <Parameter name="audience" value="${/audienceUrl}"/>
-            </UrlEncodedFormRequestBody>
-        </CallEndpoint>
+        <If condition="/access_token = null">
+            <CallEndpoint url="https://${/tokenUrlDomain}/oauth/token" method="POST" savePath="/gemToken/response">
+                <RequestHeader name="content-type" value="application/x-www-form-urlencoded"/>
+                <UrlEncodedFormRequestBody>
+                    <Parameter name="grant_type" value="client_credentials"/>
+                    <Parameter name="client_id" value="${/clientId}"/>
+                    <Parameter name="client_secret" value="${/clientSecret}"/>
+                    <Parameter name="audience" value="${/audienceUrl}"/>
+                </UrlEncodedFormRequestBody>
+            </CallEndpoint>
 
-        <Log type="INFO" message="Auth Token API call status code:: ${/gemToken/response/status_code}"/>
-
-        <If condition="/gemToken/response/status_code != 200">
-            <Log type="ERROR" message="Workflow Aborting.. API Token Failure. Error:: ${/gemToken/response/body}"/>
-            <Abort reason="Failed requesting API token. Error: ${/gemToken/response/body}, status: ${/gemToken/response/status_code}"/>
+            <Initialize path="/access_token" value="${/gemToken/response/body/access_token}"/>
+            <Log type="INFO" message="Auth Token API call status code:: ${/gemToken/response/status_code}"/>
+            <If condition="/gemToken/response/status_code != 200">
+                <Log type="ERROR" message="Workflow Aborting.. API Token Failure. Error:: ${/gemToken/response/body}"/>
+                <Abort reason="Failed requesting API token. Error: ${/gemToken/response/body}, status: ${/gemToken/response/status_code}"/>
+            </If>
         </If>
-
-        <Set path="/access_token" value="${/gemToken/response/body/access_token}"/>
 
         <!-- List Alerts -->
         <!-- Initialize the bookmark request filter-->
@@ -54,6 +54,35 @@
             <RequestHeader name="authorization" value="Bearer ${/access_token}"/>
             <RequestHeader name="content-type" value="application/json"/>
         </CallEndpoint>
+
+        <!-- if token expired. regenerate it and re-run the get notifications -->
+        <If condition="/gem_alerts/response/status_code = 401">
+            <Log type="INFO" message="Got 401 error message - regenerating access token "/>
+            <CallEndpoint url="https://${/tokenUrlDomain}/oauth/token" method="POST" savePath="/gemToken/response">
+                <RequestHeader name="content-type" value="application/x-www-form-urlencoded"/>
+                <UrlEncodedFormRequestBody>
+                    <Parameter name="grant_type" value="client_credentials"/>
+                    <Parameter name="client_id" value="${/clientId}"/>
+                    <Parameter name="client_secret" value="${/clientSecret}"/>
+                    <Parameter name="audience" value="${/audienceUrl}"/>
+                </UrlEncodedFormRequestBody>
+            </CallEndpoint>
+
+            <Set path="/access_token" value="${/gemToken/response/body/access_token}"/>
+            <Log type="INFO" message="Auth Token API call status code:: ${/gemToken/response/status_code}"/>
+            <If condition="/gemToken/response/status_code != 200">
+                <Log type="ERROR" message="Workflow Aborting.. API Token Failure. Error:: ${/gemToken/response/body}"/>
+                <Abort reason="Failed requesting API token. Error: ${/gemToken/response/body}, status: ${/gemToken/response/status_code}"/>
+            </If>
+
+            <CallEndpoint url="https://${/apiUrl}/api/integrations/notification/" method="GET"
+                      savePath="/gem_alerts/response">
+                <QueryParameter name="ordering" value="created"/>
+                <QueryParameter name="created__gt" value="${/gem_alerts/from}"/>
+                <RequestHeader name="authorization" value="Bearer ${/access_token}"/>
+                <RequestHeader name="content-type" value="application/json"/>
+            </CallEndpoint>
+        </If>
 
         <If condition="/gem_alerts/response/status_code != 200">
             <Log type="ERROR" message="Got non-200 status code then trying to get Gem notifications, error: ${/gem_alerts/response/body}"/>
