@@ -56,7 +56,7 @@
         </CallEndpoint>
 
         <!-- if token expired. regenerate it and re-run the get notifications -->
-        <If condition="/gem_alerts/response/status_code = 500">
+        <If condition="/gem_alerts/response/status_code = 500 or /gem_alerts/response/status_code = 401">
             <Log type="INFO" message="Got 401 error message - regenerating access token "/>
             <Delete path="/gemToken/response" />
             <CallEndpoint url="https://${/tokenUrlDomain}/oauth/token" method="POST" savePath="/gemToken/response">
