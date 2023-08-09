@@ -56,8 +56,9 @@
         </CallEndpoint>
 
         <!-- if token expired. regenerate it and re-run the get notifications -->
-        <If condition="/gem_alerts/response/status_code = 401">
+        <If condition="/gem_alerts/response/status_code = 500">
             <Log type="INFO" message="Got 401 error message - regenerating access token "/>
+            <Delete path="/gemToken/response" />
             <CallEndpoint url="https://${/tokenUrlDomain}/oauth/token" method="POST" savePath="/gemToken/response">
                 <RequestHeader name="content-type" value="application/x-www-form-urlencoded"/>
                 <UrlEncodedFormRequestBody>
@@ -86,7 +87,7 @@
 
         <If condition="/gem_alerts/response/status_code != 200">
             <Log type="ERROR" message="Got non-200 status code then trying to get Gem notifications, error: ${/gem_alerts/response/body}"/>
-            <Abort reason="Abort ${/access_token} ${/gem_alerts/response/status_code} ${/gem_alerts/response/body}"/>
+            <Abort reason="Abort - got non 200  response: ${/gem_alerts/response/status_code} ${/gem_alerts/response/body}"/>
         </If>
 
         <!-- Post Events, if any -->
