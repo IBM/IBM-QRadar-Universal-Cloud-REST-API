@@ -99,6 +99,7 @@
             <QueryParameter name="query" value="${/gql_query}" />
             <QueryParameter name="variables" value="${/gql_query_variables}" />
             <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+            <RequestHeader name="content-type" value="application/json" />
         </CallEndpoint>
 
         <Log type="INFO" message="WIZ: First API call status code:: ${/get_events/status_code}" />
@@ -177,6 +178,7 @@
                 <QueryParameter name="query" value="${/gql_query}" />
                 <QueryParameter name="variables" value="${/gql_query_variables}" />
                 <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+                <RequestHeader name="content-type" value="application/json" />
             </CallEndpoint>
 
             <Log type="INFO" message="WIZ: Paginated API call status code: ${/get_events/status_code}" />
