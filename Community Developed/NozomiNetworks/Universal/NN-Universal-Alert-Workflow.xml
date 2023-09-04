@@ -8,17 +8,16 @@
   </Parameters>
 
   <Actions>
-<!--        <Initialize path="/bookmark_alert" value="0" />-->
+    <!--        <Initialize path="/bookmark_alert" value="0" />-->
     <Initialize path="/bookmark_alert" value="${time() - 3600000}" />
     <Initialize path="/size" value="500" />
     <Initialize path="/alert_page" value="1" />
-    <Initialize path="/first_run_alert" value="true" />
 
     <CallEndpoint url="https://${/host}/api/open/sign_in" method="POST" savePath="/sign_in">
       <RequestBody type="application/json" encoding="UTF-8">{ "key_name": "${/key_name}", "key_token": "${/key_token}" }</RequestBody>
     </CallEndpoint>
 
-<!--    <Log type="INFO" message="NN Universal Alert sign_in ${/sign_in/status_code}"/>-->
+    <!--    <Log type="INFO" message="NN Universal Alert sign_in ${/sign_in/status_code}"/>-->
 
     <If condition="/sign_in/status_code != 200">
       <Log type="ERROR" message="NN Universal Alert sign_in fail" />
@@ -26,10 +25,10 @@
     </If>
     <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
 
-<!--    <Log type="INFO" message="NN Universal Alert Sign in successfully done alert bookmark ${/bookmark_alert}" />-->
+    <!--    <Log type="INFO" message="NN Universal Alert Sign in successfully done alert bookmark ${/bookmark_alert}" />-->
 
     <!--  GET ALERTS-->
-    <DoWhile condition="${/first_run_alert} = true or ${count(/alerts/body/result)} = ${/size}">
+    <DoWhile condition="${count(/alerts/body/result)} = ${/size}">
       <CallEndpoint url="https://${/host}/api/open/query/do?query=alerts%20%7C%20where%20record_created_at%20%3E%20${/bookmark_alert}%20%7C%20sort%20record_created_at%20asc" method="GET" savePath="/alerts">
         <QueryParameter name="count" value="${/size}"/>
         <QueryParameter name="page" value="${/alert_page}"/>
@@ -43,16 +42,17 @@
         <Abort reason="${/alerts/status_code}"/>
       </If>
 
-      <PostEvents path="/alerts/body/result" source="${/host}" />
+      <If condition="${count(/alerts/body/result)} != 0">
+        <PostEvents path="/alerts/body/result" source="${/host}" />
 
-      <Set path="/first_run_alert" value="false" />
-      <Set path="/alert_page" value="${/alert_page + 1}" />
+        <Set path="/alert_page" value="${/alert_page + 1}" />
 
-      <If condition="${count(/alerts/body/result)} != ${/size} or ${/alert_page} = 100">
-        <If condition="max(/alerts/body/result/record_created_at) != null">
-          <Set path="/alert_page" value="1" />
-          <Set path="/bookmark_alert" value="${max(/alerts/body/result/record_created_at)}" />
-<!--          <Log type="INFO" message="NN Universal Alert bookmark upgraded to ${/bookmark_alert}" />-->
+        <If condition="${count(/alerts/body/result)} != ${/size} or ${/alert_page} = 100">
+          <If condition="max(/alerts/body/result/record_created_at) != null">
+            <Set path="/alert_page" value="1" />
+            <Set path="/bookmark_alert" value="${max(/alerts/body/result/record_created_at)}" />
+            <Log type="INFO" message="NN Universal Alert bookmark upgraded to ${/bookmark_alert}" />
+          </If>
         </If>
       </If>
 

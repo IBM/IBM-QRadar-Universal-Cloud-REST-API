@@ -9,15 +9,15 @@
 
   <Actions>
     <Initialize path="/bookmark_asset" value="0" />
+    <!--    <Initialize path="/bookmark_asset" value="${time() - 3600000}" />-->
     <Initialize path="/size" value="500" />
     <Initialize path="/asset_page" value="1" />
-    <Initialize path="/first_run_asset" value="true" />
 
     <CallEndpoint url="https://${/host}/api/open/sign_in" method="POST" savePath="/sign_in">
       <RequestBody type="application/json" encoding="UTF-8">{ "key_name": "${/key_name}", "key_token": "${/key_token}" }</RequestBody>
     </CallEndpoint>
 
-<!--    <Log type="INFO" message="NN Universal Asset sign_in ${/sign_in/status_code}"/>-->
+    <!--    <Log type="INFO" message="NN Universal Asset sign_in ${/sign_in/status_code}"/>-->
 
     <If condition="/sign_in/status_code != 200">
       <Log type="ERROR" message="NN Universal Asset sign_in fail" />
@@ -25,10 +25,10 @@
     </If>
     <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
 
-<!--    <Log type="INFO" message="NN Universal Asset Sign in successfully done asset bookmark ${/bookmark_asset}" />-->
+    <!--    <Log type="INFO" message="NN Universal Asset Sign in successfully done asset bookmark ${/bookmark_asset}" />-->
 
-    <!--  GET ALERTS-->
-    <DoWhile condition="${/first_run_asset} = true or ${count(/assets/body/result)} = ${/size}">
+    <!--  GET ASSETS-->
+    <DoWhile condition="${count(/assets/body/result)} = ${/size}">
       <CallEndpoint url="https://${/host}/api/open/query/do?query=assets%20%7C%20where%20created_at%20%3E%20${/bookmark_asset}%20%7C%20sort%20created_at%20asc" method="GET" savePath="/assets">
         <QueryParameter name="count" value="${/size}"/>
         <QueryParameter name="page" value="${/asset_page}"/>
@@ -42,16 +42,17 @@
         <Abort reason="${/assets/status_code}"/>
       </If>
 
-      <PostEvents path="/assets/body/result" source="${/host}" />
+      <If condition="${count(/assets/body/result)} != 0">
+        <PostEvents path="/assets/body/result" source="${/host}" />
 
-      <Set path="/first_run_asset" value="false" />
-      <Set path="/asset_page" value="${/asset_page + 1}" />
+        <Set path="/asset_page" value="${/asset_page + 1}" />
 
-      <If condition="${count(/assets/body/result)} != ${/size} or ${/asset_page} = 100">
-        <If condition="max(/assets/body/result/created_at) != null">
-          <Set path="/asset_page" value="1" />
-          <Set path="/bookmark_asset" value="${max(/assets/body/result/created_at)}" />
-<!--          <Log type="INFO" message="NN Universal Asset bookmark upgraded to ${/bookmark_asset}" />-->
+        <If condition="${count(/assets/body/result)} != ${/size} or ${/asset_page} = 100">
+          <If condition="max(/assets/body/result/created_at) != null">
+            <Set path="/asset_page" value="1" />
+            <Set path="/bookmark_asset" value="${max(/assets/body/result/created_at)}" />
+            <!--          <Log type="INFO" message="NN Universal Asset bookmark upgraded to ${/bookmark_asset}" />-->
+          </If>
         </If>
       </If>
 
