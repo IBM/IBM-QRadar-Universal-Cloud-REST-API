@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<Workflow name="NN-Universal-Asset" version="1.0" minimumRecurrence="180" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+  <Parameters>
+    <Parameter name="host" label="Host" required="true" />
+    <Parameter name="key_name" label="Key Name" required="true" />
+    <Parameter name="key_token" label="Key Token" required="true" secret="true" />
+  </Parameters>
+
+  <Actions>
+    <Initialize path="/bookmark_asset" value="0" />
+    <!--    <Initialize path="/bookmark_asset" value="${time() - 3600000}" />-->
+    <Initialize path="/size" value="500" />
+    <Initialize path="/asset_page" value="1" />
+
+    <CallEndpoint url="https://${/host}/api/open/sign_in" method="POST" savePath="/sign_in">
+      <RequestBody type="application/json" encoding="UTF-8">{ "key_name": "${/key_name}", "key_token": "${/key_token}" }</RequestBody>
+    </CallEndpoint>
+
+    <!--    <Log type="INFO" message="NN Universal Asset sign_in ${/sign_in/status_code}"/>-->
+
+    <If condition="/sign_in/status_code != 200">
+      <Log type="ERROR" message="NN Universal Asset sign_in fail" />
+      <Abort reason="${/sign_in/response/body/code}: ${/sign_in/response/body/message}" />
+    </If>
+    <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
+
+    <!--    <Log type="INFO" message="NN Universal Asset Sign in successfully done asset bookmark ${/bookmark_asset}" />-->
+
+    <!--  GET ASSETS-->
+    <DoWhile condition="${count(/assets/body/result)} = ${/size}">
+      <CallEndpoint url="https://${/host}/api/open/query/do?query=assets%20%7C%20where%20created_at%20%3E%20${/bookmark_asset}%20%7C%20sort%20created_at%20asc" method="GET" savePath="/assets">
+        <QueryParameter name="count" value="${/size}"/>
+        <QueryParameter name="page" value="${/asset_page}"/>
+        <QueryParameter name="default_filters" value="false"/>
+        <QueryParameter name="skip_total_count" value="true"/>
+        <RequestHeader name="Authorization" value="${/bearer_token}"/>
+      </CallEndpoint>
+
+      <If condition="/assets/status_code != 200">
+        <Log type="ERROR" message="NN Universal Asset fail status code ${/assets/status_code}" />
+        <Abort reason="${/assets/status_code}"/>
+      </If>
+
+      <If condition="${count(/assets/body/result)} != 0">
+        <PostEvents path="/assets/body/result" source="${/host}" />
+
+        <Set path="/asset_page" value="${/asset_page + 1}" />
+
+        <If condition="${count(/assets/body/result)} != ${/size} or ${/asset_page} = 100">
+          <If condition="max(/assets/body/result/created_at) != null">
+            <Set path="/asset_page" value="1" />
+            <Set path="/bookmark_asset" value="${max(/assets/body/result/created_at)}" />
+            <!--          <Log type="INFO" message="NN Universal Asset bookmark upgraded to ${/bookmark_asset}" />-->
+          </If>
+        </If>
+      </If>
+
+      <Log type="INFO" message="NN Universal Asset notified count => ${count(/assets/body/result)} asset_page ${/asset_page} and bookmark ${/bookmark_asset}" />
+    </DoWhile>
+  </Actions>
+  <Tests>
+    <DNSResolutionTest host="${/host}" />
+    <TCPConnectionTest host="${/host}" />
+    <SSLHandshakeTest host="${/host}" />
+    <HTTPConnectionThroughProxyTest url="https://${/host}" />
+  </Tests>
+</Workflow>

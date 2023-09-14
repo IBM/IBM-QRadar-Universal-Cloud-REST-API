@@ -21,9 +21,7 @@ Then click the on "Generate" and you get the Key Name and Key Token.
     <Initialize path="/bookmark_assets" value="0" />
     <!--    <Initialize path="/bookmark_assets" value="${time() - 3600000}" />-->
     <Initialize path="/size" value="500" />
-    <!--    <Initialize path="/size" value="5" />-->
     <Initialize path="/asset_page" value="1" />
-    <Initialize path="/first_run_asset" value="true" />
 
     <CallEndpoint url="https://${/host}/api/v1/keys/sign_in" method="POST" savePath="/sign_in">
       <RequestBody type="application/json" encoding="UTF-8">{ "key_name": "${/key_name}", "key_token": "${/key_token}" }</RequestBody>
@@ -56,8 +54,9 @@ Then click the on "Generate" and you get the Key Name and Key Token.
 
     <Log type="INFO" message="NN Vantage Asset Organization id found from org name ${/org}" />
 
-    <!--    GET ASSETS-->
-    <DoWhile condition="${/first_run_asset} = true or ${count(/assets/body/data)} = ${/size}">
+    <!-- GET ASSETS-->
+    <DoWhile condition="${count(/assets/body/data)} = ${/size}">
+
       <CallEndpoint url="https://${/host}/api/v1/assets" method="GET" savePath="/assets">
         <QueryParameter name="size" value="${/size}"/>
         <QueryParameter name="page" value="${/asset_page}"/>
@@ -73,16 +72,17 @@ Then click the on "Generate" and you get the Key Name and Key Token.
         <Abort reason="${/assets/status_code}"/>
       </If>
 
-      <PostEvents path="/assets/body/data" source="${/host}" />
+      <If condition="${count(/assets/body/data)} != 0">
+        <PostEvents path="/assets/body/data" source="${/host}" />
 
-      <Set path="/first_run_asset" value="false" />
-      <Set path="/asset_page" value="${/asset_page + 1}" />
+        <Set path="/asset_page" value="${/asset_page + 1}" />
 
-      <If condition="${count(/assets/body/data)} != ${/size} or ${/asset_page} = 100">
-        <If condition="max(/assets/body/data/attributes/record_created_at) != null">
-          <Set path="/asset_page" value="1" />
-          <Set path="/bookmark_assets" value="${max(/assets/body/data/attributes/record_created_at)}" />
-          <Log type="INFO" message="NN Vantage Asset bookmark_assets upgraded to ${/bookmark_assets}" />
+        <If condition="${count(/assets/body/data)} != ${/size} or ${/asset_page} = 100">
+          <If condition="max(/assets/body/data/attributes/record_created_at) != null">
+            <Set path="/asset_page" value="1" />
+            <Set path="/bookmark_assets" value="${max(/assets/body/data/attributes/record_created_at)}" />
+            <Log type="INFO" message="NN Vantage Asset bookmark_assets upgraded to ${/bookmark_assets}" />
+          </If>
         </If>
       </If>
 
