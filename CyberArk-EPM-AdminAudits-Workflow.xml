@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+CyberArk EPM AdminAudit API - QRadar Integration (Universal Cloud REST API)
+-->
+<Workflow name="CyberArkEPM" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+	    <Parameter name="host" label="EPM Dispatcher URL" default="login.epm.cyberark.com" required="true" />
+        <Parameter name="username" label="Username" default="johndoe" required="true" />
+        <Parameter name="password" label="Password" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+		
+		<!-- Clear status of log source -->
+        <ClearStatus />
+		
+		<!-- Initialize the bookmark (Start date) to 1 days ago, if not set default is 24, 7 days is 168-->
+        <Initialize path="/epm_audit/bookmark" value="${time() - (60000 * 60 * 24 * 7)}" /> <!-- 7 days prior -->
+		
+		<!-- Set max retry to 3 in case of 403 API exceeded error and timeout for 60 secs -->
+		<Initialize path="/epm_audit/maxRetry" value="3" />
+        
+		<Initialize path="/epm_audit/logPrefix" value="EPM::AdminAudit" />
+		
+        <!-- Set limit for max fetch to now this is like the last_run -  do i need to initalize this?-->
+        <Set path="/epm_audit/max_created" value="${time()}" />
+		
+        <!-- Reformat datetimes to use in API -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/epm_audit/bookmark}" savePath="/epm_audit/from_time" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/epm_audit/max_created}" savePath="/epm_audit/to_time" />
+       
+		<!-- Display the bookmark in epoch and utc format for debug info -->
+        <Log type="INFO" message="${/epm_audit/logPrefix} - The EPM Bookmark value was ${/epm_audit/bookmark} : ${/epm_audit/from_time} " />
+        
+		<!--Fetch the Access Token and Tenant from EPM Dispatcher url what is the timeout for the token? need to check in doc -->
+		<CallEndpoint url="https://${/host}/EPM/API/Auth/EPM/Logon" method="POST" savePath="/get_access_token">
+			<RequestBody type="application/json" encoding="UTF-8">{ "Username": "${/username}", "Password": "${/password}", "ApplicationID": "IBM QRadar EPM Plugin" }</RequestBody>
+		</CallEndpoint>
+
+		<!-- Check for errors during Auth-->
+		<If condition="/get_access_token/status_code != 200">
+			<Log type="INFO" message="${/epm_audit/logPrefix} - Abort - Login fail, check userid and password." />
+            <Abort reason="${/get_access_token/status_message}" />
+		</If>
+            
+		<!-- Extract the tenant url and the token -->
+		<Log type="INFO" message="${/epm_audit/logPrefix} - ${/get_access_token/status_code} : ${/get_access_token/status_message}." />
+		<Set path="/epm_url" value="${/get_access_token/body/ManagerURL}" />
+		<Set path="/auth_token" value="${/get_access_token/body/EPMAuthenticationResult}" />
+			
+		<!-- Get all the sets, there could be 0 or more than 1 set -->
+		<CallEndpoint url="${/epm_url}/EPM/API/Sets" method="GET" savePath="/get_sets">
+			<RequestHeader name="authorization" value="basic ${/auth_token}" />
+		</CallEndpoint>
+		
+		<!-- Check for errors during get Sets  do i need to retry here 3 times as well?-->
+		<If condition="/get_sets/status_code != 200">
+			<Log type="INFO" message="${/epm_audit/logPrefix} - Abort - Get Sets failed ${/get_sets/status_code} : ${/get_sets/status_message}" />
+			<Abort reason="${/epm_audit/logPrefix} -  ${/get_sets/status_message}" />
+		</If>
+		<Log type="INFO" message="${/epm_audit/logPrefix} - ${/get_sets/status_code} : ${/get_sets/status_message}" />
+			
+		<!-- Loop thru the sets, there could be a x number of sets or no set etc and get all audit data -->
+		<If condition="/get_sets/body/SetsCount > 0">
+		
+			<ForEach item="/current_set" items="/get_sets/body/Sets">
+				
+				<Log type="INFO" message="${/epm_audit/logPrefix} - ${/current_set/Id} : ${/current_set/Name}" />
+				<!-- keep track of the offset and # of record for each set, the offset is the # of records to skip for pagination-->
+				<Set path="/epm_audit/offset" value="0" />
+				<Set path="/epm_audit/records" value="0" />
+				
+				<DoWhile condition="${count(/get_events/body/AdminAudits)} != 0">
+				
+					<Log type="INFO" message="${/epm_audit/logPrefix} - offset : ${/epm_audit/offset} : count=${count(/get_events/body/AdminAudits)} : datefrom=${/epm_audit/from_time} : dateto=${/epm_audit/to_time}" />
+					
+					<Set path="/epm_audit/apiLimitErrorCount" value="0" />
+					
+					<While condition="${/epm_audit/apiLimitErrorCount != ${/epm_audit/maxRetry}}">
+						<CallEndpoint url="${/epm_url}/EPM/API/Sets/${/current_set/Id}/AdminAudit" method="GET" savePath="/get_events">
+							<QueryParameter name="offset" value="${/epm_audit/offset}" omitIfEmpty="true" />
+							<QueryParameter name="limit" value="500" />
+							<QueryParameter name="datefrom" value="${/epm_audit/from_time}" />
+							<QueryParameter name="dateto" value="${/epm_audit/to_time}" />
+							<RequestHeader name="authorization" value="basic ${/auth_token}" />
+						</CallEndpoint>
+						<!-- EPM/API/Sets/bc.../AdminAudit/?offset=13000&limit=500&datefrom=...&dateto=xxx -->
+						<!-- Check for errors during Events Fetch how do we handle 403? authenciation error from EPM in middle of the run. or 500 error etc? Eat it and ignore it will still get the total counts. the get_events/body/message will be empty like []
+						before i was aborting it, if i don't abort, when 403 occurs, it still capture total counts and continue.
+						this should be ok, need to investigate why 403 is occurrening and is the query of pagination correct? should be minor because this runs everyday.  unless there are large amount of data.
+						403 is API limit reached.
+						-->
+						<If condition="/get_events/status_code = 403">
+						
+							<Set path="/epm_audit/apiLimitErrorCount" value="${/epm_audit/apiLimitErrorCount + 1}" />
+							<Log type="INFO" message="${/epm_audit/logPrefix} - API Rate limit exceeded. Status Code: 403 ${/get_events/body/message} : sleep 60 secs and retry" />
+							<!-- can i sleep here for a min(1000 ms * 60 seconds) and wake up and continue ? how do i recapture/rerun the REST query that error with 403? do i need a while loop here to account for larget # of data? so far 1 rerun works for 35k rows for set with 20 API limit/min.
+							just to account for tenant with 5 API limit/min the lowest - this is really crappy stuff limits on EPM 
+							can do retry 3 times here if needed.
+							-->
+							<If condition="${/epm_audit/apiLimitErrorCount = ${/epm_audit/maxRetry}}">
+								<Log type="INFO" message="${/epm_audit/logPrefix} - Abort - Number of retry attempts for status code 403 exceeded." />
+								<Abort reason="Number of retries exceeded for status code 403." />
+							</If>
+							
+							<Sleep duration="60000" />
+						</If>
+						
+						<Else>
+							<Set path="/epm_audit/apiLimitErrorCount" value="${/epm_audit/maxRetry}" />
+						</Else>
+							
+					</While>
+					
+					<!-- to do here, make sure get_events are from all the sets here how to double check ? -->
+					<Log type="INFO" message="${/epm_audit/logPrefix} - ${/current_set/Id} : ${/get_events/status_code} : ${/get_events/status_message}" />
+					<!-- only post the event if there are events -->
+					<If condition="${count(/get_events/body/AdminAudits)} != 0">
+						<PostEvents path="/get_events/body/AdminAudits" source="${/epm_url}"/> 
+					</If>
+					
+					<!-- <Log type="INFO" message="${/epm_audit/logPrefix} -  : ${/get_events/status_code} : ${/get_events/status_message}" /> -->
+					<!-- pagination logic here offset is the # of records to skip and keep track and output of the # of records for each set for debug -->
+					<Set path="/epm_audit/offset" value="${/epm_audit/offset + 500}" />
+					<Set path="/epm_audit/records" value="${/epm_audit/records + count(/get_events/body/AdminAudits)}" />
+					<Log type="INFO" message="${/epm_audit/logPrefix} - DoWhile #records for setID ${/current_set/Id} : ${/epm_audit/records}" />
+				</DoWhile>
+				
+				<!-- Log API call and received total audit event count for each Set -->
+				<Log type="INFO" message="${/epm_audit/logPrefix} - endDoWHile #records for setID ${/current_set/Id} : ${/epm_audit/records}" />
+				
+			</ForEach>
+			
+		</If>
+		
+		<!-- Update bookmark to last running max time (start from this next time) -->
+		<Set path="/epm_audit/bookmark" value="${/epm_audit/max_created}" />
+							
+    </Actions>
+	
+	<Tests>
+		<DNSResolutionTest host="${/host}"/>
+		<TCPConnectionTest host="${/host}"/>
+	</Tests>
+</Workflow>
