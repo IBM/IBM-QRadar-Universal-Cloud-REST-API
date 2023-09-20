@@ -35,6 +35,8 @@
         <QueryParameter name="default_filters" value="false"/>
         <QueryParameter name="skip_total_count" value="true"/>
         <RequestHeader name="Authorization" value="${/bearer_token}"/>
+        <RequestHeader name="nn-app" value="qradar-app"/>
+        <RequestHeader name="nn-app-version" value="1.0.0"/>
       </CallEndpoint>
 
       <If condition="/alerts/status_code != 200">

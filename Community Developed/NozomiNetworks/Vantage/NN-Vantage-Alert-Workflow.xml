@@ -64,6 +64,8 @@ Then click the on "Generate" and you get the Key Name and Key Token.
         <QueryParameter name="skip_total_count" value="true"/>
         <RequestHeader name="Authorization" value="${/bearer_token}"/>
         <RequestHeader name="Vantage-Org" value="${/org_id}"/>
+        <RequestHeader name="nn-app" value="qradar-vantage-app"/>
+        <RequestHeader name="nn-app-version" value="1.0.1"/>
       </CallEndpoint>
 
       <If condition="/alerts/status_code != 200">
