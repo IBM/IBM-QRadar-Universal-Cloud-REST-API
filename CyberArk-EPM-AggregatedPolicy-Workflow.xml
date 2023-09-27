@@ -20,9 +20,9 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 		-->
 		<!-- go back to how ever i want, bookmark seems to be stuck for some reason, need to figure out  why 7*24=168, 336 14 days -->
 		
-		<!-- Initialize the bookmark (Start date) to 1 days ago, if not set default is 1 day -->
+		<!-- Initialize the bookmark (Start date) to 7 days ago, if not set default is 7 day -->
 
-        <Initialize path="/epm_policy/bookmark" value="${time() - (60000 * 60 * 24 * 7)}" /> <!-- 1 days prior -->
+        <Initialize path="/epm_policy/bookmark" value="${time() - (60000 * 60 * 24 * 7)}" /> <!-- 7 days prior -->
 		
 		<!-- Set max retry to 3 in case of 403 API exceeded error and timeout for 60 secs -->
 		<Initialize path="/epm_policy/maxRetry" value="3" />
