@@ -1,40 +1,51 @@
-# IBM QRadar Universal Cloud Connector
+EPM Configuration
+-----------------
+Steps to obtain an integration with QRadar:
+1). User id, password, EPM dispatcher server (login.epm.cyberark.com) – these needs to be fill into the xml parameter file.
+https://docs.cyberark.com/EPM/Latest/en/Content/WebServices/ServerAuthentication.htm
 
-IBM Security QRadar is pleased to announce the release of the Universal Cloud Connector, which is designed to enable security teams to more easily ingest data from a wide range of REST API cloud-based applications and services for enhanced visibility. To address this new dynamic, the Universal Cloud Connector includes a new Universal Cloud REST API Protocol that enables you to create log sources for the acquisition of data from REST API compatible data sources that aren’t currently supported. With the Universal Cloud REST API Protocol, you can: 
+2). There are 3 log source type:
+EPM – EPM aggregated events. This fetch 7 days backlog on first run. 
+https://docs.cyberark.com/EPM/Latest/en/Content/WebServices/GetAggregatedEvents.htm
 
-  - Quickly and easily connect to REST API based cloud applications and services. As organizations and vendors continue their digital transformation to improve and modify their existing services, the ability to quickly adapt to these changes is critical. The Universal Cloud REST API Protocol allows for the integration of cloud based (or traditional on-premise) endpoints that are not currently supported by QRadar. Configuration of these data sources is clear and accessible using the Log Source Management App.
+EPM-AdminAudit1 – EPM admin audit. This fetch 1 day backlog on first run.
+https://docs.cyberark.com/EPM/Latest/en/Content/WebServices/GetAccountAdminAudit.htm
 
+EPM-Policy – EPM aggregated policy audits. This fetch 7 days backlog on first run.
+https://docs.cyberark.com/EPM/Latest/en/Content/WebServices/GetAggregatedPolicyAudits.htm
 
-  - Leverage pre-configured workflows for select  data sources or create your own. A Universal Cloud REST API Protocol workflow defines the connection logic – a series of actions that are executed sequentially – for retrieving events. Using pre-configured workflows substantially reduces the time to create new log sources. Creating a new workflow or modifying an existing workflow allows you the flexibility to customize event data for your specific security use cases.
+QRadar Log Source Configuration
+--------------------------------
+Please follow the root ReadMe for configuring within QRadar.
 
+Troubleshooting 
+-------------------
+You can extract the debug run of the workflow from /var/log/qradar.log into a file and share the file with Cyberark support. Each workflow has 
+a specific prefix for logging.
 
-  - Tailor the data for your specific use cases. Events received from log sources created using the Universal Cloud REST API Protocol may initially appear as unknown or stored. The DSM Editor can be used to define normalized properties, classify event data and extract custom event properties, ensuring that your data will provide valuable insight for activity in your network.
+For event workflow:
+grep “EPM::AggEvent” qradar.log > aggevent.log
 
+For policy workflow:
+grep “EPM:AggPolicy” qradar.log > aggpolicy.log
 
-  - Augment threat detection abilities. Connecting your data sources with the Universal Cloud REST API Protocol facilitates the applying security use cases and analytics to new environments. The analyst sees threat intelligence, asset information, rule details, risk indicators, and by leveraging QRadar’s Analyst Workflow, they’ll have access to key investigation information in their workspace, minimizing the need to, navigate elsewhere for additional context.
+For admin audit workflow:
+grep “EPM::AdminAudit” qradar.log > aggaudit.log
 
- 
-# Before you begin
+You can also grep on the EPM:: prefix to capture logs for all 3 workflows. Here is a sample where the password was changed in EPM but not 
+reflected in the workflow parameter xml file in Qradar.
 
-QRadar currently integrates with approximately 450 third-party devices. However, as organizations adapt to new technology, there is an immediate  need to monitor network traffic for new data sources. As an example, I’ll walk you through how to easily ingest data from a third party service, Duo Security.  
+[root@host-1 log]# grep "EPM::" qradar.log
 
-Note the following terminology as you configure the Universal Cloud REST API:
-
-   - The Workflow is an XML document that describes the event retrieval process. The Workflow defines one or more parameters, which can be explicitly assigned values in the Workflow XML or can derive values from the Workflow Parameter Values XML document. The Workflow consists of multiple actions that run sequentially. When you run the Workflow, the parameter values are added to the State, and the State can then be accessed and changed by actions as the Workflow runs.
-
-
-   - Workflow Parameter Values are the input parameters for a workflow instance, and are stored in an XML file. The Workflow Parameter Values are represented by a set of key/value pairs, and the key must match one of the parameters defined in the associated Workflow.
-
-
-   - The State is a JSON object that represents the data of a running Workflow. Since the State is not strictly defined, data is dynamically stored in the State.
-
-# Issues
-For any issues with sample workflows in this repository please make use of the Issues feature in Github. If you have questions that aren't getting a response a good tip is to tag the original contributor and see if they can offer some feedback. This is community supported so all users are encouraged to provide assistance and support their peers in the community.
-
-# Contributing
-For instructions on how to contribute your own workflow to this repository, refer to the CONTRIBUTING.md file.
-
-
-# Configuration Documentation
-Universal Cloud REST API configuration documentation and be found here: https://www.ibm.com/support/knowledgecenter/SS42VS_DSM/com.ibm.dsm.doc/c_universal_rest_overview.html?cp=SS42VS_7.4
-
+Mar 26 13:50:37 ::ffff:10.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-165] com.q1labs.semsources.sources.universalcloudrestapi.v1.workflow.action.LogAction: [INFO] [NOT:0000006000][10.0.0.1/- -] [-/- -
+]EPM::AdminAudit - The EPM Bookmark value was 1679466638733 : 2023-03-22T06:30:38.733Z
+Mar 26 13:50:40 ::ffff:10.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-165] com.q1labs.semsources.sources.universalcloudrestapi.v1.workflow.action.LogAction: [INFO] [NOT:0000006000][10.0.0.1/- -] [-/- -
+]EPM::AdminAudit - Abort - Login fail, check userid and password.
+Mar 26 13:52:23 ::ffff:10.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-170] com.q1labs.semsources.sources.universalcloudrestapi.v1.workflow.action.LogAction: [INFO] [NOT:0000006000][10.0.0.1/- -] [-/- -
+]EPM::AggEvent - The EPM Bookmark value was 1679466723151 : 2023-03-22T06:32:03Z
+Mar 26 13:52:23 ::ffff:10.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-171] com.q1labs.semsources.sources.universalcloudrestapi.v1.workflow.action.LogAction: [INFO] [NOT:0000006000][10.0.0.1/- -] [-/- -
+]EPM::AggPolicy - The EPM Bookmark value was 1679466723143 : 2023-03-22T06:32:03Z
+Mar 26 13:52:25 ::ffff:10.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-170] com.q1labs.semsources.sources.universalcloudrestapi.v1.workflow.action.LogAction: [INFO] [NOT:0000006000][10.0.0.1/- -] [-/- -
+]EPM::AggEvent - Abort - Login fail, check userid and password.
+Mar 26 13:52:25 ::ffff:10.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-171] com.q1labs.semsources.sources.universalcloudrestapi.v1.workflow.action.LogAction: [INFO] [NOT:0000006000][10.0.0.1/- -] [-/- -
+]EPM::AggPolicy - Abort - Login fail, check userid and password.
