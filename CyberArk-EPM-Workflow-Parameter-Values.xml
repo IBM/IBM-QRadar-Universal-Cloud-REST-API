@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
-    <Value name="host" value="login.epm.cyberark.com" />
-    <Value name="username" value="johndoe@acme.com" />
-    <Value name="password" value="p@ssW0rd123" />
-</WorkflowParameterValues>
