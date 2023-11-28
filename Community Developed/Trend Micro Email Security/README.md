@@ -50,5 +50,13 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 4. *startDateTime*: If this is the first workflow run, it will be set to 5 mintues before current time, otherwise, it will be the endDateTime of the last workflow run.
 5. *endDateTime*: Current time.
 
+
+# DSM Parsing Tips #
+*Event Category* Regex Expression: ,"(details)"
+*Event ID* JSON Expression: /"reason"
+*Event ID* JSON Expression: /"action"
+Note that there are 2 expressions for the *Event ID* as the payload is different for accepted_traffic & blocked_traffic.
+
+
 # Endpoint Documentation #
 Getting Started with Trend Micro Email Security APIs - <https://docs.trendmicro.com/en-us/documentation/article/trend-micro-email-security-rest-api-online-help-getting-started-with>
