@@ -55,6 +55,7 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 *Event Category* Regex Expression: ,"(details)"
 *Event ID* JSON Expression: /"reason"
 *Event ID* JSON Expression: /"action"
+
 Note that there are 2 expressions for the *Event ID* as the payload is different for accepted_traffic & blocked_traffic.
 
 
