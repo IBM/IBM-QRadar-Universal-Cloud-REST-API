@@ -52,6 +52,11 @@ The `Asset` events are mapped with the `ASSET-INFO` mapping event if the `type` 
 
 To see all the Properties and `Event Mappings` in the `Nozomi Netoworks Vantage` app for QRadar go to the `DSM editor` and select the `Nozomi Networks Vantage`  `Log Source Type`.
 
+### LogSourceIdentifier
+
+The `Log Source Identifier`, to work with QRadar Cloud, must be the concatenation of the `host`, `key_name` and the string `Alert` or `Asset`, separated with `_`.
+An example is: `nozominetworkscom.customers.eu1.xxx.nozominetworks.io_AK023XXX_Alert`
+
 ### Troubbleshooting
 To see the logs of the apconnect via `ssh` with your QRadar instance and go to:
 

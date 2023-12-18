@@ -74,7 +74,7 @@ Then click the on "Generate" and you get the Key Name and Key Token.
       </If>
 
       <If condition="${count(/alerts/body/data)} != 0">
-        <PostEvents path="/alerts/body/data" source="${/host}" />
+        <PostEvents path="/alerts/body/data" source="${/host}_${/key_name}_Alert" />
 
         <Set path="/alert_page" value="${/alert_page + 1}" />
 

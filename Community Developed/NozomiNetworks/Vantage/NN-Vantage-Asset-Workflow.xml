@@ -75,7 +75,7 @@ Then click the on "Generate" and you get the Key Name and Key Token.
       </If>
 
       <If condition="${count(/assets/body/data)} != 0">
-        <PostEvents path="/assets/body/data" source="${/host}" />
+        <PostEvents path="/assets/body/data" source="${/host}_${/key_name}_Asset" />
 
         <Set path="/asset_page" value="${/asset_page + 1}" />
 
