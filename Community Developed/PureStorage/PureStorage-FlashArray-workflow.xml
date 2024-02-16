@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Dropbox Business" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Parameters>
+<Parameter name="array" label="Array" required="true" />
+<Parameter name="apitoken" label="Access Token" required="true" secret="true" />
+</Parameters>
+<Actions>
+
+<!-- Initialize the Bookmark -->
+<Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" />
+
+<!-- Get suuported API version -->
+<CallEndpoint url="https://${/array}/api/api_version" method="GET" savePath="/get_apiversion" >
+</CallEndpoint>
+<Set path="/apiarraycount" value="${count(/get_apiversion/body/version) - 1}" />
+
+<Set path="/apiversion" value="${/get_apiversion/body/version[/apiarraycount]}" />
+
+<Log type="INFO" message="The API version ${/apiversion}" />
+
+<!-- Login with apitoken-->
+<CallEndpoint url="https://${/array}/api/${/apiversion}/login" method="POST" savePath="/get_access_token" >
+<RequestHeader name="Content-Type" value="application/json" />
+<RequestHeader name="api-token" value="${/apitoken}" />
+</CallEndpoint>
+
+<!-- Handle Errors -->
+<If condition="/get_access_token/status_code != 200">
+    <Abort reason="${/get_access_token/body/error_description}" />
+</If>
+
+<!-- Extract the Access Token -->
+<Set path="/access_token" value="${/get_access_token/headers/x-auth-token}" />
+
+<!-- Epoch time 5 min before -->
+<Set path="/5min_time" value="${time() - (5 * 60 * 1000)}" />
+<!-- Fetch the alerts -->
+<CallEndpoint url="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;limit=10" method="GET" savePath="/get_events">
+<RequestHeader name="Content-Type" value="application/json" />
+<RequestHeader name="x-auth-token" value="${/access_token}" />
+
+</CallEndpoint>
+
+
+<!-- Handle Errors -->
+<If condition="/get_events/status_code != 200">
+<Abort reason="${/get_events/body}" />
+</If>
+
+
+<!-- Post Events, if any -->
+<If condition="count(/get_events/body/items) > 0">
+
+<PostEvents path="/get_events/body/items" source="${/array}"/>
+
+<!-- Update the bookmark -->
+<Set path="/bookmark" value="${max(/get_events/body/items/updated)}" />
+
+</If>
+
+
+<!--
+        /////////////////////////////////
+        // Get Alerts (Remaining Page) //
+        /////////////////////////////////
+        -->
+
+
+<!-- Fetch the remaining of the pages -->
+<While condition="/get_events/body/continuation_token != null">
+
+
+<CallEndpoint url="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;continuation_token=${/get_events/body/continuation_token}&amp;limit=10" method="GET" savePath="/get_events">
+<RequestHeader name="Content-Type" value="application/json" />
+<RequestHeader name="x-auth-token" value="${/access_token}" />
+</CallEndpoint>
+               
+<!-- Handle Errors -->
+<If condition="/get_events/status_code != 200">
+<Abort reason="${/get_events/body}" />
+</If>
+
+<!-- Post Events -->
+<PostEvents path="/get_events/body/items" source="${/array}"/>
+
+<!-- Update the bookmark -->
+<Set path="/bookmark" value="${max(/get_events/body/items/updated)}" />
+</While>
+
+</Actions>
+<Tests>
+<TCPConnectionTest host="${/array}" />
+</Tests>
+</Workflow>
