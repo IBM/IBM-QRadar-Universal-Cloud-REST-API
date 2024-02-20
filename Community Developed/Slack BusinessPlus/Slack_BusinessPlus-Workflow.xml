@@ -1,21 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Slack BusinessPlus" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
-
-<!--
-<?xml version="1.0" encoding="UTF-8" ?>
-<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
-    <Value name="api_key"   value="FEEDC0DE" />
-</WorkflowParameterValues>
--->
-
-
-<Parameters>
-    <Parameter name="api_key"      label="Slack API Token"  secret="true" required="true" />
-    <Parameter name="api_url"      label="Slack API URL"    default="slack.com"/> <!-- slack.com/api/ -->
-    <Parameter name="api_method"   label="Slack API Method" default="/api/team.accessLogs" /> <!-- team.accessLogs --> 
-</Parameters>
-
-<?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="SlackBusinessPlus" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
 
 <Parameters>
