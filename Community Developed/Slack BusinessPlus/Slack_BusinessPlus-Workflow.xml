@@ -107,6 +107,6 @@
 </Actions>
 
 <Tests>
-    <DNSResolutionTest host="https://${/api_url}"/>
+    <DNSResolutionTest host="${/api_url}"/>
 </Tests>
 </Workflow>
