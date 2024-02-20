@@ -1,1 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Slack Business+" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
 
+<Set path="/work" value=""/>            <!-- clear working State -->
+<Initialize path="/keep" value=""/>     <!-- storage of previous State  -->
+
+<!--
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+    <Value name="api_key"   value="" />
+</WorkflowParameterValues>
+-->
+
+
+<Parameters>
+    <Parameter name="api_key"      label="Slack API Token"  secret="true" required="true" />
+    <Parameter name="api_url"      label="Slack API URL"    default="slack.com/api/"/> <!-- slack.com/api/ -->
+    <Parameter name="api_method"   label="Slack API Method" default="team.accessLogs" /> <!-- team.accessLogs --> 
+</Parameters>
+
+<Actions>
+    <!-- Initialize receivedAfter timestamp in epoch time-->
+    <If condition="empty(/keep/lastEventEpoch) or not exists /keep/lastEventEpoch">
+        <Initialize path="/keep/lastEventEpoch" value="${time() / 1000}" /> <!-- get epoch time if not set already -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/keep/lastEventEpoch * 1000}" savePath="/work/lastEventDateTime_Formatted" />
+        <Log type="INFO" message="${/name}: set empty /keep/lastEventEpoch to ${/work/lastEventEpoch}." />
+    </If>
+    <Log type="INFO" message="${/name}: /keep/lastEventEpoch is ${/work/lastEventDateTime_Formatted}." />
+
+    <!-- Call the endpoint to see if we can get a newer (single) entry -->
+    <CallEndpoint url="https://${/api_url}${/api_method}" method="GET" savePath="/work/results">
+        <QueryParameter name="limit" value="1" /> <!-- or <RequestHeader name="limit" value="1"/> -->
+        <RequestHeader name="Authorization" value="Bearer ${/token}"/>
+        <RequestHeader name="Content-Type" value="application/json" />   
+        <RequestHeader name="User-Agent" value="IBM-QRadar/2.0" />             
+    </CallEndpoint>
+
+    <!-- do some more error handling here ???? maybe ? -->
+    <If condition="/slack/results/body/ok = 0" > <!-- stop if we encouter an error (0=false, 1=true)-->
+        <Log type="ERROR" message="${/name}: ok≠true \n ${/work/results/}" />
+        <Abort reason="${/name}: ok≠true \n ${/work/results/}" />
+    <If/>
+    
+    <!-- did we get a record back  -->
+    <If condition="${count(/work/results/body/logins)} > 0" >
+        <Set path="/work/ce" value="/work/results/body/logins"/> <!-- ce = current event, to keep things understandable :-) -->
+    </If>
+    <Else>
+        <Abort reason="Slack_BusinessPlus-Workflow: no records found" />
+    </Else>
+
+    <If condition="not exists /keep/lastEventHash or empty(/keep/lastEventHash)" > <!-- we do NOT have a previous eventHash, so get the one from this record-->
+        <!-- user, IP address, and user agent  is a unqiue key in the resultset-->
+        <GenerateHMAC algorithm="SHA1" secretKey="${/api_key}" message="${/work/ce/user_id}-${/work/ce/ip}-${/work/ce/user_agent}" saveFormat="HEX" savePath="/keep/lastEventHash" />
+        <Set path="/work/ce/eventHash" value="/keep/lastEventHash"/> <!-- move the new eventHash to keep also to the current eventhash  -->
+    </If>
+    <Else> <!-- we DO have a previous eventHash, so generate a new one for the current record -->
+        <!-- user, IP address, and user agent  is a unqiue key in the resultset-->
+        <GenerateHMAC algorithm="SHA1" secretKey="${/api_key}" message="${/work/ce/user_id}-${/work/ce/ip}-${/work/ce/user_agent}" saveFormat="HEX" savePath="/work/ce/eventHash" />
+    </Else>    
+
+    <If condition="${/work/ce/eventHash} != ${/keep/lastEventHash}" /> <!-- we seem to have a new hash, so probably a new event has arrived -->
+        <PostEvent path="/work/ce" source="Slack"/> <!-- let's post it to the QRadar eventPipeline -->
+
+        <Set path="/work/NewEventHash" value="/work/ce/eventHash" /> <!-- set the keep eventHash for the next record -->
+        <Set path="/work/newEventEpoch" value="/work/ce/date_last" /> <!-- set the keep eventHash for the next record -->
+        <Set path="/work/stopWhileLoop" value=0 />
+
+        <!-- at this point we DO have a previous eventHash which is different from the earlier one stored, so can search further down -->
+        <!-- get all events util we find the lastEventHash or get past lastEpoch -->
+        <While condition="/work/results/response_metadata/next_cursor != null and not ${/work/stopWhileLoop} "> <!-- There are still events to post to QRadar / make sure not to use the /work/ce as these contain only the logins -->
+            <CallEndpoint url="https://${/api_url}${/api_method}" method="GET" savePath="/work/results">
+                <QueryParameter name="cursor" value="${/work/results/response_metadata/next_cursor}%3D" /> <!-- or <put the next_cursor in /> -->
+                <QueryParameter name="limit" value="20" /> <!-- or <RequestHeader name="limit" value="20"/>  get 20 records -->
+                <RequestHeader name="Authorization" value="Bearer ${/token}"/>
+                <RequestHeader name="Content-Type" value="application/json" />   
+                <RequestHeader name="User-Agent" value="IBM-QRadar/2.0" />             
+            </CallEndpoint>
+
+            <!-- do some error handling here ???? maybe ? -->
+
+        	<!-- Post Events util we find the lastEventHash or get past lastEpoch -->
+        	<ForEach item="/work/ce" items="/work/results/body/logins">
+        		<Set path="/work/ce/event_id" value="General Authentication Succesful" /> <!-- set additional info on the event to post-->
+        		<Set path="/work/ce/event_category" value="Anthentication" /> <!-- QID=7000280 -->
+                <!-- user, IP address, and user agent  is a unqiue combo in the resultset-->
+                <GenerateHMAC algorithm="SHA1" secretKey="${/api_key}" message="${/work/ce/user_id}-${/work/ce/ip}-${/work/ce/user_agent}" saveFormat="HEX" savePath="/work/ce/eventHash" />
+                <If condition="${/work/ce/eventHash} != ${/keep/lastEventHash} and ${/work/ce/date_last} > ${/keep/lastEventEpoch} " />
+                    <Log type="DEBUG" message="${/name}: posting event to QRadar pipeline ${/work/ce)}" />
+        		    <PostEvent path="/work/ce" source="slack"/>
+                </If>
+                <If condition="${/work/ce/date_last} <= ${/keep/lastEventEpoch} " > <!-- we ran past the last epochDate without finding a matching eventHash -->
+                <Log type="DEBUG" message="${/name}: we ran past the last epochDate without finding a matching eventHash, stop while loop" />
+                    <Set path="/work/stopWhileLoop" value=1 />
+                </If>
+        	</ForEach>
+        </While>
+        <!-- all record done, set the newly found eventHash and eventEpoc to /keep  -->
+        <Log type="DEBUG" message="${/name}: all record done, set the newly found eventHash and eventEpoc to /keep" />
+        <Set path="/keep/lastEventHash" value="/work/NewEventHash" /> <!-- set the keep eventHash for the next record -->
+        <Set path="/keep/lastEventEpoch" value="/work/newEventEpoch" /> <!-- set the keep eventHash for the next record -->
+ 
+    </If>
+
+
+  <Tests>
+    <DNSResolutionTest host="https://${/api_url}"/>
+  </Tests>
+</Workflow>
