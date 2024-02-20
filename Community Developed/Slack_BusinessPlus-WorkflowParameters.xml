@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
-    <Value name="api_key"   value="" />
-</WorkflowParameterValues>
