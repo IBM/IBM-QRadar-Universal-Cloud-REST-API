@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Slack Business+" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
 
-<Set path="/work" value=""/>            <!-- clear working State -->
-<Initialize path="/keep" value=""/>     <!-- storage of previous State  -->
-
 <!--
 <?xml version="1.0" encoding="UTF-8" ?>
 <WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
@@ -19,6 +16,9 @@
 </Parameters>
 
 <Actions>
+    <Set path="/work" value=""/>            <!-- clear working State -->
+    <Initialize path="/keep" value=""/>     <!-- storage of previous State  -->
+
     <!-- Initialize receivedAfter timestamp in epoch time-->
     <If condition="empty(/keep/lastEventEpoch) or not exists /keep/lastEventEpoch">
         <Initialize path="/keep/lastEventEpoch" value="${time() / 1000}" /> <!-- get epoch time if not set already -->
@@ -39,7 +39,7 @@
     <If condition="/work/results/body/ok = 0" > <!-- stop if we encouter an error (0=false, 1=true)-->
         <Log type="ERROR" message="${/name}: ok≠true \n ${/work/results/}" />
         <Abort reason="${/name}: ok≠true \n ${/work/results/}" />
-    <If/>
+    </If>
     
     <!-- did we get a record back  -->
     <If condition="${count(/work/results/body/logins)} > 0" >
