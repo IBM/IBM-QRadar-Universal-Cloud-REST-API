@@ -15,16 +15,22 @@
     <Parameter name="api_method"   label="Slack API Method" default="/api/team.accessLogs" /> <!-- team.accessLogs --> 
 </Parameters>
 
-<Actions>
-    <Set path="/work" value="null"/>            <!-- clear working State -->
-    <Initialize path="/keep" value="null"/>     <!-- storage of previous State  -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="SlackBusinessPlus" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
 
-    <!-- Initialize receivedAfter timestamp in epoch time-->
-    <If condition="empty(/keep/lastEventEpoch) or not exists /keep/lastEventEpoch">
-        <Initialize path="/keep/lastEventEpoch" value="${time() / 1000}" /> <!-- get epoch time if not set already -->
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/keep/lastEventEpoch * 1000}" savePath="/work/lastEventDateTime_Formatted" />
-        <Log type="INFO" message="${/name}: set empty /keep/lastEventEpoch to ${/work/lastEventEpoch}." />
-    </If>
+<Parameters>
+    <Parameter name="api_key"      label="Slack API Token"  secret="true" required="true" />
+    <Parameter name="api_url"      label="Slack API URL"    default="slack.com"/>
+    <Parameter name="api_method"   label="Slack API Method" default="/api/team.accessLogs" />
+</Parameters>
+
+<Actions>
+    <Log type="INFO" message="${/name} START"/>    
+    <Initialize path="/keep/lastEventEpoch" value="${time() / 1000}" />
+    <Log type="INFO" message="${/name} ${/keep/lastEventEpoch}" />   
+
+    <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/keep/lastEventEpoch * 1000}" savePath="/work/lastEventDateTimeFormatted" />
+    <Log type="INFO" message="${/name} set empty /keep/lastEventEpoch to ${/work/lastEventDateTimeFormatted}." />
     <Log type="INFO" message="${/name}: /keep/lastEventEpoch is ${/work/lastEventDateTime_Formatted}." />
 
     <!-- Call the endpoint to see if we can get a newer (single) entry -->
