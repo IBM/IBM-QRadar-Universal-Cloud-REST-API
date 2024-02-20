@@ -11,8 +11,8 @@
 
 <Parameters>
     <Parameter name="api_key"      label="Slack API Token"  secret="true" required="true" />
-    <Parameter name="api_url"      label="Slack API URL"    default="slack.com/api/"/> <!-- slack.com/api/ -->
-    <Parameter name="api_method"   label="Slack API Method" default="team.accessLogs" /> <!-- team.accessLogs --> 
+    <Parameter name="api_url"      label="Slack API URL"    default="slack.com"/> <!-- slack.com/api/ -->
+    <Parameter name="api_method"   label="Slack API Method" default="/api/team.accessLogs" /> <!-- team.accessLogs --> 
 </Parameters>
 
 <Actions>
