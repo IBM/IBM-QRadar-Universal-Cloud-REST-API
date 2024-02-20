@@ -1,4 +1,4 @@
-This workflow can be used to pull events from PureStorage FlashArray.
+This workflow can be used to pull alerts/events from PureStorage FlashArray.
 The workflow is based on the following PureStorage FlashArray documentation.
 
 https://support.purestorage.com/FlashArray/FlashArray_Release/Purity%2F%2F%2F%2FFA_REST_API_Release_Notes/Purity%2F%2F%2F%2FFA_REST_API_2.x_Release_Notes
