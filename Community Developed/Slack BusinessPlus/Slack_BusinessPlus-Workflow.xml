@@ -46,7 +46,7 @@
         <Set path="/work/ce" value="/work/results/body/logins"/> <!-- ce = current event, to keep things understandable :-) -->
     </If>
     <Else>
-        <Abort reason="Slack_BusinessPlus-Workflow: no records found" />
+        <Abort reason="${/name}: no records found" />
     </Else>
 
     <If condition="not exists /keep/lastEventHash or empty(/keep/lastEventHash)" > <!-- we do NOT have a previous eventHash, so get the one from this record-->
