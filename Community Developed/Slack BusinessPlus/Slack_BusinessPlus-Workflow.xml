@@ -24,6 +24,10 @@
         <RequestHeader name="User-Agent" value="IBM-QRadar/2.0" />             
     </CallEndpoint>
 
+    <If condition="/work/results/status_code != 200">
+	    <Abort reason="${/work/results/body/error_description}" />
+	</If>
+
     <!-- do some more error handling here ???? maybe ? -->
     <If condition="${/work/results/body/ok} = 0" > <!-- stop if we encouter an error (0=false, 1=true)-->
         <Log type="ERROR" message="${/name}: ok≠true \n ${/work/results}" />
