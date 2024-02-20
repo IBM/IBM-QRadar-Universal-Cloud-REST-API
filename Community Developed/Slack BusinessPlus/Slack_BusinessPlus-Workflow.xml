@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="SlackBusinessPlus" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
+<Workflow name="SlackBusinessPlus" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
 
 <Parameters>
     <Parameter name="api_key"      label="Slack API Token"  secret="true" required="true" />
