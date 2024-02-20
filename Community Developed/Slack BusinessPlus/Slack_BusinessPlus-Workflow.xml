@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Slack Business Plus" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
+<Workflow name="Slack BusinessPlus" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
 
 <!--
 <?xml version="1.0" encoding="UTF-8" ?>
