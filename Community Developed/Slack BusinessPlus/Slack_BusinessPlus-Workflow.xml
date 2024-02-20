@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Slack Business+" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
+<Workflow name="Slack Business Plus" version="1.0" minimumRecurrence="1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
 
 <!--
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -30,7 +30,7 @@
     <!-- Call the endpoint to see if we can get a newer (single) entry -->
     <CallEndpoint url="https://${/api_url}${/api_method}" method="GET" savePath="/work/results">
         <QueryParameter name="limit" value="1" /> <!-- or <RequestHeader name="limit" value="1"/> -->
-        <RequestHeader name="Authorization" value="Bearer ${/token}"/>
+        <RequestHeader name="Authorization" value="Bearer ${/api_key}"/>
         <RequestHeader name="Content-Type" value="application/json" />   
         <RequestHeader name="User-Agent" value="IBM-QRadar/2.0" />             
     </CallEndpoint>
@@ -72,7 +72,7 @@
             <CallEndpoint url="https://${/api_url}${/api_method}" method="GET" savePath="/work/results">
                 <QueryParameter name="cursor" value="${/work/results/response_metadata/next_cursor}%3D" /> <!-- or <put the next_cursor in /> -->
                 <QueryParameter name="limit" value="20" /> <!-- or <RequestHeader name="limit" value="20"/>  get 20 records -->
-                <RequestHeader name="Authorization" value="Bearer ${/token}"/>
+                <RequestHeader name="Authorization" value="Bearer ${/api_key}"/>
                 <RequestHeader name="Content-Type" value="application/json" />   
                 <RequestHeader name="User-Agent" value="IBM-QRadar/2.0" />             
             </CallEndpoint>
