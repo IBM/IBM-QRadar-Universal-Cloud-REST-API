@@ -1,7 +1,12 @@
+Author Name: PureStorage 
+Maintainer Name: eng-solutions-core@purestorage.com
+Version Number: 1.0
+Endpoint Documentation: 
 This workflow can be used to pull alerts/events from PureStorage FlashArray.
 The workflow is based on the following PureStorage FlashArray documentation.
-
 https://support.purestorage.com/FlashArray/FlashArray_Release/Purity%2F%2F%2F%2FFA_REST_API_Release_Notes/Purity%2F%2F%2F%2FFA_REST_API_2.x_Release_Notes
+
+Event Types Currently Supported by the workflow: PureStorage FlashArray Alerts
 
 ## Workflow Parameter Values Notes
 There are two parameters required for the workflow as parameters which need to be updated in PureStorage-FlashArray-workflow-parameter-values.xml. 

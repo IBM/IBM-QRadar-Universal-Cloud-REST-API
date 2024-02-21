@@ -29,11 +29,15 @@
     <Abort reason="${/get_access_token/body/error_description}" />
 </If>
 
+<Log type="INFO" message="Extracting the access token" />
 <!-- Extract the Access Token -->
 <Set path="/access_token" value="${/get_access_token/headers/x-auth-token}" />
 
+
 <!-- Epoch time 5 min before -->
 <Set path="/5min_time" value="${time() - (5 * 60 * 1000)}" />
+
+<Log type="INFO" message="Fetching the alert from FlashArray for the last 5 minutes. Limiting to 10 alerts" />
 <!-- Fetch the alerts -->
 <CallEndpoint url="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;limit=10" method="GET" savePath="/get_events">
 <RequestHeader name="Content-Type" value="application/json" />
@@ -69,6 +73,7 @@
 <!-- Fetch the remaining of the pages -->
 <While condition="/get_events/body/continuation_token != null">
 
+<Log type="INFO" message="Reading next set of alerts if more than 10 alerts from the first API call" />
 
 <CallEndpoint url="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;continuation_token=${/get_events/body/continuation_token}&amp;limit=10" method="GET" savePath="/get_events">
 <RequestHeader name="Content-Type" value="application/json" />
