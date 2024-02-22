@@ -20,7 +20,7 @@ To generate a client ID and client secret:
 1. Go to <a href="https://app.wiz.io/settings/service-accounts" target="_blank">Settings > Service Accounts</a>, then click **Add Service Account**.
 2. On the New Service Account page:
    1. Give the new service account a meaningful name, e.g. "QRadar integration".
-   2. Select the permission **read:issues**.
+   2. Select the permission **read:issues** and **admin:audit**.
    3. Click **Add Service Account**.
 3. From the secret credential dialog, copy the **Client ID** and **Client Secret** to a local file or secret manager for use below.
 **Note: The Client ID and Client Secret are only shown once. Do not close the dialog without copying them to a local file or secret manager.**
@@ -53,4 +53,5 @@ Parameter Values).
 3. token_url_domain : The Token URL Domain to fetch the JWT Token from Wiz.
 4. host : The API Endpoint URL Domain to fetch the events from Wiz.
 5. auth_type : The Authentication type used to fetch JWT Token from Wiz.
-6. gql_query : The GraphQL query to be used while fetching the events from Wiz (default GraphQL query already present).
+6. gql_query : The GraphQL query to be used while fetching the Issues from Wiz (default GraphQL query already present).
+7. audit_logs_gql_query : The GraphQL query to be used while fetching the Audit Logs from Wiz (default GraphQL query already present).
