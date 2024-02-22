@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<Workflow name="NN-Universal-Alert" version="1.0" minimumRecurrence="180" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+  <Parameters>
+    <Parameter name="host" label="Host" required="true" />
+    <Parameter name="key_name" label="Key Name" required="true" />
+    <Parameter name="key_token" label="Key Token" required="true" secret="true" />
+  </Parameters>
+
+  <Actions>
+    <!--    <Initialize path="/bookmark_alert" value="0" />-->
+    <Initialize path="/bookmark_alert" value="${time() - 3600000}" />
+    <Initialize path="/size" value="500" />
+    <Initialize path="/alert_page" value="1" />
+
+    <CallEndpoint url="https://${/host}/api/open/sign_in" method="POST" savePath="/sign_in">
+      <RequestBody type="application/json" encoding="UTF-8">{ "key_name": "${/key_name}", "key_token": "${/key_token}" }</RequestBody>
+    </CallEndpoint>
+
+    <!--    <Log type="INFO" message="NN Universal Alert sign_in ${/sign_in/status_code}"/>-->
+
+    <If condition="/sign_in/status_code != 200">
+      <Log type="ERROR" message="NN Universal Alert sign_in fail" />
+      <Abort reason="${/sign_in/response/body/code}: ${/sign_in/response/body/message}" />
+    </If>
+    <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
+
+    <!--    <Log type="INFO" message="NN Universal Alert Sign in successfully done alert bookmark ${/bookmark_alert}" />-->
+
+    <!--  GET ALERTS-->
+    <DoWhile condition="${count(/alerts/body/result)} = ${/size}">
+      <CallEndpoint url="https://${/host}/api/open/query/do?query=alerts%20%7C%20select%20id%20type_id%20name%20protocol%20description%20ip_src%20ip_dst%20mac_src%20mac_dst%20time%20port_dst%20type_name%20appliance_host%20port_src%20port_dst%20severity%20risk%20src_roles%20dst_roles%20ack%20closed_time%20is_incident%20note%20transport_protocol%20is_security%20label_src%20label_dst%20created_time%20status%20zone_src%20zone_dst%20threat_name%20record_created_at%20%7C%20where%20record_created_at%20%3E%200%20%7C%20sort%20record_created_at%20asc" method="GET" savePath="/alerts">
+        <QueryParameter name="count" value="${/size}"/>
+        <QueryParameter name="page" value="${/alert_page}"/>
+        <QueryParameter name="default_filters" value="false"/>
+        <QueryParameter name="skip_total_count" value="true"/>
+        <RequestHeader name="Authorization" value="${/bearer_token}"/>
+        <RequestHeader name="nn-app" value="qradar-app"/>
+        <RequestHeader name="nn-app-version" value="1.0.0"/>
+      </CallEndpoint>
+
+      <If condition="/alerts/status_code != 200">
+        <Log type="ERROR" message="NN Universal Alert fail status code ${/alerts/status_code}" />
+        <Abort reason="${/alerts/status_code}"/>
+      </If>
+
+      <If condition="${count(/alerts/body/result)} != 0">
+        <PostEvents path="/alerts/body/result" source="${/host}" />
+
+        <Set path="/alert_page" value="${/alert_page + 1}" />
+
+        <If condition="${count(/alerts/body/result)} != ${/size} or ${/alert_page} = 100">
+          <If condition="max(/alerts/body/result/record_created_at) != null">
+            <Set path="/alert_page" value="1" />
+            <Set path="/bookmark_alert" value="${max(/alerts/body/result/record_created_at)}" />
+            <Log type="INFO" message="NN Universal Alert bookmark upgraded to ${/bookmark_alert}" />
+          </If>
+        </If>
+      </If>
+
+      <Log type="INFO" message="NN Universal Alert notified count => ${count(/alerts/body/result)} alert_page ${/alert_page} and bookmark ${/bookmark_alert}" />
+    </DoWhile>
+  </Actions>
+  <Tests>
+    <DNSResolutionTest host="${/host}" />
+    <TCPConnectionTest host="${/host}" />
+    <SSLHandshakeTest host="${/host}" />
+    <HTTPConnectionThroughProxyTest url="https://${/host}" />
+  </Tests>
+</Workflow>
