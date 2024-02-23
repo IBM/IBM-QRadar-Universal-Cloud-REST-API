@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Dropbox Business" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 <Parameters>
-<Parameter name="array" label="Array" required="true" />
-<Parameter name="apitoken" label="Access Token" required="true" secret="true" />
+    <Parameter name="array" label="Array" required="true" />
+    <Parameter name="apitoken" label="Access Token" required="true" secret="true" />
 </Parameters>
 <Actions>
 
