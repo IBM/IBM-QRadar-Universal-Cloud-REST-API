@@ -45,7 +45,7 @@
       </If>
 
       <If condition="${count(/assets/body/result)} != 0">
-        <PostEvents path="/assets/body/result" source="${/host}_${/key_name}_Alert" />
+        <PostEvents path="/assets/body/result" source="${/host}_${/key_name}_Asset" />
 
         <Set path="/asset_page" value="${/asset_page + 1}" />
 
