@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="events_url"      value="" />
+    <Value name="api_key"         value="" />
+    <Value name="fetch_since"     value="" />
+</WorkflowParameterValues>
