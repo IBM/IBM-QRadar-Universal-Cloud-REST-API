@@ -8,8 +8,8 @@
   </Parameters>
 
   <Actions>
-<!--        <Initialize path="/bookmark_alert" value="0" />-->
-    <Initialize path="/bookmark_alert" value="${time() - 3600000}" />
+    <!--    <Initialize path="/bookmark_alert" value="0" />-->
+    <Initialize path="/bookmark_alert" value="${time() - 36000000}" />
     <Initialize path="/size" value="500" />
     <Initialize path="/alert_page" value="1" />
 
@@ -17,19 +17,20 @@
       <RequestBody type="application/json" encoding="UTF-8">{ "key_name": "${/key_name}", "key_token": "${/key_token}" }</RequestBody>
     </CallEndpoint>
 
-    <!--    <Log type="INFO" message="NN Universal Alert sign_in ${/sign_in/status_code}"/>-->
+    <Log type="INFO" message="NN Universal Alert sign_in ${/sign_in/status_code}"/>
 
     <If condition="/sign_in/status_code != 200">
-      <Log type="ERROR" message="NN Universal Alert sign_in fail" />
-      <Abort reason="${/sign_in/response/body/code}: ${/sign_in/response/body/message}" />
+      <Log type="ERROR" message="NN Universal Alert sign_in fail ${/sign_in/status_code}" />
+      <Abort reason="${/sign_in/status_code}" />
     </If>
+
     <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
 
-    <!--    <Log type="INFO" message="NN Universal Alert Sign in successfully done alert bookmark ${/bookmark_alert}" />-->
+<!--    <Log type="INFO" message="NN Universal Alert Sign in successfully done alert bookmark ${/bookmark_alert}" />-->
 
     <!--  GET ALERTS-->
     <DoWhile condition="${count(/alerts/body/result)} = ${/size}">
-      <CallEndpoint url="https://${/host}/api/open/query/do?query=alerts%20%7C%20select%20id%20type_id%20name%20protocol%20description%20ip_src%20ip_dst%20mac_src%20mac_dst%20time%20port_dst%20type_name%20appliance_host%20port_src%20port_dst%20severity%20risk%20src_roles%20dst_roles%20ack%20closed_time%20is_incident%20note%20transport_protocol%20is_security%20label_src%20label_dst%20created_time%20status%20zone_src%20zone_dst%20threat_name%20record_created_at%20%7C%20where%20record_created_at%20%3E%200%20%7C%20sort%20record_created_at%20asc" method="GET" savePath="/alerts">
+      <CallEndpoint url="https://${/host}/api/open/query/do?query=alerts%20%7C%20select%20id%20type_id%20name%20protocol%20description%20ip_src%20ip_dst%20mac_src%20mac_dst%20time%20port_dst%20type_name%20appliance_host%20port_src%20port_dst%20severity%20risk%20src_roles%20dst_roles%20ack%20closed_time%20is_incident%20note%20transport_protocol%20is_security%20label_src%20label_dst%20created_time%20status%20zone_src%20zone_dst%20threat_name%20record_created_at%20%7C%20where%20record_created_at%20%3E%20${/bookmark_alert}%20%7C%20sort%20record_created_at%20asc" method="GET" savePath="/alerts">
         <QueryParameter name="count" value="${/size}"/>
         <QueryParameter name="page" value="${/alert_page}"/>
         <QueryParameter name="default_filters" value="false"/>
