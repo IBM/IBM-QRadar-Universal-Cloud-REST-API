@@ -138,7 +138,7 @@
                 <Log type="DEBUG" message="${/workflowname}: end of loop/>
             </ForEach>
         </While>
-        <!-- all record done, set the newly found eventHash and eventEpoc to /keep  -->
+        <!-- all record done, set the newly found eventHash and eventEpoc to /keep"  -->
         <Log type="DEBUG" message="${/workflowname}: all record done, set the newly found eventHash and eventEpoch to /keep" />
         <Set path="/keep/lastEventHash" value="${/work/NewEventHash}" /> <!-- set the keep eventHash for the next record -->
         <Set path="/work/lastEventEpoch" value="${/work/newEventEpoch}" /> <!-- set the keep eventHash for the next record -->
