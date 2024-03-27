@@ -16,7 +16,7 @@
     <Parameter name="api_method"   label="Slack API Method" default="team.accessLogs" /> <!-- team.accessLogs --> 
 </Parameters>
 
-
+    
 <Actions>
     <Log type="INFO" message="${/workflowname}: STARTING" />
     <Initialize path="/workflowname" value="Slack Business+" />
