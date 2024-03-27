@@ -1,7 +1,7 @@
-H2 Slack Business+ 
+# Slack Business+ team.accessLogs
 
-Workflow connects to [https://api.slack.com/methods/team.accessLogs]
-Slack user_token is needed and can be obtained through this link [https://api.slack.com/authentication/token-types#user]
+Workflow connects to https://api.slack.com/methods/team.accessLogs
+Slack user_token is needed and can be obtained through this link https://api.slack.com/authentication/token-types#user
 
 This workflow works in two stages:
 1. get one record and calculate a hash, compare that hash with the previous one found.
