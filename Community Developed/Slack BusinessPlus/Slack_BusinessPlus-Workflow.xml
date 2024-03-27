@@ -109,7 +109,7 @@
         
             <!-- Post Events util we find the lastEventHash or get past lastEpoch -->
             <ForEach item="/ce" items="/work/results/body/logins" >
-                <Log type="DEBUG" message="${/workflowname}: start posting loop />
+                <Log type="DEBUG" message="${/workflowname}: start posting loop" />
                 <Set path="/ce/sourceip" value="${/ce/ip}" /> 
                 <Set path="/ce/eventcount" value="${/ce/count}" /> 
                 <Set path="/ce/devicetime" value="${/ce/date_first * 1000}" /> 
