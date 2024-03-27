@@ -150,6 +150,8 @@
 </Actions>
 
 <Tests>
+    <TCPConnectionTest host="${/api_url}"/>
+    <HTTPConnectionThroughProxyTest url="https://${/api_url}"/>
     <DNSResolutionTest host="https://${/api_url}"/>
 </Tests>
 </Workflow>
