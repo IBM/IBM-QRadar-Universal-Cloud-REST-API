@@ -21,7 +21,7 @@
 
     <If condition="/sign_in/status_code != 200">
       <Log type="ERROR" message="NN Universal Asset sign_in fail" />
-      <Abort reason="${/sign_in/response/body/code}: ${/sign_in/response/body/message}" />
+      <Abort reason="${/sign_in/status_code}" />
     </If>
     <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
 
@@ -45,7 +45,7 @@
       </If>
 
       <If condition="${count(/assets/body/result)} != 0">
-        <PostEvents path="/assets/body/result" source="${/host}" />
+        <PostEvents path="/assets/body/result" source="${/host}_${/key_name}_Asset" />
 
         <Set path="/asset_page" value="${/asset_page + 1}" />
 
