@@ -76,14 +76,14 @@
     </Else>    
 
     <If condition="/ce/eventHash != /keep/lastEventHash" > <!-- we seem to have a new hash, so probably a new event has arrived -->
-        <Log type="DEBUG" message="${/workflowname}: /ce/eventHash != /keep/lastEventHash" />
         <Log type="INFO" message="${/workflowname}: post first event" />
+        <Log type="DEBUG" message="${/workflowname}: /ce/eventHash != /keep/lastEventHash" />
         <Set path="/ce/sourceip" value="${/ce/ip}" /> 
         <Set path="/ce/eventcount" value="${/ce/count}" /> 
         <Set path="/ce/devicetime" value="${/ce/date_first * 1000}" /> 
         <Set path="/ce/event_id" value="General Authentication Succesful" /> <!-- set additional info on the event to post-->
         <Set path="/ce/event_category" value="Authentication" /> <!-- QID=7000280 -->
-        <Log type="INFO" message="${/workflowname}: CE1 = ${/ce}" />
+        <Log type="DEBUG" message="${/workflowname}: CE1 = ${/ce}" />
         <PostEvent path="/ce" source="Slack"/> <!-- let's post it to the QRadar eventPipeline -->
 
         <Set path="/work/NewEventHash" value="${/ce/eventHash}" /> <!-- set the/keep eventHash for the next record -->
@@ -111,7 +111,7 @@
         
             <!-- Post Events util we find the lastEventHash or get past lastEpoch -->
             <ForEach item="/ce" items="/work/results/body/logins" >
-                <Log type="INFO" message="${/workflowname}: ###############################################" />
+                <Log type="DEBUG" message="${/workflowname}: start posting loop />
                 <Set path="/ce/sourceip" value="${/ce/ip}" /> 
                 <Set path="/ce/eventcount" value="${/ce/count}" /> 
                 <Set path="/ce/devicetime" value="${/ce/date_first * 1000}" /> 
@@ -123,12 +123,12 @@
                 <Log type="DEBUG" message="${/workflowname}: ${/ce/user_id} ${/work/lastEventEpoch} ${/ce/date_last} ${/work/lastEventEpoch - /ce/date_last}" />
                 <If condition="/ce/eventHash != /keep/lastEventHash and /ce/date_last > /work/lastEventEpoch" > 
                     <!-- do this when we got newer timestamps and the eventhash is not already the last (/keep/lastEventHash) -->
-                    <Log type="INFO" message="${/workflowname}: posting event to QRadar pipeline" />
-                    <Log type="INFO" message="${/workflowname}: CE2 = ${/ce}" />
+                    <Log type="DEBUG" message="${/workflowname}: posting event to QRadar pipeline" />
+                    <Log type="DEBUG" message="${/workflowname}: CE2 = ${/ce}" />
                     <PostEvent path="/ce" source="Slack"/> <!-- let's post it to the QRadar eventPipeline -->
                 </If>
                 <Else>
-                    <Log type="INFO" message="${/ce/user_id} to old, or hash found. skipping" />
+                    <Log type="DEBUG" message="${/ce/user_id} to old, or hash found. skipping" />
                     <!-- Log type="INFO" message="hash  last/current ${/ce/eventHash} ${/keep/lastEventHash}" /-->
                     <!-- Log type="INFO" message="epoch last/current ${/work/lastEventEpoch} ${/ce/date_last}" /-->
                     <Set path="/work/stopWhileLoop" value="1" /> <!-- stop while loop after ForEach finishes-->
@@ -137,7 +137,7 @@
                     <Log type="DEBUG" message="${/workflowname}: we also ran past the last epochDate, stop while loop" />
                     <Set path="/work/stopWhileLoop" value="1" />                
                 </If>
-                <Log type="INFO" message="${/workflowname}: ###############################################" />
+                <Log type="DEBUG" message="${/workflowname}: end of loop/>
             </ForEach>
         </While>
         <!-- all record done, set the newly found eventHash and eventEpoc to /keep  -->
@@ -147,7 +147,6 @@
  
     </If>
     <Log type="INFO" message="${/workflowname}: END" />
-    <Sleep duration="55000" />
 </Actions>
 
 <Tests>
