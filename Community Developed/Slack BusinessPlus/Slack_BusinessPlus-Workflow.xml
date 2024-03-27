@@ -18,18 +18,16 @@
 
 
 <Actions>
-    <Log type="INFO" message="${/workflowname}: =========================================" />
-    <Initialize path="/workflowname" value="Slack Business+" />
     <Log type="INFO" message="${/workflowname}: STARTING" />
-    
-    <!-- Log type="INFO" message="${/workflowname}: url = ${/api_url}" /-->
-    <Log type="INFO" message="${/workflowname}: /keep/lastEventHash  = ${/keep/lastEventHash}" />
-    <Log type="INFO" message="${/workflowname}: /work/lastEventEpoch = ${/work/lastEventEpoch}" />
-    <Log type="INFO" message="${/workflowname}: =========================================" />
+    <Initialize path="/workflowname" value="Slack Business+" />
+
+    <Log type="DEBUG" message="${/workflowname}: /keep/lastEventHash  = ${/keep/lastEventHash}" />
+    <Log type="DEBUG" message="${/workflowname}: /work/lastEventEpoch = ${/work/lastEventEpoch}" />
+    <Log type="DEBUG" message="${/workflowname}: =========================================" />
 
     <Initialize path="/work/lastEventEpoch" value="${time() / 1000}" /> <!-- get epoch time if not set already -->     
     <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/work/lastEventEpoch * 1000}" savePath="/work/lastEventDateTime_Formatted" />
-    <Log type="INFO" message="${/workflowname}: /work/lastEventEpoch is ${/work/lastEventDateTime_Formatted}." />
+    <Log type="DEBUG" message="${/workflowname}: /work/lastEventEpoch is ${/work/lastEventDateTime_Formatted}." />
 
     
     <!-- Call the endpoint to see if we can get a newer (single) entry -->
