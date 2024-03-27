@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+		<!-- base URL (e.g. api.tmes.trendmicro.com): check here for the corect base URL https://docs.trendmicro.com/en-us/documentation/article/trend-micro-email-security-rest-api-online-help-understanding-the-ur -->
+        <Value name="host"            value=""/>
+        <Value name="secret_key"        value=""/>
+</WorkflowParameterValues>

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Trend Micro Email Security" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+
+  <Parameters>
+	<!-- base URL: check here for the corect base URL https://docs.trendmicro.com/en-us/documentation/article/trend-micro-email-security-rest-api-online-help-understanding-the-ur -->
+    <Parameter name="host"       label="Host"    required="true" />
+    <Parameter name="secret_key" label="Key"     required="true" secret = "true"/>
+  </Parameters>
+
+  <Actions>
+	<!-- Clear the log source status before a new workflow run starts -->
+	<ClearStatus />
+	
+	<Set value="yyyy-MM-dd'T'HH:mm:ss'Z'" path="/dateFormat" />
+	
+	<Set path="/nextToken" value=""/>
+	
+	<!-- Log a message for the system notificatoin log that the workflow started -->
+	<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${time()}" savePath="/current_Time" />
+	<Log type="INFO" message="${/host}: Workflow started at ${/current_Time}" />
+	
+	<!-- Set a startTime (today - 5 Mintues (300000 ms) if the workflow runs for the first time on a system, if a startDateTime from a previous run already exists, skip and continue -->
+	<If condition="empty(/startDateTime)" >
+		<!-- Initialize the first startdatetime if not yet initialized with date which is current timestamp minus 5 mintues (minus 300000)  -->
+		<Initialize path="/startDateTime" value="${time() - 300000}" />
+		<!-- Format date to work with the API -->
+		<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${/startDateTime}" savePath="/startDateTime" />
+	</If>
+	
+	<!-- Format end date to work with the API's end date format -->
+	<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${time()}" savePath="/endDateTime" />
+	
+    <!-- Set the API endpoint Parameters -->
+    <Set path="/endpoint" value="/api/v1/log/mailtrackinglog"/>
+	<Set path="/type1" value="blocked_traffic"/>
+	<Set path="/type2" value="accepted_traffic"/>
+	
+    <!-- Get Blocked Mail logs while the response code is not 204 'No Content' -->
+    <DoWhile condition="/blocked_event_logs/response/status_code != 204"> <!-- There are still logs to post to QRadar -->
+	  <!-- Pull Events from API -->
+      <CallEndpoint url="https://${/host}${/endpoint}" method="GET" savePath="/blocked_event_logs/response">
+        <QueryParameter name="type" value="${/type1}" />
+		<QueryParameter name="start" value="${/startDateTime}" />
+		<QueryParameter name="end" value="${/endDateTime}" />
+		<QueryParameter name="token" value="${/nextToken}" omitIfEmpty="true" />
+        <RequestHeader name="Authorization" value="Basic ${/secret_key}" />
+		<RequestHeader name="Accept-Encoding" value="gzip,deflate" />
+      </CallEndpoint>
+	  
+	  <If condition="/blocked_event_logs/response/status_code = 200">
+		<!-- Use the value of nextToken to fetch remaining logs in the next API call. -->
+		<Set path="/nextToken" value="${url_decode(/blocked_event_logs/response/body/nextToken)}"/>
+		
+		<!-- Post the logs -->
+		<PostEvents path="/blocked_event_logs/response/body/logs" source="${/host}" />
+	  </If>
+	  <ElseIf condition="/blocked_event_logs/response/status_code = 204">
+		<Set path="/nextToken" value=""/>
+		<SetStatus type="INFO" message="No more blocked_traffic logs to fetch" />
+	  </ElseIf>
+	  <Else>
+		<Set path="/nextToken" value=""/>
+		<Abort reason="${/blocked_event_logs/response/status_code}: ${/blocked_event_logs/response/status_message}" />
+	  </Else>
+	  
+    </DoWhile>
+	
+	<!-- Get Allowed Mail logs while the response code is not 204 'No Content' -->
+    <DoWhile condition="/allowed_event_logs/response/status_code != 204"> <!-- There are still logs to post to QRadar -->
+	  <!-- Pull Events from API -->
+      <CallEndpoint url="https://${/host}${/endpoint}" method="GET" savePath="/allowed_event_logs/response">
+        <QueryParameter name="type" value="${/type2}" />
+		<QueryParameter name="start" value="${/startDateTime}" />
+		<QueryParameter name="end" value="${/endDateTime}" />
+		<QueryParameter name="token" value="${/nextToken}" omitIfEmpty="true" />
+        <RequestHeader name="Authorization" value="Basic ${/secret_key}" />
+		<RequestHeader name="Accept-Encoding" value="gzip,deflate" />
+      </CallEndpoint>
+	  
+	  <If condition="/allowed_event_logs/response/status_code = 200">
+		<!-- Use the value of nextToken to fetch remaining logs in the next API call. -->
+		<Set path="/nextToken" value="${url_decode(/allowed_event_logs/response/body/nextToken)}"/>
+		
+		<!-- Post the logs -->
+		<PostEvents path="/allowed_event_logs/response/body/logs" source="${/host}" />
+	  </If>
+	  <ElseIf condition="/allowed_event_logs/response/status_code = 204">
+		<Set path="/nextToken" value=""/>
+		<SetStatus type="INFO" message="No more allowed_traffic logs to fetch" />
+	  </ElseIf>
+	  <Else>
+		<Set path="/nextToken" value=""/>
+		<Abort reason="${/allowed_event_logs/response/status_code}: ${/allowed_event_logs/response/status_message}" />
+	  </Else>
+	  
+    </DoWhile>
+	
+	<Delete path="/nextToken" />
+	
+	<!-- Set new startDateTime as last run's EndDateTime after successful workflow run -->
+	<Set path="/startDateTime" value="${/endDateTime}" />
+	
+	<!-- log a message to system notification log that the workflow ended-->
+	<FormatDate pattern="${/dateFormat}" timeZone="UTC" time="${time()}" savePath="/current_TimeEnd" />
+	<Log type="INFO" message="${/host}: Workflow ended at ${/current_TimeEnd}" />
+	
+  </Actions>
+  
+  <Tests>
+    <DNSResolutionTest host="https://${/host}"/>
+    <TCPConnectionTest host="https://${/host}"/>
+    <HTTPConnectionThroughProxyTest url="https://${/host}"/>
+  </Tests>
+  
+</Workflow>
