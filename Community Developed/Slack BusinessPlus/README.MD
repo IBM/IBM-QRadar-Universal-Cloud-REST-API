@@ -1,7 +1,18 @@
+#H2 Slack Business+ 
+
+Workflow connects to [https://api.slack.com/methods/team.accessLogs]
+Slack user_token is needed and can be obtained through this link [https://api.slack.com/authentication/token-types#user]
+
+This workflow works in two stages:
+1. get one record and calculate a hash, compare that hash with the previous one found.
+2. if there is a new hash, retrieve 20 records and post them to the QRadar pipeline until we find the previous hash. 
+..* takes into account that records posted can not be older than the last posted record in the previous run
+..* takes into account pagination and continues getting additional pages until either the previous hash is found or above applies
+
+
 Workflow CLI output only provides for the first run
 
-```
-2024-02-26 20:44:18,016 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]: =========================================
+```2024-02-26 20:44:18,016 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]: =========================================
 2024-02-26 20:44:18,022 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]Slack Business+: STARTING
 2024-02-26 20:44:18,024 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]Slack Business+: /keep/lastEventHash  = 
 2024-02-26 20:44:18,026 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]Slack Business+: /work/lastEventEpoch = 
@@ -73,13 +84,12 @@ Workflow CLI output only provides for the first run
 2024-02-26 20:44:19,798 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]U01RG7B10S3 to old, or hash found. skipping
 2024-02-26 20:44:19,800 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]Slack Business+: ###############################################
 2024-02-26 20:44:19,803 [QRADAR] [main] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][-/- -] [-/- -]Slack Business+: END```
-```
+
+
 
 qradar.log output for subsequent runs provides hashes and last event timestamps as a starting point
 
-
-```
-Feb 26 20:54:13 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: END
+```Feb 26 20:54:13 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: END
 Feb 26 20:56:08 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: =========================================
 Feb 26 20:56:08 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: STARTING
 Feb 26 20:56:08 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: /keep/lastEventHash  = 5a4974623c17957277c622bfb9187f7dc817d247
@@ -95,11 +105,9 @@ Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447]
 Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: ###############################################
 Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: ###############################################
 Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: posting event to QRadar pipeline
-Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: CE2 = {"user_id":"U37KQ87TXFY","username":"pieter.zeeman","date_first":1708977270,"date_last":1708977270,"count":2,"ip":"192.168.22.13","user_agent":"com.tinyspeck.chatlyio/24.02.20 (iPhone; iOS 17.2.1; Scale/2.00)","isp":"","country":"","region":"","sourceip":"192.168.22.13","eventcount":"2","devicetime":"1708977270000","event_id":"General Authentication Succesful","event_category":"Authentication","eventHash":"🔐➡AQAAAAAAAAABAVvgQ1skTOjc03+epPLCKpcYkPuMsDxxsH8vxx1SxSeAFFj/yH/zrKkRPg3egsyjR0Jqf+YvolxfG1Ad2nYt3J8ruiKDow==⬅🔐"}
+Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: CE2 = {"user_id":"U37KQ87TXFY","username":"pieter.zeeman","date_first":1708977270,"date_last":1708977270,"count":2,"ip":"192.168.22.13","user_agent":"com.tinycrap.chatlyio/24.02.20 (iPhone; iOS 17.2.1; Scale/2.00)","isp":"","country":"","region":"","sourceip":"192.168.22.13","eventcount":"2","devicetime":"1708977270000","event_id":"General Authentication Succesful","event_category":"Authentication","eventHash":"🔐➡AQAAAAAAAAABAVvgQ1skTOjc03+epPLCKpcYkPuMsDxxsH8vxx1SxSeAFFj/yH/zrKkRPg3egsyjR0Jqf+YvolxfG1Ad2nYt3J8ruiKDow==⬅🔐"}
 Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: ###############################################
 Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: ###############################################
 Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]U02VJLRD2BX to old, or hash found. skipping
-Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: ###############################################
-
-```
+Feb 26 20:56:09 ::ffff:127.0.0.1 [ecs-ec-ingress.ecs-ec-ingress] [Thread-213447] com.q1labs.semsources.sources.universalcloudrestapi.v2.workflow.action.LogAction: [INFO] [NOT:0000006000][192.168.10.113/- -] [-/- -]Slack Business+: ###############################################```
    
