@@ -33,7 +33,6 @@
     <!-- Call the endpoint to see if we can get a newer (single) entry -->
     <Log type="INFO" message="${/workflowname}: GET FIRST EVENT" />
     <CallEndpoint url="https://${/api_url}${/api_method}" method="GET" savePath="/work/results">
-        <SSLConfiguration allowUntrustedServerCertificate="true" />
         <QueryParameter name="limit" value="1" />
         <RequestHeader name="Authorization" value="Bearer ${/api_key}"/>
         <RequestHeader name="Content-Type" value="application/json" />   
@@ -98,7 +97,6 @@
         <While condition="/work/results/body/response_metadata/next_cursor != null and /work/stopWhileLoop = 0" > <!-- There are still events to post to QRadar / make sure not to use the /work/ce as these contain only the logins -->
             <Log type="DEBUG" message="${/workflowname}: IN WHILE LOOP ${/work/results/body/response_metadata/next_cursor}" />
             <CallEndpoint url="https://${/api_url}${/api_method}" method="GET" savePath="/work/results">
-                <SSLConfiguration allowUntrustedServerCertificate="true" />
                 <QueryParameter name="cursor" value="${/work/results/body/response_metadata/next_cursor}" /> <!-- or <put the next_cursor in /> -->
                 <QueryParameter name="limit" value="20" /> <!-- or <RequestHeader name="limit" value="20"/>  get 20 records -->
                 <RequestHeader name="Authorization" value="Bearer ${/api_key}"/>
