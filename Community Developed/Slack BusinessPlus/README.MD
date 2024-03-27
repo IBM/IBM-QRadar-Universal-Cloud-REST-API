@@ -1,4 +1,4 @@
-#H2 Slack Business+ 
+H2 Slack Business+ 
 
 Workflow connects to [https://api.slack.com/methods/team.accessLogs]
 Slack user_token is needed and can be obtained through this link [https://api.slack.com/authentication/token-types#user]
@@ -6,8 +6,8 @@ Slack user_token is needed and can be obtained through this link [https://api.sl
 This workflow works in two stages:
 1. get one record and calculate a hash, compare that hash with the previous one found.
 2. if there is a new hash, retrieve 20 records and post them to the QRadar pipeline until we find the previous hash. 
-..* takes into account that records posted can not be older than the last posted record in the previous run
-..* takes into account pagination and continues getting additional pages until either the previous hash is found or above applies
+- takes into account that records posted can not be older than the last posted record in the previous run
+- takes into account pagination and continues getting additional pages until either the previous hash is found or above applies
 
 
 Workflow CLI output only provides for the first run
