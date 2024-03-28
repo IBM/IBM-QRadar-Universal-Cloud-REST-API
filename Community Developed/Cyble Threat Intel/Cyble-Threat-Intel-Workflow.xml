@@ -3,9 +3,9 @@
 
 <!--    Reading required parameters for the Workflow-->
     <Parameters>
-        <Parameter name="events_url" label="Events URL" required="true" />
-        <Parameter name="api_key" label="Api Key" required="true" />
-        <Parameter name="fetch_since" label="Fetch Since" required="true" />
+        <Parameter name="hostname" label="Hostname" required="true" secret="true" />
+        <Parameter name="api_key" label="Api Key" required="true" secret="true" />
+        <Parameter name="fetch_since" label="Fetch Since" required="true" secret="true" />
     </Parameters>
 
     <Actions>
@@ -34,8 +34,7 @@
         <Log type="INFO" message="CybleThreatIntel:: Fetching events from: ${/fromDateFormatted} to: ${/toDateFormatted}" />
 
 <!--        Fetching count of total events available in the given time frame-->
-        <CallEndpoint url="https://${/events_url}/apollo/api/v1/y/alerts" method="POST" savePath="/get_count">
-            <SSLConfiguration allowUntrustedServerCertificate="true" />
+        <CallEndpoint url="https://${/hostname}/apollo/api/v1/y/alerts" method="POST" savePath="/get_count">
             <RequestHeader name="Accept" value="*/*" />
             <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
             <RequestHeader name="Content-Type" value="application/json" />
@@ -68,8 +67,7 @@
                 <Set path="/take" value="${/total_count}" />
             </If>
 
-            <CallEndpoint url="https://${/events_url}/apollo/api/v1/y/alerts" method="POST" savePath="/get_events">
-                <SSLConfiguration allowUntrustedServerCertificate="true" />
+            <CallEndpoint url="https://${/hostname}/apollo/api/v1/y/alerts" method="POST" savePath="/get_events">
                 <RequestHeader name="Accept" value="*/*" />
                 <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
                 <RequestHeader name="Content-Type" value="application/json" />
@@ -130,11 +128,11 @@
 
             <Log type="INFO" message="CybleThreatIntel:: Fetched ${count(/get_events/body/data)} events." />
 
-<!--            <PostEvents path="/get_events/body/data" source="${/events_url}" />-->
+<!--            <PostEvents path="/get_events/body/data" source="${/hostname}" />-->
 
 <!--            Posting events one by one-->
             <ForEach item="/current_event" items="/get_events/body/data">
-                <PostEvent path="/current_event" source="${/events_url}" />
+                <PostEvent path="/current_event" source="${/hostname}" />
             </ForEach>
 
             <Set path="/total_count" value="${/total_count - /take}" />
@@ -146,10 +144,10 @@
 
 <!--    Running tests-->
     <Tests>
-        <DNSResolutionTest host="${/events_url}" />
-        <TCPConnectionTest host="${/events_url}" />
-        <SSLHandshakeTest host="${/events_url}"/>
-        <HTTPConnectionThroughProxyTest url="https://${/events_url}" />
+        <DNSResolutionTest host="${/hostname}" />
+        <TCPConnectionTest host="${/hostname}" />
+        <SSLHandshakeTest host="${/hostname}"/>
+        <HTTPConnectionThroughProxyTest url="https://${/hostname}" />
     </Tests>
 
 </Workflow>
