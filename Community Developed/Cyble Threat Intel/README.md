@@ -14,11 +14,11 @@ Event Types Currently Supported by the workflow: Cyble Threat Intel Alerts
 
 For integrating QRadar with Cyble Vision via the workflow, you will need following information:
 
-| **Parameter Label** | **Parameter**  | **Description**                                                                                                             |
-|---------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------|
-| Events URL          | events_url     | Enter _events_url_ of Cyble Vision. Contact your Customer Success Manager to get this value.                                |
-| Api Key             | api_key        | Enter _api_key_ for authentication and fetching events from Cyble. Contact your Customer Success Manager to get this value. |
-| Fetch Since         | fetch_since    | _fetch_since_ is the number of previous days for which you wish to fetch events.                                            |
+| **Parameter Label** | **Parameter** | **Description**                                                                                                             |
+|---------------------|---------------|-----------------------------------------------------------------------------------------------------------------------------|
+| Hostname            | hostname      | Enter _hostname_ of Cyble Vision. Contact your Customer Success Manager to get this value.                                  |
+| Api Key             | api_key       | Enter _api_key_ for authentication and fetching events from Cyble. Contact your Customer Success Manager to get this value. |
+| Fetch Since         | fetch_since   | _fetch_since_ is the number of previous days for which you wish to fetch events.                                            |
 
 ## QRadar Log Source Configuration
 
@@ -34,9 +34,9 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 7. On the Configure the Protocol Parameters page, configure:
     - Insert a log source identifier (*cyble_threat_intel*);
     - Copy the Workflow XML you downloaded from Cyble Threat Intel panel and paste it into the *Workflow* field;
-    - Copy the Workflow Params (make sure your _events_url_, _api_key_ & _fetch_since_ are populated) into the *Workflow Parameters Values* field;
+    - Copy the Workflow Params (make sure your _hostname_, _api_key_ & _fetch_since_ are populated) into the *Workflow Parameters Values* field;
     - Set Recurrence as per your choice. Recommended value is 30M. 
 8. In the Test protocol parameters window, click _Start Test_. All tests should pass.
 9. To fix any errors, click _Configure Protocol Parameters_. Configure the parameters and click Test Protocol Parameters. 
 10. Click _Finish_
-11. Do a full configuration deploy (__Deploy Changes -> Advanced -> Deploy Full Configuration__)
+11. Navigate to the __Admin__ tab. From the top bar choose __Deploy Changes__
