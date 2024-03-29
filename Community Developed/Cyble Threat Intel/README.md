@@ -18,7 +18,7 @@ For integrating QRadar with Cyble Vision via the workflow, you will need followi
 |---------------------|---------------|-----------------------------------------------------------------------------------------------------------------------------|
 | Hostname            | hostname      | Enter _hostname_ of Cyble Vision. Contact your Customer Success Manager to get this value.                                  |
 | Api Key             | api_key       | Enter _api_key_ for authentication and fetching events from Cyble. Contact your Customer Success Manager to get this value. |
-| Fetch Since         | fetch_since   | _fetch_since_ is the number of previous days for which you wish to fetch events.                                            |
+| Fetch Since         | fetch_since   | Enter _fetch_since_ (number of days) for retrieving previous days' data on the first run.                                   |
 
 ## QRadar Log Source Configuration
 
