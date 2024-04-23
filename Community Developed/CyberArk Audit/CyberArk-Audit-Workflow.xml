@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="CyberArkAudit" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="client_id" label="OAuth Username" required="true" />
+        <Parameter name="client_secret" label="OAuth Password" required="true" secret="true" />
+        <Parameter name="identity_endpoint" label="Identity Endpoint" required="true" />
+        <Parameter name="api_key" label="API Key" required="true" />
+        <Parameter name="host" label="API Host" required="true" />
+        <Parameter name="webapp_id" label="WebApp ID" required="true" />
+    </Parameters>
+
+    <Actions>
+        
+        <Log type="INFO" message="CyberArk Audit: Workflow Actions started..." />
+        <If condition="/bookmark != null">
+            <!-- Format Date to be passed in fetching events -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
+        </If>
+
+        <!-- Initializing createQuery request body -->
+        <Initialize
+            path="/create_query_body"
+            value='{
+                    "query": {
+                        "pageSize": 500,
+                        "selectedFields": [
+                            "tenant_id",
+                            "custom_data",
+                            "arrival_timestamp",
+                            "checksum",
+                            "application_code",
+                            "audit_code",
+                            "timestamp",
+                            "user_id",
+                            "session_id",
+                            "source",
+                            "action_type",
+                            "audit_type",
+                            "component",
+                            "target",
+                            "command",
+                            "message",
+                            "username",
+                            "action",
+                            "uuid",
+                            "icon",
+                            "service_name",
+                            "cloud_roles",
+                            "cloud_workspaces",
+                            "cloud_workspaces_and_roles",
+                            "cloud_assets",
+                            "cloud_identities",
+                            "vaulted_accounts",
+                            "cloud_provider",
+                            "account_name",
+                            "target_platform",
+                            "safe",
+                            "target_account",
+                            "identity_type"
+                        ],
+                        "filterModel": {
+                            "date": {
+                                "dateFrom": "${/timestamp}"
+                            }
+                        }
+                    }              
+                }'
+        />
+        
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/bookmark" value="${time()}" />
+
+        
+        <!-- Fetch API Token -->
+        <CallEndpoint url="https://${/identity_endpoint}/oauth2/token" method="POST" savePath="/get_access_token">
+            <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+                <Parameter name="scope" value="isp.audit.events:read" />
+                <Parameter name="client_id" value="${/client_id}" />
+                <Parameter name="client_secret" value="${/client_secret}" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <Log type="INFO" message="CyberArk Audit: Auth Token API call status code:: ${/get_access_token/status_code}" />
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
+            <Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+        <Log type="INFO" message="CyberArk Audit: Execute createQuery request" />
+
+        <!-- createQuery Request -->
+        <CallEndpoint url="https://${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
+            <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+            <RequestHeader name="content-type" value="application/json" />
+            <RequestHeader name="x-api-key" value="${/api_key}" />
+
+            <RequestHeader name="IntegrationName" value="IBM QRadar" />
+            <RequestHeader name="IntegrationType" value="SIEM" />
+            <RequestHeader name="IntegrationVersion" value="1.0" />
+            <RequestHeader name="CyberArkService" value="Audit" />
+            <RequestHeader name="VendorName" value="IBM" />
+            <RequestHeader name="VendorProductName" value="QRadar" />
+
+            <RequestBody type="application/json" encoding="UTF-8">${/create_query_body}</RequestBody>
+        </CallEndpoint>
+
+        <Log type="INFO" message="CyberArk Audit: createQuery status code:: ${/create_query/status_code}" />
+
+        <!-- Handle Errors -->
+        <If condition="/create_query/status_code != 200">
+            <Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. Failure in createQuery. Error:: ${/create_query/body}" />
+            <Abort reason="Failed createQuery. Error:: ${/create_query/body}" />
+        </If>
+
+         <!-- Extract cursorRef -->
+        <Set path="/cursor" value="${/create_query/body/cursorRef}" />
+        <Log type="INFO" message="CyberArk Audit: Fetched cursorRef ${/cursor}" />
+
+        
+
+         <!-- Loop while data in results not empty -->
+        <DoWhile condition="count(${/results/data}) > 0">
+
+            <!-- results Request -->
+            <CallEndpoint url="https://${/host}/api/audits/stream/results" method="POST" savePath="/results">
+                <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+                <RequestHeader name="content-type" value="application/json" />
+                <RequestHeader name="x-api-key" value="${/api_key}" />
+
+                <RequestHeader name="IntegrationName" value="IBM QRadar" />
+                <RequestHeader name="IntegrationType" value="SIEM" />
+                <RequestHeader name="IntegrationVersion" value="1.0" />
+                <RequestHeader name="CyberArkService" value="Audit" />
+                <RequestHeader name="VendorName" value="IBM" />
+                <RequestHeader name="VendorProductName" value="QRadar" />
+
+                <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "cursorRef": ${/cursor}
+                }
+                </RequestBody>
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/results/status_code != 200">
+                <Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. Failure in results. Error:: ${/results/body}" />
+                <Abort reason="Failed results. Error:: ${/results/body}" />
+            </If>
+
+            <!-- Extract next cursorRef -->
+            <Set path="/cursor" value="${/results/body/cursorRef}" />
+        
+            <!-- Extract results data -->
+            <Set path="/results_data" value="${/results/body/data}" />
+
+            <!-- Post Events, if any -->
+            <If condition="count(${/results_data}) > 0">            
+                <PostEvents path="${/results_data}" source="${/host}" />
+                <Log type="INFO" message="CyberArk Audit: Sent ${count(${/results_data})} Audit Events to QRadar" />
+
+            </If>
+
+        </DoWhile>
+</Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+
+        <DNSResolutionTest host="${/identity_endpoint}" />
+        <TCPConnectionTest host="${/identity_endpoint}" />
+        <SSLHandshakeTest host="${/identity_endpoint}" />
+    </Tests>
+
+</Workflow>
