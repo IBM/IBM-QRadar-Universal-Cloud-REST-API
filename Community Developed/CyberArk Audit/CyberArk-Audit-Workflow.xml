@@ -13,10 +13,9 @@
     <Actions>
         
         <Log type="INFO" message="CyberArk Audit: Workflow Actions started..." />
-        <If condition="/bookmark != null">
-            <!-- Format Date to be passed in fetching events -->
-            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
-        </If>
+         <Initialize path="/token_expiration" value="0" />
+         <Set path="/timestamp" value="${time()}" />
+
 
         <!-- Initializing createQuery request body -->
         <Initialize
@@ -68,62 +67,63 @@
                 }'
         />
         
-        <!-- Initialize the Bookmark -->
-        <Initialize path="/bookmark" value="${time()}" />
-
         
-        <!-- Fetch API Token -->
-        <CallEndpoint url="https://${/identity_endpoint}/oauth2/token" method="POST" savePath="/get_access_token">
-            <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
-            <UrlEncodedFormRequestBody>
-                <Parameter name="grant_type" value="client_credentials" />
-                <Parameter name="scope" value="isp.audit.events:read" />
-                <Parameter name="client_id" value="${/client_id}" />
-                <Parameter name="client_secret" value="${/client_secret}" />
-            </UrlEncodedFormRequestBody>
-        </CallEndpoint>
+        <!-- Fetch API Token if first time or expired -->
+        <If condition="/token_expiration <= /timestamp">
+            <CallEndpoint url="https://${/identity_endpoint}/oauth2/token" method="POST" savePath="/get_access_token">
+                <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+                <UrlEncodedFormRequestBody>
+                    <Parameter name="grant_type" value="client_credentials" />
+                    <Parameter name="scope" value="isp.audit.events:read" />
+                    <Parameter name="client_id" value="${/client_id}" />
+                    <Parameter name="client_secret" value="${/client_secret}" />
+                </UrlEncodedFormRequestBody>
+            </CallEndpoint>
+        
 
-        <Log type="INFO" message="CyberArk Audit: Auth Token API call status code:: ${/get_access_token/status_code}" />
+            <Log type="INFO" message="CyberArk Audit: Auth Token API call status code:: ${/get_access_token/status_code}" />
 
-        <!-- Handle Errors -->
-        <If condition="/get_access_token/status_code != 200">
-            <Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
-            <Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
+            <!-- Handle Errors -->
+            <If condition="/get_access_token/status_code != 200">
+                <Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
+                <Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
+            </If>
+
+            <!-- Extract the Access Token -->
+            <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+            <Set path="/token_expiration" value="${/get_access_token/body/expires_in} + time()" />
         </If>
 
-        <!-- Extract the Access Token -->
-        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+        <!-- createQuery Request - If no cursor saved-->
+        <If condition="/cursor == null">
+            <Log type="INFO" message="CyberArk Audit: Execute createQuery request" />
+            <CallEndpoint url="https://${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
+                <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+                <RequestHeader name="content-type" value="application/json" />
+                <RequestHeader name="x-api-key" value="${/api_key}" />
 
-        <Log type="INFO" message="CyberArk Audit: Execute createQuery request" />
+                <RequestHeader name="IntegrationName" value="IBM QRadar" />
+                <RequestHeader name="IntegrationType" value="SIEM" />
+                <RequestHeader name="IntegrationVersion" value="1.0" />
+                <RequestHeader name="CyberArkService" value="Audit" />
+                <RequestHeader name="VendorName" value="IBM" />
+                <RequestHeader name="VendorProductName" value="QRadar" />
 
-        <!-- createQuery Request -->
-        <CallEndpoint url="https://${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
-            <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
-            <RequestHeader name="content-type" value="application/json" />
-            <RequestHeader name="x-api-key" value="${/api_key}" />
+                <RequestBody type="application/json" encoding="UTF-8">${/create_query_body}</RequestBody>
+            </CallEndpoint>
 
-            <RequestHeader name="IntegrationName" value="IBM QRadar" />
-            <RequestHeader name="IntegrationType" value="SIEM" />
-            <RequestHeader name="IntegrationVersion" value="1.0" />
-            <RequestHeader name="CyberArkService" value="Audit" />
-            <RequestHeader name="VendorName" value="IBM" />
-            <RequestHeader name="VendorProductName" value="QRadar" />
+            <Log type="INFO" message="CyberArk Audit: createQuery status code:: ${/create_query/status_code}" />
 
-            <RequestBody type="application/json" encoding="UTF-8">${/create_query_body}</RequestBody>
-        </CallEndpoint>
+            <!-- Handle Errors -->
+            <If condition="/create_query/status_code != 200">
+                <Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. Failure in createQuery. Error:: ${/create_query/body}" />
+                <Abort reason="Failed createQuery. Error:: ${/create_query/body}" />
+            </If>
 
-        <Log type="INFO" message="CyberArk Audit: createQuery status code:: ${/create_query/status_code}" />
-
-        <!-- Handle Errors -->
-        <If condition="/create_query/status_code != 200">
-            <Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. Failure in createQuery. Error:: ${/create_query/body}" />
-            <Abort reason="Failed createQuery. Error:: ${/create_query/body}" />
-        </If>
-
-         <!-- Extract cursorRef -->
-        <Set path="/cursor" value="${/create_query/body/cursorRef}" />
-        <Log type="INFO" message="CyberArk Audit: Fetched cursorRef ${/cursor}" />
-
+            <!-- Extract cursorRef -->
+            <Set path="/cursor" value="${/create_query/body/cursorRef}" />
+            <Log type="INFO" message="CyberArk Audit: Fetched cursorRef ${/cursor}" />
+         </If>
         
 
          <!-- Loop while data in results not empty -->
