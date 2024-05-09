@@ -63,8 +63,12 @@
                 }'
         />
 		<!-- Fetch API Token if first time or expired -->
-		<If condition="/token_expiration <= /timestamp">
-			<CallEndpoint url="https://${/identity_endpoint}/oauth2/token" method="POST" savePath="/get_access_token">
+		<If condition="/token_expiration > /timestamp">
+			<Log type="INFO" message="CyberArk Audit: Using unexpired token" />
+		</If>
+        <Else>
+            <Log type="INFO" message="CyberArk Audit: Auth token expired or non-existing. Creating a new one" />
+            <CallEndpoint url="${/identity_endpoint}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
 				<RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
 				<UrlEncodedFormRequestBody>
 					<Parameter name="grant_type" value="client_credentials" />
@@ -82,11 +86,11 @@
 			<!-- Extract the Access Token -->
 			<Set path="/access_token" value="${/get_access_token/body/access_token}" />
 			<Set path="/token_expiration" value="${/get_access_token/body/expires_in} + time()" />
-		</If>
+        </Else>
 		<!-- createQuery Request - If no cursor saved-->
-		<If condition="/cursor == null">
+		<If condition="/cursor = null">
 			<Log type="INFO" message="CyberArk Audit: Execute createQuery request" />
-			<CallEndpoint url="https://${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
+			<CallEndpoint url="${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="content-type" value="application/json" />
 				<RequestHeader name="x-api-key" value="${/api_key}" />
@@ -111,7 +115,7 @@
 		<!-- Loop while data in results not empty -->
 		<DoWhile condition="count(${/results/data}) > 0">
 			<!-- results Request -->
-			<CallEndpoint url="https://${/host}/api/audits/stream/results" method="POST" savePath="/results">
+			<CallEndpoint url="${/host}/api/audits/stream/results" method="POST" savePath="/results">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="content-type" value="application/json" />
 				<RequestHeader name="x-api-key" value="${/api_key}" />
@@ -143,12 +147,4 @@
 			</If>
 		</DoWhile>
 	</Actions>
-	<Tests>
-		<DNSResolutionTest host="${/host}" />
-		<TCPConnectionTest host="${/host}" />
-		<SSLHandshakeTest host="${/host}" />
-		<DNSResolutionTest host="${/identity_endpoint}" />
-		<TCPConnectionTest host="${/identity_endpoint}" />
-		<SSLHandshakeTest host="${/identity_endpoint}" />
-	</Tests>
 </Workflow>
