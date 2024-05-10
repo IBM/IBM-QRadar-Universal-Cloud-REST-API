@@ -1,3 +1,7 @@
+## Data Types to Retrieve from Wiz
+1. **Wiz-Workflow.xml**: This file retrieves various types of Wiz issues from the Wiz server and imports them into QRadar.
+2. **Wiz-AuditLogs-Workflow.xml**: This file retrieves different categories of Wiz audit logs from the Wiz server and imports them into QRadar.
+
 ## Collect authentication info from Wiz
 
 To integrate with QRadar, you need to add a Wiz connector in QRadar's Universal REST connector. To do so, you'll need to first collect the following authentication information from Wiz:
