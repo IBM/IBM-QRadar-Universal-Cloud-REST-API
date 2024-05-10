@@ -125,11 +125,7 @@
 				<RequestHeader name="CyberArkService" value="Audit" />
 				<RequestHeader name="VendorName" value="IBM" />
 				<RequestHeader name="VendorProductName" value="QRadar" />
-				<RequestBody type="application/json" encoding="UTF-8">
-                {
-                    "cursorRef": ${/cursor}
-                }
-                </RequestBody>
+				<RequestBody type="application/json" encoding="UTF-8">{"cursorRef": ${/cursor}}</RequestBody>
 			</CallEndpoint>
 			<!-- Handle Errors -->
 			<If condition="/results/status_code != 200">
