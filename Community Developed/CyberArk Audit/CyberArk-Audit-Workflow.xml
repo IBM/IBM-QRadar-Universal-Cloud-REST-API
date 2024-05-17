@@ -89,7 +89,7 @@
         </Else>
 		<!-- createQuery Request - If no cursor saved-->
 		<If condition="/cursor = null">
-			<Log type="INFO" message="CyberArk Audit: Execute createQuery request" />
+			<Log type="INFO" message="CyberArk Audit: Execute createQuery request with query ${/create_query_body}" />
 			<CallEndpoint url="${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="content-type" value="application/json" />
@@ -115,6 +115,12 @@
 		<!-- Loop while data in results not empty -->
 		<DoWhile condition="count(${/results/data}) > 0">
 			<!-- results Request -->
+            <Set path="/results_body" value='
+            {
+                "cursorRef": "${/cursor}"
+            }
+            ' />
+            <Log type="INFO" message="CyberArk Audit: Results body ${/results_body}" />
 			<CallEndpoint url="${/host}/api/audits/stream/results" method="POST" savePath="/results">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="content-type" value="application/json" />
@@ -125,7 +131,7 @@
 				<RequestHeader name="CyberArkService" value="Audit" />
 				<RequestHeader name="VendorName" value="IBM" />
 				<RequestHeader name="VendorProductName" value="QRadar" />
-				<RequestBody type="application/json" encoding="UTF-8">{"cursorRef": ${/cursor}}</RequestBody>
+				<RequestBody type="application/json" encoding="UTF-8">${/results_body}</RequestBody>
 			</CallEndpoint>
 			<!-- Handle Errors -->
 			<If condition="/results/status_code != 200">
@@ -133,10 +139,11 @@
 				<Abort reason="Failed results. Error:: ${/results/body}" />
 			</If>
 			<!-- Extract next cursorRef -->
-			<Set path="/cursor" value="${/results/body/cursorRef}" />
+			<Set path="/cursor" value="${/results/body/paging/cursor/cursorRef}" />
 			<!-- Extract results data -->
 			<Set path="/results_data" value="${/results/body/data}" />
 			<!-- Post Events, if any -->
+            <Log type="INFO" message="CyberArk Audit: Found ${count(${/results_data})} Audit Events to post" />
 			<If condition="count(${/results_data}) > 0">
 				<PostEvents path="${/results_data}" source="${/host}" />
 				<Log type="INFO" message="CyberArk Audit: Sent ${count(${/results_data})} Audit Events to QRadar" />
