@@ -1,0 +1,217 @@
+<Workflow name="XpanseQRadar" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    <Parameters>
+        <!-- Assuming these parameters are provided externally -->
+        <Parameter name="api_key" label="Xpanse QRadar api key" required="true" secret="true" />
+        <Parameter name="api_key_id" label="Xpanse QRadar api key id" required="true" secret="true" />
+        <Parameter name="xpanse_tenant" label="Xpanse QRadar Tenant/FQDN" required="true" />
+    </Parameters>
+    <Actions>
+        <!-- Set up the endpoint URL -->
+        <Set path="/assetData/url" value="https://api-${/xpanse_tenant}/public_api/v1/assets/get_assets_internet_exposure" />
+
+        <Set path="/retry_count" value="0" />
+        <Set path="/counter" value="0" />
+        <Set path="/result" value="0" />
+        <Set path="/total" value="0" />
+        <Set path="/search_from" value="0" />
+        <Set path="/search_to" value="500" />
+
+        <!-- Make the initial API call -->
+        <CallEndpoint url="${/assetData/url}" method="POST" savePath="/assetData/response">
+            <RequestHeader name="Content-Type" value="application/json" />
+            <RequestHeader name="Authorization" value="${/api_key}" />
+            <RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+            <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "request_data": {
+                        "sort": {
+                            "field": "first_observed",
+                            "keyword": "asc"
+                        },
+                        "search_from": ${/search_from},
+						"search_to": ${/search_to}
+                    }
+                }
+            </RequestBody>
+        </CallEndpoint>
+        <Log type="INFO" message="(1st) Asset Events: Search From ${/search_from}, Search To ${/search_to}" />
+        <Log type="INFO" message="(1st) Asset Events: Received Response ${/assetData/response/status_code}" />
+
+        <If condition="${/assetData/response/status_code = 200}">
+            <!-- Log initial response -->
+            <Set path="/result" value="${/assetData/response/body/reply/result_count}" />
+            <Log type="INFO" message="(1st) Asset Events: Response Count ${/result} Assets." />
+
+            <!-- Extract and log alert count -->
+            <Set path="/counter" value="${/counter + /result}" />
+            <Log type="INFO" message="(1st) Asset Events: Result Counter ${/counter} Assets." />
+
+            <Set path="/total" value="${/assetData/response/body/reply/total_count}" />
+            <Log type="INFO" message="(1st) Asset Events: Total ${/total} Assets." />
+
+            <If condition="${/result &gt; 0}">
+                <PostEvents path="/assetData/response/body/reply/assets_internet_exposure" source="api-${/xpanse_tenant}-assets" />
+                <Log type="INFO" message="(1st) Asset Events: Loop Condition ${${/counter} &lt; ${/total}}" />
+            </If>
+        </If>
+        <!-- Check for errors in the initial response -->
+        <If condition="${/assetData/response/status_code &gt; 200}">
+            <Log type="INFO" message="(2nd) Xpanse Asset API returned error ${/assetData/response/status_code}: ${/assetData/response/status_message}" />
+            <While condition="${/retry_count} &lt; 3">
+                <If condition="${/assetData/response/status_code = 429 or /assetData/response/status_code = 500}">
+                    <Log type="WARN" message="Retrying in 5 seconds..." />
+                    <Sleep duration="5000" />
+                    <CallEndpoint url="${/assetData/url}" method="POST" savePath="/assetData/response">
+                        <RequestHeader name="Content-Type" value="application/json" />
+                        <RequestHeader name="Authorization" value="${/api_key}" />
+                        <RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+                        <RequestBody type="application/json" encoding="UTF-8">
+                            {
+                                "request_data": {
+                                    "sort": {
+                                        "field": "first_observed",
+                                        "keyword": "asc"
+                                    },
+                                    "search_from": ${/search_from},
+						            "search_to": ${/search_to}
+                                }
+                            }
+                        </RequestBody>
+                    </CallEndpoint>
+                    <Log type="INFO" message="(2nd) Asset Events: Received Response ${/assetData/response/status_code}" />
+
+                    <If condition="${/assetData/response/status_code = 200}">
+                        <!-- Log initial response -->
+                        <Set path="/result" value="${/assetData/response/body/reply/result_count}" />
+                        <Log type="INFO" message="(2nd) Asset Events: Response Count ${/result} Assets." />
+
+                        <!-- Extract and log alert count -->
+                        <Set path="/counter" value="${/counter + /result}" />
+                        <Log type="INFO" message="(2nd) Asset Events: Result Counter ${/counter} Assets." />
+
+                        <Set path="/total" value="${/assetData/response/body/reply/total_count}" />
+                        <Log type="INFO" message="(2nd) Asset Events: Total ${/total} Assets." />
+
+                        <If condition="${/result &gt; 0}">
+                            <PostEvents path="/assetData/response/body/reply/assets_internet_exposure" source="api-${/xpanse_tenant}-assets" />
+                            <Log type="INFO" message="(2nd) Asset Events: Loop Condition ${${/counter} &lt; ${/total}}" />
+                        </If>
+                    </If>
+                </If>
+                <Else>
+                    <Log type="ERROR" message="Xpanse Asset API returned error ${/assetData/response/status_code}: ${/assetData/response/status_message}" />
+                    <Abort reason="${/assetData/response/status_code}: ${/assetData/response/status_message}" terminate="true" />
+                </Else>
+                <!-- Abort if retry count exceeds 3 -->
+                <If condition="${/retry_count} &gt;= 3">
+                    <Log type="ERROR" message="Xpanse Asset API returned error ${/assetData/response/status_code}: ${/assetData/response/status_message} after 3 retry counts" />
+                    <Abort reason="Xpanse Asset API call failed after 3 retries" />
+                </If>
+            </While>
+        </If>
+
+        <!-- If initial call succeeded, loop for additional pages -->
+        <While condition="${/counter} &lt; ${/total}">
+            <Set path="/search_from" value="${/search_from + 500}" />
+            <Set path="/search_to" value="${/search_to + 500}" />
+            <CallEndpoint url="${/assetData/url}" method="POST" savePath="/assetData/response">
+                <RequestHeader name="Content-Type" value="application/json" />
+                <RequestHeader name="Authorization" value="${/api_key}" />
+                <RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "request_data": {
+                            "sort": {
+                                "field": "first_observed",
+                                "keyword": "asc"
+                            },
+                            "search_from": ${/search_from},
+                            "search_to": ${/search_to}
+                        }
+                    }
+                </RequestBody>
+            </CallEndpoint>
+            <Log type="INFO" message="(3rd) Asset Events: Search From ${/search_from}, Search To ${/search_to}" />
+            <Log type="INFO" message="(3rd) Asset Events: Received Response ${/assetData/response/status_code}" />
+
+            <If condition="${/assetData/response/status_code = 200}">
+                <!-- Log subsequent response -->
+                <Log type="INFO" message="(3rd) Asset Events: Total ${/total} Assets." />
+                <Set path="/result" value="${/assetData/response/body/reply/result_count}" />
+
+                <Log type="INFO" message="(3rd) Asset Events: Response Count ${/result} Assets." />
+
+                <Set path="/counter" value="${/counter + /result}" />
+                <Log type="INFO" message="(3rd) Asset Events: Result Counter ${/counter} Assets." />
+
+                <If condition="${/result &gt; 0}">
+                    <PostEvents path="/assetData/response/body/reply/assets_internet_exposure" source="api-${/xpanse_tenant}-assets" />
+                    <Log type="INFO" message="(3rd) Asset Events: Loop Condition ${${/counter} &lt; ${/total}}" />
+                </If>
+            </If>
+            <!-- Check for errors in subsequent responses -->
+            <If condition="${/assetData/response/status_code &gt; 200}">
+                <Log type="INFO" message="(4th) Xpanse Asset API returned error ${/assetData/response/status_code}: ${/assetData/response/status_message}" />
+                <While condition="${/retry_count} &lt; 3">
+                    <If condition="${/assetData/response/status_code = 429 or /assetData/response/status_code = 500}">
+                        <Log type="WARN" message="Retrying in 5 seconds..." />
+                        <Sleep duration="5000" />
+                        <CallEndpoint url="${/assetData/url}" method="POST" savePath="/assetData/response">
+                            <RequestHeader name="Content-Type" value="application/json" />
+                            <RequestHeader name="Authorization" value="${/api_key}" />
+                            <RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+                            <RequestBody type="application/json" encoding="UTF-8">
+                                {
+                                    "request_data": {
+                                        "sort": {
+                                            "field": "first_observed",
+                                            "keyword": "asc"
+                                        },
+                                        "search_from": ${/search_from},
+						                "search_to": ${/search_to}
+                                    }
+                                }
+                            </RequestBody>
+                        </CallEndpoint>
+                        <Log type="INFO" message="(4th) Asset Events: Received Response ${/assetData/response/status_code}" />
+
+                        <If condition="${/assetData/response/status_code = 200}">
+                            <!-- Log initial response -->
+                            <Log type="INFO" message="(4th) Asset Events: Total ${/total} Assets." />
+                            <Set path="/result" value="${/assetData/response/body/reply/result_count}" />
+
+                            <Log type="INFO" message="(4th) Asset Events: Response Count ${/result} Assets." />
+
+                            <Set path="/counter" value="${/counter + /result}" />
+                            <Log type="INFO" message="(4th) Asset Events: Result Counter ${/counter} Assets." />
+
+                            <If condition="${/result &gt; 0}">
+                                <PostEvents path="/assetData/response/body/reply/assets_internet_exposure" source="api-${/xpanse_tenant}-assets" />
+                                <Log type="INFO" message="(4th) Asset Events: Loop Condition ${${/counter} &lt; ${/total}}" />
+                            </If>
+                        </If>
+                    </If>
+                    <Else>
+                        <Log type="ERROR" message="Xpanse Asset API returned error ${/assetData/response/status_code}: ${/assetData/response/status_message}" />
+                        <Abort reason="${/assetData/response/status_code}: ${/assetData/response/status_message}" terminate="true" />
+                    </Else>
+                    <!-- Abort if retry count exceeds 3 -->
+                    <If condition="${/retry_count &gt;= 3}">
+                        <Log type="ERROR" message="Xpanse Asset API returned error ${/assetData/response/status_code}: ${/assetData/response/status_message} after 3 retry counts" />
+                        <Abort reason="Xpanse Asset API call failed after 3 retries" />
+                    </If>
+                </While>
+            </If>
+        </While>
+
+        <!-- Final log indicating completion -->
+        <Log type="INFO" message="Asset Events: We have received all the Assets." />
+    </Actions>
+    <Tests>
+        <!-- Assuming these tests are valid for your environment -->
+        <DNSResolutionTest host="api-${/xpanse_tenant}" />
+        <TCPConnectionTest host="https://api-${/xpanse_tenant}" />
+        <HTTPConnectionThroughProxyTest url="https://api-${/xpanse_tenant}" />
+    </Tests>
+</Workflow>
