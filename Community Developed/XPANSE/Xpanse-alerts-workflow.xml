@@ -1,0 +1,298 @@
+<Workflow name="XpanseQRadar" version="1.0"
+	xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+	<Parameters>
+		<!-- These parameters are provided by the Workflow parameter file -->
+		<Parameter name="api_key" label="Xpanse QRadar api key" required="true" secret="true" />
+		<Parameter name="api_key_id" label="Xpanse QRadar api key id" required="true" secret="true" />
+		<Parameter name="xpanse_tenant" label="Xpanse QRadar Tenant/FQDN" required="true" />
+		<Parameter name="historical_poll" label="Historical Poll Timestamp" />
+	</Parameters>
+	<Actions>
+		<Log type="INFO" message="Xpanse Events: Last Polling Timestamp ${/last_polled_timestamp}, Max Timestamp ${/max_timestamp}" />
+		<Set path="/current_time" value="${time()}" />
+		<!-- Calculate historical timestamp -->
+		<Set path="/historical_hours" value="${/historical_poll * 24}" />
+		<Set path="/historical_milliseconds" value="${/historical_hours * 3600000}" />
+		<!-- Convert hours to milliseconds -->
+		<Log type="DEBUG" message="Xpanse Events: current time ${/current_time}" />
+		<Log type="DEBUG" message="Xpanse Events: hours to time ${/historical_hours}" />
+		<Log type="DEBUG" message="Xpanse Events: milliseconds to time ${/historical_milliseconds}" />
+		<Set path="/historical_timestamp" value="${/current_time - /historical_milliseconds}" />
+		<Log type="INFO" message="Xpanse Events: historical time ${/historical_timestamp}" />
+		<!-- Set up the endpoint URL -->
+		<Set path="/alertData/url" value="https://api-${/xpanse_tenant}/public_api/v2/alerts/get_alerts_multi_events" />
+		<Set path="/retry_count" value="0" />
+		<Set path="/result" value="0" />
+		<Set path="/counter" value="0" />
+		<Set path="/total" value="0" />
+		<Set path="/search_from" value="0" />
+		<Set path="/search_to" value="100" />
+		<!-- Determine if historical poll or incremental poll -->
+		<If condition="/max_timestamp &gt; 0">
+			<Log type="INFO" message="Xpanse Events: Polling Started..." />
+			<Set path="/polling_timestamp" value="${/max_timestamp}" />
+		</If>
+		<ElseIf condition="/last_polled_timestamp &gt; 0">
+			<Log type="INFO" message="Xpanse Events: Incremental Polling Started..." />
+			<Set path="/polling_timestamp" value="${/last_polled_timestamp}" />
+		</ElseIf>
+		<ElseIf condition="/historical_poll &gt; 0">
+			<Log type="INFO" message="Xpanse Events: Historical Polling Started..." />
+			<Set path="/polling_timestamp" value="${/historical_timestamp}" />
+		</ElseIf>
+
+		<!-- Make the API call with appropriate timestamp -->
+		<CallEndpoint url="${/alertData/url}" method="POST" savePath="/alertData/response">
+			<RequestHeader name="Content-Type" value="application/json" />
+			<RequestHeader name="Authorization" value="${/api_key}" />
+			<RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+			<RequestBody type="application/json" encoding="UTF-8">
+				{
+					"request_data": {
+						"sort": {
+							"field": "server_creation_time",
+							"keyword": "asc"
+						},
+						"search_from": ${/search_from},
+						"search_to": ${/search_to},
+						"filters": [{
+							"field": "server_creation_time",
+							"value": ${/polling_timestamp},
+							"operator": "gte"
+						}]
+					}
+				}
+			</RequestBody>
+		</CallEndpoint>
+		<Log type="INFO" message="(1st) Xpanse Events: ${/polling_timestamp} Received Response ${/alertData/response/status_code}" />
+		<!-- Extract and log alert count -->
+		<If condition="${/alertData/response/status_code = 200}">
+			<Set path="/result" value="${/alertData/response/body/reply/result_count}" />
+			<Log type="INFO" message="(1st) Xpanse Events: Response Count ${/result} Alerts." />
+
+			<Set path="/counter" value="${/counter + /result}" />
+			<Log type="INFO" message="(1st) Xpanse Events: Counter ${/counter} Alerts." />
+
+			<Set path="/total" value="${/alertData/response/body/reply/total_count}" />
+			<Log type="INFO" message="(1st) Xpanse Events: Total ${/total} Alerts." />
+
+			<If condition="${/result &gt; 0}">
+				<ForEach item="/data" items="/alertData/response/body/reply/alerts">
+					<Set path="/temp" value="" />
+					<ForEach item="/item" items="/data/asset_ids">
+						<Set path="/temp" value="${/item},${/temp}" />
+					</ForEach>
+					<Set path="/data/asset_ids" value="${/temp}" />
+					<PostEvent path="/data" source="api-${/xpanse_tenant}-alerts" />
+				</ForEach>
+				<Set path="/max_timestamp" value="${max(/alertData/response/body/reply/alerts/local_insert_ts)}" />
+				<Log type="INFO" message="(1st) Xpanse Events: Max Timestamp ${/max_timestamp}" />
+				<Log type="INFO" message="(1st) Xpanse Events: Loop Condition ${/counter &lt; /total}" />
+			</If>
+		</If>
+		<!-- Check for errors in the response -->
+		<ElseIf condition="${/alertData/response/status_code != 200}">
+			<Log type="INFO" message="(2nd) Xpanse Alert API returned error ${/alertData/response/status_code}: ${/alertData/response/status_message}" />
+			<While condition="${/retry_count &lt; 3}">
+				<If condition="${/alertData/response/status_code = 429 or /alertData/response/status_code = 500}">
+					<Log type="INFO" message="Retrying in 5 seconds..." />
+					<Sleep duration="5000" />
+					<Set path="/retry_count" value="${/retry_count + 1}" />
+					<CallEndpoint url="${/alertData/url}" method="POST" savePath="/alertData/response">
+						<RequestHeader name="Content-Type" value="application/json" />
+						<RequestHeader name="Authorization" value="${/api_key}" />
+						<RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+						<RequestBody type="application/json" encoding="UTF-8">
+							{
+								"request_data": {
+									"sort": {
+										"field": "server_creation_time",
+										"keyword": "asc"
+									},
+									"search_from": ${/search_from},
+									"search_to": ${/search_to},
+									"filters": [{
+										"field": "server_creation_time",
+										"value": ${/polling_timestamp},
+										"operator": "gte"
+									}]
+								}
+							}
+						</RequestBody>
+					</CallEndpoint>
+					<Log type="INFO" message="(2nd) Xpanse Events: ${/polling_timestamp} Received Response ${/alertData/response/status_code}" />
+					<!-- Extract and log alert count -->
+					<If condition="${/alertData/response/status_code = 200}">
+						<Set path="/result" value="${/alertData/response/body/reply/result_count}" />
+						<Log type="INFO" message="(2nd) Xpanse Events: Response Count ${/result} Alerts." />
+
+						<Set path="/counter" value="${/counter + /result}" />
+						<Log type="INFO" message="(2nd) Xpanse Events: Counter ${/counter} Alerts." />
+
+						<Set path="/total" value="${/alertData/response/body/reply/total_count}" />
+						<Log type="INFO" message="(2nd) Xpanse Events: Total ${/total} Alerts." />
+						<If condition="${/result &gt; 0}">
+							<ForEach item="/data" items="/alertData/response/body/reply/alerts">
+								<Set path="/temp" value="" />
+								<ForEach item="/item" items="/data/asset_ids">
+									<Set path="/temp" value="${/item},${/temp}" />
+								</ForEach>
+								<Set path="/data/asset_ids" value="${/temp}" />
+								<PostEvent path="/data" source="api-${/xpanse_tenant}-alerts" />
+							</ForEach>
+							<Set path="/max_timestamp" value="${max(/alertData/response/body/reply/alerts/local_insert_ts)}" />
+							<Log type="INFO" message="(2nd) Xpanse Events: Max Timestamp ${/max_timestamp}" />
+							<Set path="/retry_count" value="0" />
+						</If>
+					</If>
+				</If>
+				<Else>
+					<Log type="ERROR" message="Xpanse Alert API returned error ${/alertData/response/status_code}: ${/alertData/response/status_message}" />
+					<Abort reason="${/alertData/response/status_code}: ${/alertData/response/status_message}" terminate="true" />
+				</Else>
+				<!-- Abort if retry count exceeds 3 -->
+				<If condition="${/retry_count &gt;= 3}">
+					<Log type="ERROR" message="Xpanse Alert API returned error ${/alertData/response/status_code}: ${/alertData/response/status_message} after 3 retry counts" />
+					<Abort reason="Xpanse Alert API call failed after 3 retries" />
+				</If>
+			</While>
+		</ElseIf>
+
+		<Log type="INFO" message="Xpanse Events: Loop Condition ${/polling_timestamp}, ${/counter &lt; /total}" />
+		<While condition="/counter &lt; /total">
+			<!-- Make subsequent API calls with page token -->
+			<Set path="/search_from" value="${/search_from + 100}" />
+			<Set path="/search_to" value="${/search_to + 100}" />
+			<Log type="INFO" message="(3rd) Xpanse Events: Search From ${/search_from}, Search To ${/search_to}" />
+			<CallEndpoint url="${/alertData/url}" method="POST" savePath="/alertData/response">
+				<RequestHeader name="Content-Type" value="application/json" />
+				<RequestHeader name="Authorization" value="${/api_key}" />
+				<RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+				<RequestBody type="application/json" encoding="UTF-8">
+					{
+						"request_data": {
+							"sort": {
+								"field": "server_creation_time",
+								"keyword": "asc"
+							},
+							"search_from": ${/search_from},
+							"search_to": ${/search_to},
+							"filters": [{
+								"field": "server_creation_time",
+								"value": ${/polling_timestamp},
+								"operator": "gte"
+							}]
+						}
+					}
+				</RequestBody>
+			</CallEndpoint>
+			<Log type="INFO" message="(3rd) Xpanse Events: ${/polling_timestamp} Received Response ${/alertData/response/status_code}" />
+			<If condition="${/alertData/response/status_code = 200}">
+				<!-- Extract and log alert count -->
+				<Set path="/result" value="${/alertData/response/body/reply/result_count}" />
+				<Log type="INFO" message="(3rd) Xpanse Events: For this current page we have got ${/result} Alerts." />
+
+				<Set path="/counter" value="${/counter + /result}" />
+				<Log type="INFO" message="(3rd) Xpanse Events: We have polled of ${/counter} Alerts." />
+
+				<Log type="INFO" message="(3rd) Xpanse Events: Total ${/total} Alerts." />
+
+				<If condition="${/result &gt; 0}">
+					<ForEach item="/data" items="/alertData/response/body/reply/alerts">
+						<Set path="/temp" value="" />
+						<ForEach item="/item" items="/data/asset_ids">
+							<Set path="/temp" value="${/item},${/temp}" />
+						</ForEach>
+						<Set path="/data/asset_ids" value="${/temp}" />
+						<PostEvent path="/data" source="api-${/xpanse_tenant}-alerts" />
+					</ForEach>
+					<Set path="/max_timestamp" value="${max(/alertData/response/body/reply/alerts/local_insert_ts)}" />
+					<Log type="INFO" message="(3rd) Xpanse Events: Max Timestamp ${/max_timestamp}" />
+					<Log type="INFO" message="(3rd) Xpanse Events: Loop Condition ${(/counter &lt; /total)}" />
+				</If>
+			</If>
+			<!-- Check for errors in subsequent responses -->
+			<ElseIf condition="${/alertData/response/status_code != 200}">
+				<Log type="INFO" message="(4th) Xpanse Alert API returned error ${/alertData/response/status_code}: ${/alertData/response/status_message}" />
+				<While condition="${/retry_count &lt; 3}">
+					<If condition="${/alertData/response/status_code = 429 or /alertData/response/status_code = 500}">
+						<Log type="INFO" message="Retrying in 5 seconds..." />
+						<Sleep duration="5000" />
+						<Set path="/retry_count" value="${/retry_count + 1}" />
+						<CallEndpoint url="${/alertData/url}" method="POST" savePath="/alertData/response">
+							<RequestHeader name="Content-Type" value="application/json" />
+							<RequestHeader name="Authorization" value="${/api_key}" />
+							<RequestHeader name="x-xdr-auth-id" value="${/api_key_id}" />
+							<RequestBody type="application/json" encoding="UTF-8">
+								{
+									"request_data": {
+										"sort": {
+											"field": "server_creation_time",
+											"keyword": "asc"
+										},
+										"search_from": ${/search_from},
+										"search_to": ${/search_to},
+										"filters": [{
+											"field": "server_creation_time",
+											"value": ${/polling_timestamp},
+											"operator": "gte"
+										}]
+									}
+								}
+							</RequestBody>
+						</CallEndpoint>
+						<Log type="INFO" message="(4th) Xpanse Events: ${/polling_timestamp} Received Response ${/alertData/response/status_code}" />
+						<If condition="${/alertData/response/status_code = 200}">
+							<Set path="/result" value="${/alertData/response/body/reply/result_count}" />
+							<Log type="INFO" message="(4th) Xpanse Events: Response Count ${/result} Alerts." />
+
+							<Set path="/counter" value="${/counter + /result}" />
+							<Log type="INFO" message="(4th) Xpanse Events: Counter ${/counter} Alerts." />
+
+							<Log type="INFO" message="(4th) Xpanse Events: Total ${/total} Alerts." />
+							<If condition="${/result &gt; 0}">
+								<ForEach item="/data" items="/alertData/response/body/reply/alerts">
+									<Set path="/temp" value="" />
+									<ForEach item="/item" items="/data/asset_ids">
+										<Set path="/temp" value="${/item},${/temp}" />
+									</ForEach>
+									<Set path="/data/asset_ids" value="${/temp}" />
+									<PostEvent path="/data" source="api-${/xpanse_tenant}-alerts" />
+								</ForEach>
+								<Set path="/max_timestamp" value="${max(/alertData/response/body/reply/alerts/local_insert_ts)}" />
+								<Log type="INFO" message="(4th) Xpanse Events: Max Timestamp ${/max_timestamp}" />
+								<Set path="/retry_count" value="0" />
+							</If>
+						</If>
+					</If>
+					<Else>
+						<Log type="ERROR" message="Xpanse Alert API returned error ${/alertData/response/status_code}: ${/alertData/response/status_message}" />
+						<Abort reason="${/alertData/response/status_code}: ${/alertData/response/status_message}" terminate="true" />
+					</Else>
+					<!-- Abort if retry count exceeds 3 -->
+					<If condition="${/retry_count &gt;= 3}">
+						<Log type="ERROR" message="Xpanse Alert API returned error ${/alertData/response/status_code}: ${/alertData/response/status_message} after 3 retry counts" />
+						<Abort reason="Xpanse Alert API call failed after 3 retries" />
+					</If>
+				</While>
+			</ElseIf>
+		</While>
+		<!-- Save last polled timestamp for incremental polling -->
+		<If condition="/max_timestamp &gt; 0">
+			<!-- Add a delay of 1 millisecond to max timestamp -->
+			<Set path="/last_polled_timestamp" value="${/max_timestamp + 1}" />
+			<Set path="/max_timestamp" value="0" />
+		</If>
+		<If condition="/result = 0 and /total = 0">
+			<Set path="/last_polled_timestamp" value="${/current_time}" />
+		</If>
+		<!-- Final log indicating completion -->
+		<Log type="INFO" message="Xpanse Events: We have received all the Alerts." />
+	</Actions>
+	<Tests>
+		<!-- Assuming these tests are valid for your environment -->
+		<DNSResolutionTest host="api-${/xpanse_tenant}" />
+		<TCPConnectionTest host="https://api-${/xpanse_tenant}" />
+		<HTTPConnectionThroughProxyTest url="https://api-${/xpanse_tenant}" />
+	</Tests>
+</Workflow>
