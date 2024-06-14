@@ -12,8 +12,9 @@
 	<Actions>
 		<Log type="INFO" message="CyberArk Audit: Workflow Actions started..." />
 		<Initialize path="/token_expiration" value="0" />
-		<Set path="/timestamp" value="${time()}" />
-		<!-- Initializing createQuery request body -->
+		
+		<!-- Initializing createQuery request body during first time execution -->
+		<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${time()}" savePath="/timestamp" />
 		<Initialize
             path="/create_query_body"
             value='{
@@ -88,7 +89,7 @@
 			<Set path="/token_expiration" value="${/get_access_token/body/expires_in} + time()" />
         </Else>
 		<!-- createQuery Request - If no cursor saved-->
-		<If condition="/cursor = null">
+	
 			<Log type="INFO" message="CyberArk Audit: Execute createQuery request with query ${/create_query_body}" />
 			<CallEndpoint url="${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
@@ -111,9 +112,10 @@
 			<!-- Extract cursorRef -->
 			<Set path="/cursor" value="${/create_query/body/cursorRef}" />
 			<Log type="INFO" message="CyberArk Audit: Fetched cursorRef ${/cursor}" />
-		</If>
+		
 		<!-- Loop while data in results not empty -->
-		<DoWhile condition="count(${/results/data}) > 0">
+		<Initialize path="/events" value="0" />
+		<DoWhile condition="count(/events) > 0">
 			<!-- results Request -->
             <Set path="/results_body" value='
             {
@@ -141,13 +143,10 @@
 			<!-- Extract next cursorRef -->
 			<Set path="/cursor" value="${/results/body/paging/cursor/cursorRef}" />
 			<!-- Extract results data -->
-			<Set path="/results_data" value="${/results/body/data}" />
+			<Set path="/events" value="${/results/body/data}" />
 			<!-- Post Events, if any -->
-            <Log type="INFO" message="CyberArk Audit: Found ${count(${/results_data})} Audit Events to post" />
-			<If condition="count(${/results_data}) > 0">
-				<PostEvents path="${/results_data}" source="${/host}" />
-				<Log type="INFO" message="CyberArk Audit: Sent ${count(${/results_data})} Audit Events to QRadar" />
-			</If>
+            <Log type="INFO" message="CyberArk Audit: Found ${count(/events)} Audit Events to post" />
+			<PostEvents path="${/events}" source="${/host}" />
 		</DoWhile>
 	</Actions>
 </Workflow>
