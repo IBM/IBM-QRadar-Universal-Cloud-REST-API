@@ -11,8 +11,7 @@
 	</Parameters>
 	<Actions>
 		<Log type="INFO" message="CyberArk Audit: Workflow Actions started..." />
-		<Initialize path="/token_expiration" value="0" />
-		
+
 		<!-- Initializing createQuery request body during first time execution -->
 		<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${time()}" savePath="/timestamp" />
 		<Initialize
@@ -63,33 +62,29 @@
                     }              
                 }'
         />
-		<!-- Fetch API Token if first time or expired -->
-		<If condition="/token_expiration > /timestamp">
-			<Log type="INFO" message="CyberArk Audit: Using unexpired token" />
+		<!-- Fetch API OAuth Token-->
+		<Log type="INFO" message="CyberArk Audit: Requesting OAuth token" />
+		<CallEndpoint url="${/identity_endpoint}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
+			<RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+			<UrlEncodedFormRequestBody>
+				<Parameter name="grant_type" value="client_credentials" />
+				<Parameter name="scope" value="isp.audit.events:read" />
+				<Parameter name="client_id" value="${/client_id}" />
+				<Parameter name="client_secret" value="${/client_secret}" />
+			</UrlEncodedFormRequestBody>
+		</CallEndpoint>
+		<Log type="INFO" message="CyberArk Audit: Auth Token API call status code:: ${/get_access_token/status_code}" />
+		<!-- Handle Errors -->
+		<If condition="/get_access_token/status_code != 200">
+			<Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
+			<Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
 		</If>
-        <Else>
-            <Log type="INFO" message="CyberArk Audit: Auth token expired or non-existing. Creating a new one" />
-            <CallEndpoint url="${/identity_endpoint}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
-				<RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
-				<UrlEncodedFormRequestBody>
-					<Parameter name="grant_type" value="client_credentials" />
-					<Parameter name="scope" value="isp.audit.events:read" />
-					<Parameter name="client_id" value="${/client_id}" />
-					<Parameter name="client_secret" value="${/client_secret}" />
-				</UrlEncodedFormRequestBody>
-			</CallEndpoint>
-			<Log type="INFO" message="CyberArk Audit: Auth Token API call status code:: ${/get_access_token/status_code}" />
-			<!-- Handle Errors -->
-			<If condition="/get_access_token/status_code != 200">
-				<Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
-				<Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
-			</If>
-			<!-- Extract the Access Token -->
-			<Set path="/access_token" value="${/get_access_token/body/access_token}" />
-			<Set path="/token_expiration" value="${/get_access_token/body/expires_in} + time()" />
-        </Else>
+		<!-- Extract the Access Token -->
+		<Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+        
 		<!-- createQuery Request - If no cursor saved-->
-	
+		<If condition="/cursor = null">
 			<Log type="INFO" message="CyberArk Audit: Execute createQuery request with query ${/create_query_body}" />
 			<CallEndpoint url="${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
@@ -112,9 +107,8 @@
 			<!-- Extract cursorRef -->
 			<Set path="/cursor" value="${/create_query/body/cursorRef}" />
 			<Log type="INFO" message="CyberArk Audit: Fetched cursorRef ${/cursor}" />
-		
+		</If>
 		<!-- Loop while data in results not empty -->
-		<Initialize path="/events" value="0" />
 		<DoWhile condition="count(/events) > 0">
 			<!-- results Request -->
             <Set path="/results_body" value='
@@ -145,8 +139,10 @@
 			<!-- Extract results data -->
 			<Set path="/events" value="${/results/body/data}" />
 			<!-- Post Events, if any -->
-            <Log type="INFO" message="CyberArk Audit: Found ${count(/events)} Audit Events to post" />
-			<PostEvents path="${/events}" source="${/host}" />
+			<If condition="count(/events) > 0">
+            	<Log type="INFO" message="CyberArk Audit: Found ${count(/events)} Audit Events to post" />
+				<PostEvents path="/events" source="${/host}" />
+			</If>
 		</DoWhile>
 	</Actions>
 </Workflow>
