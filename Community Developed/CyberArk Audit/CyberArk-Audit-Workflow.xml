@@ -62,6 +62,7 @@
                     }              
                 }'
         />
+		
 		<!-- Fetch API OAuth Token-->
 		<Log type="INFO" message="CyberArk Audit: Requesting OAuth token" />
 		<CallEndpoint url="${/identity_endpoint}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
@@ -74,11 +75,13 @@
 			</UrlEncodedFormRequestBody>
 		</CallEndpoint>
 		<Log type="INFO" message="CyberArk Audit: Auth Token API call status code:: ${/get_access_token/status_code}" />
+		
 		<!-- Handle Errors -->
 		<If condition="/get_access_token/status_code != 200">
 			<Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
 			<Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
 		</If>
+		
 		<!-- Extract the Access Token -->
 		<Set path="/access_token" value="${/get_access_token/body/access_token}" />
 
@@ -99,6 +102,7 @@
 				<RequestBody type="application/json" encoding="UTF-8">${/create_query_body}</RequestBody>
 			</CallEndpoint>
 			<Log type="INFO" message="CyberArk Audit: createQuery status code:: ${/create_query/status_code}" />
+			
 			<!-- Handle Errors -->
 			<If condition="/create_query/status_code != 200">
 				<Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. Failure in createQuery. Error:: ${/create_query/body}" />
@@ -108,6 +112,7 @@
 			<Set path="/cursor" value="${/create_query/body/cursorRef}" />
 			<Log type="INFO" message="CyberArk Audit: Fetched cursorRef ${/cursor}" />
 		</If>
+		
 		<!-- Loop while data in results not empty -->
 		<DoWhile condition="count(/events) > 0">
 			<!-- results Request -->
@@ -129,20 +134,25 @@
 				<RequestHeader name="VendorProductName" value="QRadar" />
 				<RequestBody type="application/json" encoding="UTF-8">${/results_body}</RequestBody>
 			</CallEndpoint>
+			
 			<!-- Handle Errors -->
 			<If condition="/results/status_code != 200">
 				<Log type="ERROR" message="CyberArk Audit: Workflow Aborting.. Failure in results. Error:: ${/results/body}" />
 				<Abort reason="Failed results. Error:: ${/results/body}" />
-			</If>
-			<!-- Extract next cursorRef -->
-			<Set path="/cursor" value="${/results/body/paging/cursor/cursorRef}" />
+			</If>			
+			<Log type="INFO" message="CyberArk Audit: Next cursorRef ${/cursory}" />
+			
 			<!-- Extract results data -->
 			<Set path="/events" value="${/results/body/data}" />
+			
 			<!-- Post Events, if any -->
 			<If condition="count(/events) > 0">
             	<Log type="INFO" message="CyberArk Audit: Found ${count(/events)} Audit Events to post" />
 				<PostEvents path="/events" source="${/host}" />
 			</If>
+			
+			<!-- Extract next cursorRef -->
+			<Set path="/cursor" value="${/results/body/paging/cursor/cursorRef}" />
 		</DoWhile>
 	</Actions>
 </Workflow>
