@@ -1,6 +1,12 @@
+Author Name: Nitsan Tzur
+Maintainer Name: @nitsan-tzur
+Version Number: 0
+Event type: Audit trail events from CyberArk's Audit Service.
+
 ## Collect Audit Events from CyberArk Audit Service
 
-To integrate with QRadar, you need to add a CyberArk Audit connector in QRadar's Universal REST connector. To do so, you'll need to configure new SIEM integration described here (TBD):
+To integrate with QRadar, you need to add a CyberArk Audit connector in QRadar's Universal REST connector. To do so, you'll need to configure new SIEM integration described [here](https://docs.cyberark.com/audit/latest/en/Content/Audit/isp_SIEM-integration-API.htm?tocpath=Developer%7C_____1):
+
   
 
 ## QRadar Log Source Configuration
@@ -30,3 +36,12 @@ Parameter Values).
 4. host : API Base URL that can be retrieved from Audit Service.
 5. api_key : API Key that can be retrieved from Audit Service.
 6. webapp_id : Application ID of OAuth2 server web app.
+
+
+Troubleshooting 
+-------------------
+You can extract the debug run of the workflow from /var/log/qradar.log into a file and share the file with Cyberark support. Each workflow has 
+a specific prefix for logging.
+
+For event workflow:
+grep “CyberArk Audit” qradar.log > aggevent.log
