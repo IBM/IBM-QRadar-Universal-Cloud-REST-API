@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Cyble Threat Intel" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
-<!--    Reading required parameters for the Workflow-->
+    <!--    Reading required parameters for the Workflow-->
     <Parameters>
         <Parameter name="hostname" label="Hostname" required="true" secret="true" />
         <Parameter name="api_key" label="Api Key" required="true" secret="true" />
@@ -10,14 +10,16 @@
 
     <Actions>
 
-<!--        Initializing parameters-->
+        <!--        Initializing parameters-->
         <Initialize path="/isFirstFetch" value="True" />
         <Initialize path="/fromDate" value="" />
         <Initialize path="/toDate" value="" />
+        <Initialize path="/fetch_since_int" value="1" />
 
-<!--        Checking whether the current run is fetching for the first time-->
+        <!--        Checking whether the current run is fetching for the first time-->
         <If condition="/isFirstFetch = 'True'">
-            <Set path="/fromDate" value="${time() - /fetch_since * 24 * 60 * 60 * 1000}" />
+            <Set path="/fetch_since_int" value="${/fetch_since}" />
+            <Set path="/fromDate" value="${time() - /fetch_since_int * 24 * 60 * 60 * 1000}" />
             <Set path="/isFirstFetch" value="False" />
             <Log type="INFO" message="CybleThreatIntel:: Fetching events for the first time." />
         </If>
@@ -27,37 +29,37 @@
 
         <Set path="/toDate" value="${time() - 1}" />
 
-<!--        Formatting date from epoch notation to standard notation-->
+        <!--        Formatting date from epoch notation to standard notation-->
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/fromDate}" savePath="/fromDateFormatted" />
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/toDate}" savePath="/toDateFormatted" />
 
         <Log type="INFO" message="CybleThreatIntel:: Fetching events from: ${/fromDateFormatted} to: ${/toDateFormatted}" />
 
-<!--        Fetching count of total events available in the given time frame-->
+        <!--        Fetching count of total events available in the given time frame-->
         <CallEndpoint url="https://${/hostname}/apollo/api/v1/y/alerts" method="POST" savePath="/get_count">
             <RequestHeader name="Accept" value="*/*" />
             <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
             <RequestHeader name="Content-Type" value="application/json" />
             <RequestBody type="application/json" encoding="UTF-8">
                 {
-                    "countOnly": true,
-                    "where": {
-                        "created_at": {
-                            "gte": "${/fromDateFormatted}",
-                            "lte": "${/toDateFormatted}"
-                        }
-                    }
+                "countOnly": true,
+                "where": {
+                "created_at": {
+                "gte": "${/fromDateFormatted}",
+                "lte": "${/toDateFormatted}"
+                }
+                }
                 }
             </RequestBody>
         </CallEndpoint>
 
-<!--        Handling error-->
+        <!--        Handling error-->
         <If condition="${/get_count/status_code} != 200">
             <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
             <Abort reason="${/get_count/status_code}: ${/get_count/status_message}" />
         </If>
 
-<!--        Setting parameters for API request for fetching events-->
+        <!--        Setting parameters for API request for fetching events-->
         <Set path="/total_count" value="${/get_count/body/data/count}" />
         <Set path="/skip" value="0" />
         <Set path="/take" value="1000" />
@@ -73,49 +75,49 @@
                 <RequestHeader name="Content-Type" value="application/json" />
                 <RequestBody type="application/json" encoding="UTF-8">
                     {
-                        "orderBy": [
-                            {
-                                "created_at": "asc"
-                            }
-                        ],
-                        "select": {
-                            "archive_date": true,
-                            "archived": true,
-                            "assignee_id": true,
-                            "assignment_date": true,
-                            "created_at": true,
-                            "data_id": true,
-                            "deleted_at": true,
-                            "description": true,
-                            "hash": true,
-                            "id": true,
-                            "metadata": true,
-                            "risk_score": true,
-                            "service": true,
-                            "severity": true,
-                            "status": true,
-                            "tags": true,
-                            "updated_at": true,
-                            "user_severity": true
-                        },
-                        "skip": ${/skip},
-                        "take": ${/take},
-                        "withDataMessage": true,
-                        "where": {
-                            "created_at": {
-                                "gte": "${/fromDateFormatted}",
-                                "lte": "${/toDateFormatted}"
-                            },
-                            "status": {
-                                "in": [
-                                    "VIEWED",
-                                    "UNREVIEWED",
-                                    "CONFIRMED_INCIDENT",
-                                    "UNDER_REVIEW",
-                                    "INFORMATIONAL"
-                                ]
-                            }
-                        }
+                    "orderBy": [
+                    {
+                    "created_at": "asc"
+                    }
+                    ],
+                    "select": {
+                    "archive_date": true,
+                    "archived": true,
+                    "assignee_id": true,
+                    "assignment_date": true,
+                    "created_at": true,
+                    "data_id": true,
+                    "deleted_at": true,
+                    "description": true,
+                    "hash": true,
+                    "id": true,
+                    "metadata": true,
+                    "risk_score": true,
+                    "service": true,
+                    "severity": true,
+                    "status": true,
+                    "tags": true,
+                    "updated_at": true,
+                    "user_severity": true
+                    },
+                    "skip": ${/skip},
+                    "take": ${/take},
+                    "withDataMessage": true,
+                    "where": {
+                    "created_at": {
+                    "gte": "${/fromDateFormatted}",
+                    "lte": "${/toDateFormatted}"
+                    },
+                    "status": {
+                    "in": [
+                    "VIEWED",
+                    "UNREVIEWED",
+                    "CONFIRMED_INCIDENT",
+                    "UNDER_REVIEW",
+                    "INFORMATIONAL"
+                    ]
+                    }
+                    }
                     }
                 </RequestBody>
             </CallEndpoint>
@@ -128,9 +130,6 @@
 
             <Log type="INFO" message="CybleThreatIntel:: Fetched ${count(/get_events/body/data)} events." />
 
-<!--            <PostEvents path="/get_events/body/data" source="${/hostname}" />-->
-
-<!--            Posting events one by one-->
             <ForEach item="/current_event" items="/get_events/body/data">
                 <PostEvent path="/current_event" source="${/hostname}" />
             </ForEach>
@@ -142,7 +141,7 @@
 
     </Actions>
 
-<!--    Running tests-->
+    <!--    Running tests-->
     <Tests>
         <DNSResolutionTest host="${/hostname}" />
         <TCPConnectionTest host="${/hostname}" />
