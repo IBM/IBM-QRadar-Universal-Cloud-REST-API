@@ -32,8 +32,8 @@ Parameter Values).
 
 1. client_id : The OAuth2 Username from Identity Administration.
 2. client_secret : The OAuth2 Password from Identity Administration.
-3. identity_endpoint : Identity Endpoint that can be retrieved from Audit Service.
-4. host : API Base URL that can be retrieved from Audit Service.
+3. identity_host : Identity Endpoint that can be retrieved from Audit Service. **WITHOUT** "https://" prefix
+4. api_host : API Base URL that can be retrieved from Audit Service. **WITHOUT** "https://" prefix
 5. api_key : API Key that can be retrieved from Audit Service.
 6. webapp_id : Application ID of OAuth2 server web app.
 

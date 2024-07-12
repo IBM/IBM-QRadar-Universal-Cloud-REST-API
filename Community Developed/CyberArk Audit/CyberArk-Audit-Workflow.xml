@@ -4,9 +4,9 @@
 	<Parameters>
 		<Parameter name="client_id" label="OAuth Username" required="true" />
 		<Parameter name="client_secret" label="OAuth Password" required="true" secret="true" />
-		<Parameter name="identity_endpoint" label="Identity Endpoint" required="true" />
+		<Parameter name="identity_host" label="Identity Endpoint" required="true" />
 		<Parameter name="api_key" label="API Key" required="true" />
-		<Parameter name="host" label="API Host" required="true" />
+		<Parameter name="api_host" label="API Host" required="true" />
 		<Parameter name="webapp_id" label="WebApp ID" required="true" />
 	</Parameters>
 	<Actions>
@@ -65,7 +65,7 @@
 		
 		<!-- Fetch API OAuth Token-->
 		<Log type="INFO" message="CyberArk Audit: Requesting OAuth token" />
-		<CallEndpoint url="${/identity_endpoint}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
+		<CallEndpoint url="https://${/identity_host}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
 			<RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
 			<UrlEncodedFormRequestBody>
 				<Parameter name="grant_type" value="client_credentials" />
@@ -89,7 +89,7 @@
 		<!-- createQuery Request - If no cursor saved-->
 		<If condition="/cursor = null">
 			<Log type="INFO" message="CyberArk Audit: Execute createQuery request with query ${/create_query_body}" />
-			<CallEndpoint url="${/host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
+			<CallEndpoint url="https://${/api_host}/api/audits/stream/createQuery" method="POST" savePath="/create_query">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="content-type" value="application/json" />
 				<RequestHeader name="x-api-key" value="${/api_key}" />
@@ -122,7 +122,7 @@
             }
             ' />
             <Log type="INFO" message="CyberArk Audit: Results body ${/results_body}" />
-			<CallEndpoint url="${/host}/api/audits/stream/results" method="POST" savePath="/results">
+			<CallEndpoint url="https://${/api_host}/api/audits/stream/results" method="POST" savePath="/results">
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="content-type" value="application/json" />
 				<RequestHeader name="x-api-key" value="${/api_key}" />
@@ -148,11 +148,18 @@
 			<!-- Post Events, if any -->
 			<If condition="count(/events) > 0">
             	<Log type="INFO" message="CyberArk Audit: Found ${count(/events)} Audit Events to post" />
-				<PostEvents path="/events" source="${/host}" />
+				<PostEvents path="/events" source="${/api_host}" />
 			</If>
 			
 			<!-- Extract next cursorRef -->
 			<Set path="/cursor" value="${/results/body/paging/cursor/cursorRef}" />
 		</DoWhile>
 	</Actions>
+	<Tests>
+		<DNSResolutionTest host="${/api_host}"/>
+        <SSLHandshakeTest host="${/api_host}"/>
+
+		<DNSResolutionTest host="${/identity_host}"/>
+        <SSLHandshakeTest host="${/identity_host}"/>
+    </Tests>
 </Workflow>
