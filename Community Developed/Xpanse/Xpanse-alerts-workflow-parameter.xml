@@ -3,6 +3,6 @@
 	<Value name="api_key" value="API Key value goes here" />
 	<Value name="api_key_id" value="API Key ID value goes here" />
 	<Value name="xpanse_tenant" value="Xpanse Tenant/FQDN value goes here" />
-	<Value name="historical_poll" value="" />
-	<!-- Provide the number of days (i.e) from that time alerts will be fetched -->
+	<Value name="historical_poll" value="30" />
+	<!-- Provide the number of days (i.e) from that time alerts will be fetchedm, max value supported by xpanse is 90 -->
 </WorkflowParameterValues>
