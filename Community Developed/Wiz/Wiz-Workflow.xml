@@ -118,7 +118,7 @@
 
         <!-- Post Events, if any -->
         <If condition="count(/get_events/body/data/issues/nodes) > 0">            
-            <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
+            <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}__Issues" />
 
             <!-- Update the bookmark -->
             <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/statusChangedAt)}" savePath="/current_event_time" />
@@ -198,7 +198,7 @@
 
             <!-- Post Events, if any -->
             <If condition="count(/get_events/body/data/issues/nodes) > 0">
-                <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
+                <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}__Issues" />
                 
                 <!-- Update the bookmark -->
                 <If condition="max(/get_events/body/data/issues/nodes/statusChangedAt) != null">
