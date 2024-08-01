@@ -97,7 +97,7 @@
 
         <!-- Post Events, if any -->
         <If condition="count(/get_audit_logs/body/data/auditLogEntries/nodes) > 0">            
-            <PostEvents path="/get_audit_logs/body/data/auditLogEntries/nodes" source="${/host}" />
+            <PostEvents path="/get_audit_logs/body/data/auditLogEntries/nodes" source="${/host}__Audit" />
             <Log type="INFO" message="WIZ: First API call for Audit Logs is done. Sent ${count(/get_audit_logs/body/data/auditLogEntries/nodes)} Wiz Audit Events to QRadar" />
 
         </If>
@@ -145,7 +145,7 @@
 
             <!-- Post Events, if any -->
             <If condition="count(/get_audit_logs/body/data/auditLogEntries/nodes) > 0">
-                <PostEvents path="/get_audit_logs/body/data/auditLogEntries/nodes" source="${/host}" />                
+                <PostEvents path="/get_audit_logs/body/data/auditLogEntries/nodes" source="${/host}__Audit" />                
                 <Log type="INFO" message="WIZ: Paginated API call for Audit Logs is done. Sent ${count(/get_audit_logs/body/data/auditLogEntries/nodes)} Wiz Audit Logs to QRadar" />
             </If>
             
