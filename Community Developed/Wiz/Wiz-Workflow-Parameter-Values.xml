@@ -30,6 +30,7 @@
                     name
                     controlDescription: description
                     resolutionRecommendation
+                    risks
                     securitySubCategories {
                         title
                         category {
@@ -48,6 +49,7 @@
                     cloudEventRuleDescription: description
                     sourceType
                     type
+                    risks
                     }
                     ... on CloudConfigurationRule {
                     id
@@ -55,6 +57,7 @@
                     cloudConfigurationRuleDescription: description
                     remediationInstructions
                     serviceType
+                    risks
                     }
                 }
                 createdAt
