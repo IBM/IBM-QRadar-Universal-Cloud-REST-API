@@ -1,6 +1,6 @@
 # Workflow for collecting Audit event logs from Gitlab
 
-Author & Maintainer: Michal Pavlis (@michal0000000)
+Author & Maintainer: Michal Pavlis (@michal0000000)  
 Version Number: v1.0.0
 
 ## Userful Links:
