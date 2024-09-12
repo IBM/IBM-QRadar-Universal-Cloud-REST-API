@@ -17,7 +17,7 @@ Version Number: v1.0.0
 
 ## Parameters you will need:
 
-- `api_host` - hostname of your Gitlab instance
-- `access_token` - Personal Access Token with admin privileges
-- `log_type` - One of the following: `instance`,`groups`,`projects`
-- `object_id` - Only used when `log_type` is `groups` or `projects`, represents the ID
+- `apiHost` - hostname of your Gitlab instance
+- `accessToken` - Personal Access Token with admin privileges
+- `logType` - One of the following: `instance`,`groups`,`projects`
+- `objectId` - Only used when `log_type` is `groups` or `projects`, represents the ID

@@ -3,59 +3,59 @@
 
     <Parameters>
 
-        <Parameter name="api_host" label="API Host" required="true" />
-        <Parameter name="access_token" label="Gitlab Personal Access Token" required="true" secret="true" />
+        <Parameter name="apiHost" label="API Host" required="true" />
+        <Parameter name="accessToken" label="Gitlab Personal Access Token" required="true" secret="true" />
 
-	<Parameter name="log_type" label="Audit log type: `groups`, `projects` or `instance`" required="true" />
-        <Parameter name="object_id" label="Group or project ID" required="false" />
+	<Parameter name="logType" label="Audit log type: `groups`, `projects` or `instance`" required="true" />
+        <Parameter name="objectId" label="Group or project ID" required="false" />
 
     </Parameters>
 
     <Actions>
 
-        <If condition="'${/log_type}' = 'instance'">
-            <Initialize path="/url" value="https://${/api_host}/api/v4/audit_events" />
+        <If condition="'${/logType}' = 'instance'">
+            <Initialize path="/url" value="https://${/apiHost}/api/v4/audit_events" />
         </If>
-        <ElseIf condition="'${/log_type}' = 'projects' or '${/log_type}' = 'groups'">
-            <Initialize path="/url" value="https://${/api_host}/api/v4/${/log_type}/${/object_id}/audit_events" />
+        <ElseIf condition="'${/logType}' = 'projects' or '${/logType}' = 'groups'">
+            <Initialize path="/url" value="https://${/apiHost}/api/v4/${/logType}/${/objectId}/audit_events" />
         </ElseIf>
 	<Log type="INFO" message="Initialized URL ${/url}." />
 
 	<Initialize path="/events/body" value="[]" />
-	<Initialize path="/next_page" value="1" />
+	<Initialize path="/nextPage" value="1" />
 
-        <FormatDate pattern="YYYY-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${time() - 60 * 1000}" savePath="/since_timestamp" />
+        <FormatDate pattern="YYYY-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${time() - 60 * 1000}" savePath="/sinceTimestamp" />
 
         <DoWhile condition="count(/events/body) > 0">
 
-            <Log type="INFO" message="Processing events for page ${/next_page - 1}." />
+            <Log type="INFO" message="Processing events for page ${/nextPage - 1}." />
 
 	    <ForEach item="/event" items="/events/body">
-                <PostEvent path="/event" source="${/api_host}"/>
+                <PostEvent path="/event" source="${/apiHost}"/>
             </ForEach>
 
             <CallEndpoint url="${/url}" method="GET" savePath="/events">
-                <QueryParameter name="private_token" value="${/access_token}" />
+                <QueryParameter name="private_token" value="${/accessToken}" />
                 <QueryParameter name="per_page" value="20" />
-                <QueryParameter name="page" value="${/next_page}" />
-                <QueryParameter name="created_after" value="${/since_timestamp}" />
+                <QueryParameter name="page" value="${/nextPage}" />
+                <QueryParameter name="created_after" value="${/sinceTimestamp}" />
             </CallEndpoint>
 
             <If condition="/respose/status_code != 200">
                 <Log type="ERROR" message="Problem fetching logs, response was: ${/response}." />
             </If>
 
-            <Set path="/next_page" value="${/next_page + 1}" />
+            <Set path="/nextPage" value="${/nextPage + 1}" />
             
         </DoWhile>
        
     </Actions>
 
     <Tests>
-        <DNSResolutionTest host="${/api_host}" />
-        <TCPConnectionTest host="${/api_host}" />
-        <SSLHandshakeTest host="${/api_host}" />
-        <HTTPConnectionThroughProxyTest url="https://${/api_host}" />
+        <DNSResolutionTest host="${/apiHost}" />
+        <TCPConnectionTest host="${/apiHost}" />
+        <SSLHandshakeTest host="${/apiHost}" />
+        <HTTPConnectionThroughProxyTest url="https://${/apiHost}" />
     </Tests>
 
 </Workflow>
