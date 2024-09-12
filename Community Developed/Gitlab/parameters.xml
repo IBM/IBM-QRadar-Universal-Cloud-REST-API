@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+    <Value name="api_host" value="" />
+    <Value name="access_token" value="" />
+    <Value name="log_type" value="" />
+    <Value name="object_id" value="" />
+</WorkflowParameterValues>
