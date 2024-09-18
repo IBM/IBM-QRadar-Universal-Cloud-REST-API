@@ -40,7 +40,7 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 
 ## 5. Test Protocol Parameters ##
 1.  Click *Start Test* to start the testing of the entered workflows, once it is finished click *Finish*.
-2.  Deploy the configuration from admin panel.
+2.  From admin panel perform a **Deploy Changes** to activate the newly configured log source.
 
 
 # Workflow Parameter Description #
