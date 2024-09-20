@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Workflow xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1" name="PureStorage FlashBlade" version="1.0">
+<Workflow xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" name="PureStorage FlashBlade" version="1.0">
    <Parameters>
       <Parameter name="array" label="Array" required="true" />
       <Parameter name="apitoken" label="Access Token" required="true" secret="true" />
@@ -33,11 +33,11 @@
       <DoWhile condition="/get_events/body/continuation_token != null">
 
       <If condition="/get_events/body/continuation_token != null">
-        <Log type="INFO" message="Prepare URL to read next set of alerts if more than 10 alerts from the first API call" />
+        <Log type="INFO" message="Prepare URL to read next set of alerts if more than 50 alerts from the first API call" />
         <Set path="/url" value="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;continuation_token=${/get_events/body/continuation_token}&amp;limit=50" />
       </If>
       <Else> 
-         <Log type="INFO" message="Prepare URL to fetch the alert from FlashBlade for the last 5 minutes. Limiting to 10 alerts" />
+         <Log type="INFO" message="Prepare URL to fetch the alert from FlashBlade for the last 5 minutes. Limiting to 50 alerts" />
          <Set path="/url" value="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;limit=50" />
       </Else>
       <Log type="INFO" message="Sending GET call to FlashBlade" />
@@ -53,7 +53,7 @@
             <!-- Post Events, if any -->
 
       <If condition="count(/get_events/body/items) &gt; 0">
-         <Log type="INFO" message="Valid alers present, posting alert to QRadar" />
+         <Log type="INFO" message="Valid alerts present, posting alert to QRadar" />
          <PostEvents path="/get_events/body/items" source="${/array}" />
 
          <!-- Update the bookmark -->
