@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workflow xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" name="PureStorage FlashBlade" version="1.0">
+   <Parameters>
+      <Parameter name="array" label="Array" required="true" />
+      <Parameter name="apitoken" label="Access Token" required="true" secret="true" />
+   </Parameters>
+   <Actions>
+      <!-- Initialize the Bookmark -->
+      <Initialize path="/bookmark" value="${time() - (24 * 60 * 60 * 1000)}" />
+
+      <!-- Get suuported API version -->
+      <CallEndpoint url="https://${/array}/api/api_version" method="GET" savePath="/get_apiversion" />
+      <Set path="/apiarraycount" value="${count(/get_apiversion/body/versions) - 1}" />
+      <Set path="/apiversion" value="${/get_apiversion/body/versions[/apiarraycount]}" />
+      <Log type="INFO" message="Unni-test - The API version ${/apiversion}" />
+
+      
+      <!-- Login with apitoken-->
+      <CallEndpoint url="https://${/array}/api/login" method="POST" savePath="/get_access_token">
+         <RequestHeader name="Content-Type" value="application/json" />
+         <RequestHeader name="api-token" value="${/apitoken}" />
+      </CallEndpoint>
+
+      <Log type="INFO" message="Unni-test - Login ${/get_access_token}" />
+
+    <!-- Extract the Access Token -->
+      <Set path="/access_token" value="${/get_access_token/headers/X-Auth-Token}" />
+
+
+   <!-- Epoch time 5 min before -->
+      <Set path="/5min_time" value="${time() - (5 * 60 * 1000)}" />
+
+      <DoWhile condition="/get_events/body/continuation_token != null">
+
+      <If condition="/get_events/body/continuation_token != null">
+        <Log type="INFO" message="Prepare URL to read next set of alerts if more than 50 alerts from the first API call" />
+        <Set path="/url" value="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;continuation_token=${/get_events/body/continuation_token}&amp;limit=50" />
+      </If>
+      <Else> 
+         <Log type="INFO" message="Prepare URL to fetch the alert from FlashBlade for the last 5 minutes. Limiting to 50 alerts" />
+         <Set path="/url" value="https://${/array}/api/${/apiversion}/alerts?filter=updated%3E${/5min_time}&amp;limit=50" />
+      </Else>
+      <Log type="INFO" message="Sending GET call to FlashBlade" />
+      <CallEndpoint url="${/url}" method="GET" savePath="/get_events">
+        <RequestHeader name="Content-Type" value="application/json" />
+       <RequestHeader name="x-auth-token" value="${/access_token}" />
+      </CallEndpoint>
+      <!-- Handle Errors -->
+      <Log type="INFO" message="Checking API response" />
+      <If condition="/get_events/status_code != 200">
+         <Abort reason="${/get_events/body}" />
+      </If>
+            <!-- Post Events, if any -->
+
+      <If condition="count(/get_events/body/items) &gt; 0">
+         <Log type="INFO" message="Valid alerts present, posting alert to QRadar" />
+         <PostEvents path="/get_events/body/items" source="${/array}" />
+
+         <!-- Update the bookmark -->
+         <Set path="/bookmark" value="${max(/get_events/body/items/updated)}" />
+      </If>
+      </DoWhile>
+
+   </Actions>
+   <Tests>
+      <TCPConnectionTest host="${/array}" />
+   </Tests>
+</Workflow>
+
+
