@@ -47,10 +47,3 @@ To ingest audit log data from Torq using the Universal Cloud REST API Protocol, 
 9. Make sure to **turn off** the Coalescing Events.
 10. In the **Test protocol parameters** window, click **Start Test**.
 11. Once the test is successful, click **Finish**.
-
-**Workflow Parameter Description (Torq-AuditLogs-Workflow.xml)**
-
-- **client_id**: The Client ID retrieved from Torq.
-- **client_secret**: The Client Secret retrieved from Torq.
-- **base_url**: The Base URL for Torq’s API.
-- **log_source_name**: The name you assign to the log source in QRadar.
