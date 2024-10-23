@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="client_id" value="<CLIENT_ID_FROM_TORQ>" />
+    <Value name="client_secret" value="<CLIENT_SECRET_FROM_TORQ>" />
+    <Value name="base_url" value="https://api.torq.io/public" />
+    <Value name="log_source_name" value="torq_audit_logs" />
+</WorkflowParameterValues>

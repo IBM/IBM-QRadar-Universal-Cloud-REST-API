@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Torq" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+        <Parameter name="client_id" label="Client Id" required="true" />
+        <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+        <Parameter name="base_url" label="Base URL" required="true" />
+        <Parameter name="log_source_name" label="Log Source Name" required="true" />
+    </Parameters>
+    <Actions>
+        <!-- Initialize or update bookmark -->
+        <If condition="/bookmark = null">
+            <Initialize path="/bookmark" value="${time() - (60000 * 60 * 1)}" /> <!-- Default to 1 hours ago (epoch milliseconds) -->
+        </If>
+        <!-- Format bookmark to ISO8601 string for API call -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" time="${/bookmark}" savePath="/start_time" />
+
+        <!-- Get access token -->
+        <CallEndpoint url="https://auth.torq.io/v1/auth/token" method="POST" savePath="/get_access_token">
+            <BasicAuthentication username="${/client_id}" password="${/client_secret}" />
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+        <If condition="/get_access_token/status_code != 200">
+            <Abort reason="${/get_access_token/body/error}" />
+        </If>
+
+        <!-- Initialize pagination variables -->
+        <Initialize path="/audit_log_page_token" value="" />
+        <Initialize path="/max_timestamp" value="${/bookmark}" /> <!-- To track the latest timestamp (epoch milliseconds) -->
+
+        <!-- Do-While loop for pagination -->
+        <DoWhile condition="${/audit_log_page_token != null and /audit_log_page_token != ''}">
+            <CallEndpoint url="${/base_url}/v1alpha/audit_logs" method="GET" savePath="/get_audit_log_entries">
+                <BearerAuthentication token="${/get_access_token/body/access_token}" />
+                <QueryParameter name="page_size" value="100" />
+                <QueryParameter name="page_token" value="${/audit_log_page_token}" omitIfEmpty="true" />
+                <QueryParameter name="start_time" value="${/start_time}" />
+                <QueryParameter name="order" value="asc" />
+            </CallEndpoint>
+            <If condition="/get_audit_log_entries/status_code != 200">
+                <Abort reason="${/get_audit_log_entries/body/message}" />
+            </If>
+            <If condition="${count(/get_audit_log_entries/body/audit_logs)} &gt; 0">
+                <PostEvents path="/get_audit_log_entries/body/audit_logs" source="${/log_source_name}" />
+                <!-- Extract the maximum timestamp string from audit_logs -->
+                <Set path="/max_timestamp_str" value="${max(/get_audit_log_entries/body/audit_logs/timestamp)}" />
+                <!-- Log the extracted max timestamp string -->
+                <Log type="INFO" message="Extracted max timestamp string: ${/max_timestamp_str}" />
+                <!-- Parse the maximum timestamp string to epoch milliseconds -->
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" date="${/max_timestamp_str}" savePath="/parsed_max_timestamp" />
+                <!-- Log the parsed max timestamp -->
+                <Log type="INFO" message="Parsed max timestamp (epoch ms): ${/parsed_max_timestamp}" />
+                <!-- Compare and update max_timestamp if parsed_max_timestamp is greater -->
+                <If condition="${/parsed_max_timestamp > /max_timestamp}">
+                    <Set path="/max_timestamp" value="${/parsed_max_timestamp}" />
+                    <Log type="INFO" message="Updated max_timestamp to: ${/max_timestamp}" />
+                </If>
+                <Else>
+                    <Log type="INFO" message="Current max_timestamp (${ /max_timestamp }) is greater than parsed_max_timestamp (${ /parsed_max_timestamp })" />
+                </Else>
+            </If>
+            <!-- Update page_token for the next iteration -->
+            <Set path="/audit_log_page_token" value="${/get_audit_log_entries/body/next_page_token}" />
+            <Log type="INFO" message="Updated page_token to: ${/audit_log_page_token}" />
+        </DoWhile>
+
+        <!-- Update bookmark after all pages have been processed -->
+        <Set path="/bookmark" value="${/max_timestamp + 1000}" />
+
+        <!-- Log the updated bookmark -->
+        <Log type="INFO" message="Updated bookmark to: ${/bookmark}" />
+    </Actions>
+    <Tests>
+        <DNSResolutionTest host="api.torq.io" />
+        <TCPConnectionTest host="api.torq.io" />
+        <HTTPConnectionThroughProxyTest url="https://api.torq.io" />
+        <DNSResolutionTest host="auth.torq.io" />
+        <TCPConnectionTest host="auth.torq.io" />
+        <HTTPConnectionThroughProxyTest url="https://auth.torq.io" />
+    </Tests>
+</Workflow>
