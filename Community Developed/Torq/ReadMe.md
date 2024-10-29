@@ -22,12 +22,16 @@ The workflow requires the following parameters, which can be retrieved by a Torq
    * `https://api.torq.io/public`  
    * or  
    * `https://api.eu.torq.io/public` for EU region.
-
+4. **auth_base_url**: The Auth Base URL of your Torq workspace.
+   * `https://auth.torq.io/v1/auth/token`
+   * or
+   * `https://auth.eu.torq.io/v1/auth/token` for EU region.
 Once you have these, you will need to update the **Torq-Workflow-Parameter-Values.xml** file with the following fields:
 
 - **client_id**: Your Torq Client ID.
 - **client_secret**: Your Torq Client Secret.
 - **base_url**: The API Base URL.
+- **auth_base_url**: The API Auth Base URL.
 - **log_source_name**: The name of the log source that will be used in qRadar.
 
 **Configure qRadar**

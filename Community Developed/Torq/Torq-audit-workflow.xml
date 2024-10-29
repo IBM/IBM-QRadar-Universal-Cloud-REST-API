@@ -4,6 +4,7 @@
         <Parameter name="client_id" label="Client Id" required="true" />
         <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
         <Parameter name="base_url" label="Base URL" required="true" />
+        <Parameter name="base_auth_url" label="Auth URL" required="true" />
         <Parameter name="log_source_name" label="Log Source Name" required="true" />
     </Parameters>
     <Actions>
@@ -15,7 +16,7 @@
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'" timeZone="UTC" time="${/bookmark}" savePath="/start_time" />
 
         <!-- Get access token -->
-        <CallEndpoint url="https://auth.torq.io/v1/auth/token" method="POST" savePath="/get_access_token">
+        <CallEndpoint url="${/base_auth_url}" method="POST" savePath="/get_access_token">
             <BasicAuthentication username="${/client_id}" password="${/client_secret}" />
             <UrlEncodedFormRequestBody>
                 <Parameter name="grant_type" value="client_credentials" />
