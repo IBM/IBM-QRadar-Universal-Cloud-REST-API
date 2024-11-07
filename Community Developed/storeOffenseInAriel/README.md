@@ -1,7 +1,11 @@
-Author Name: Vishal Tangadkar 
+Author Name: Vishal Tangadkar
+
 Email: vishal.tangadkar1@ibm.com
+
 Maintainer Name:tangadkarv1990
+
 Version Number:1.0
+
 Endpoint Documentation:
 https://www.ibm.com/docs/en/qradar-common?topic=api-endpoint-documentation-supported-versions
 
