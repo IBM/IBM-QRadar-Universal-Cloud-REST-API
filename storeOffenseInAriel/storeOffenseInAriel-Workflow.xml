@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Ariel" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+	<Parameters>
+		<Parameter name="host" label="Host" required="true" />
+    		<Parameter name="auth_token" label="Auth_token" required="true" />
+		<!--<Parameter name="username" label="Username" required="true" />-->
+		<!--<Parameter name="password" label="Password" required="true" />-->
+	</Parameters>
+    
+    	<Actions>
+    	<!--
+        /////////////////////
+        // Search for Offenses// ${time()}
+        /////////////////////
+    	-->
+
+	<!-- Initialise lastUpdatedDate to old bookmark value or 0 if no bookmark available otherwise start from lastUpdatedDate from state.json-->
+	<Initialize path="/lastUpdatedDate" value="0" />  
+    	<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/lastUpdatedDate}" savePath="/lastUpdatedDateFormated" />
+	<!-- Initialise firstRunDate to old bookmark value or 0 if no bookmark available otherwise start from lastUpdatedDate from state.json-->
+	<Initialize path="/firstRunDate" value="${time()}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/firstRunDate}" savePath="/firstRunDateFormated" />
+        <!-- /totalCount use to store overall pulled events from the discovery -->
+        <Initialize path="/totalCount" value="0" />
+	<Initialize path="/totalAttempt" value="0" />
+
+
+    	<!-- Set currentTime to current time so that we can read all offense till current time -->
+    	<Set path="/currentTime" value="${time()}" />
+    	<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="GMT" time="${/currentTime}" savePath="/enddateFormated" />
+	<!-- /count to store pulled events in single run -->
+	<Set path="/totalCountInThisAttempt" value="0" />
+	<!-- intiate pages to be used in single run -->
+	<Set path="/pageOffset" value="0" />
+	<Set path="/pageSize" value="100" />
+	<Set path="/count" value="0" />
+
+	<Set path="/getOffenses/body" value="0" />
+
+	<Log type="INFO" message="Checking events from lastUpdatedDate=${/lastUpdatedDate} and currentTime=${/currentTime}" />
+	<Log type="INFO" message="Checking events from lastUpdatedDate=${/lastUpdatedDateFormated} and currentTime=${/enddateFormated}" />
+	<Log type="INFO" message="Events collected before this run is ${/totalCount}" />
+	<Log type="INFO" message="Total ${/totalAttempt} Attempts has been done so far" />
+
+	<DoWhile condition="count(/getOffenses/body) > 0">
+		<Log type="INFO" message="The value was pageOffset=${/pageOffset} and pageSize=${/pageSize}" />
+		<CallEndpoint url="https://${/host}/api/siem/offenses?filter=last_persisted_time%3E${/lastUpdatedDate}" method="GET" savePath="/getOffenses">
+			<SSLConfiguration allowUntrustedServerCertificate="true" />
+			<BearerAuthentication token="${/auth_token}"/>
+			<RequestHeader name="SEC" value="${/auth_token}" />
+			<RequestHeader name="Accept" value="application/json" />
+			<RequestHeader name="Content-Type" value="text/xml" />
+			<RequestHeader name="Version" value="22.0" />
+			<RequestHeader name="Range" value="items=${/pageOffset}-${/pageOffset + /pageSize - 1}" />
+		</CallEndpoint>
+
+		<!-- If API is Fails do further processing -->
+		<If condition="/getOffenses/status_code != 200">
+        		<Abort reason="${/getOffenses/status_code}: ${/getOffenses/status_message}" />
+			<Log type="INFO" message="${/getOffenses/status_code}: ${/getOffenses/status_message}" />
+		</If>
+
+		<!-- If API is successful do further processing -->
+		<ElseIf condition="/getOffenses/status_code = 200">
+			 <If condition="count(/getOffenses/body) > 0">
+        			<!--POST EVENTS-->
+				<Set  path="/count" value="0" />	
+				<Log type="INFO" message="Total Events Collected are ${count(/getOffenses/body)}" />
+        			<ForEach item="/singleOffense" items="/getOffenses/body">
+                			<PostEvent path="/singleOffense" source="${/host}" />
+                			<Set path="/count" value="${/count + 1}" />
+        			</ForEach>
+        			<Log type="INFO" message="Total Events Posted are ${/count}" />
+				<Set path="/totalCount" value="${/totalCount + /count}" />
+				<Set path="/totalCountInThisAttempt" value="${/totalCountInThisAttempt + /count}" />
+				<Set path="/pageOffset" value="${/pageOffset + /pageSize}" />
+			</If>
+			<Set path="/totalAttempt" value="${/totalAttempt + 1}" />
+		</ElseIf>
+	</DoWhile>
+
+	<Log type="INFO" message="Total Events Posted in this run are ${/totalCountInThisAttempt}" />
+	<Set path="/lastUpdatedDate" value="${/currentTime}" />
+	
+	</Actions>
+    
+	<Tests>
+		<DNSResolutionTest host="${/host}" />
+		<TCPConnectionTest host="${/host}" />
+		<HTTPConnectionThroughProxyTest url="https://${/host}" />
+	</Tests>
+    
+    
+</Workflow>
