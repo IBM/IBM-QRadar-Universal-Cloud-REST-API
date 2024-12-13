@@ -1,7 +1,7 @@
 # BeyondTrust PM Cloud + IBM QRadar Integration
 
 ***Written and maintained by:** BeyondTrust Corporation*
-***Version:** 23.1.1*
+***Version:** 24.1.1*
 
 This document describes the installation and configuration of the integration between BeyondTrust Privilege Management Cloud and IBM QRadar.
 
@@ -32,18 +32,19 @@ Once the prerequisites have been satisfied, you can move on to the installation 
 
 ### Install Extension Package
 
-The extension package is currently available via the downloads section of the BeyondTrust Support portal.  Once you have acquired the package, to install the extension:
-1. Authenticate to your QRadar instance as an administrator
-2. Navigate to **Admin > System Configuration > Extensions Management**
-3. In the Extensions Management window, click the **Add** button to begin the process of adding a new extension
-4. Browse to and select the ZIP archive containing the extension and click **Add** to begin installation
-5. Proceed through the subsequent dialogs to complete the installation process
+The extension package is available via the IBM Security App Exchange:
+1. Go to the App Exchange at: https://exchange.xforce.ibmcloud.com/hub
+2. Search for **BeyondTrust**; select and then download the app for PM Cloud then download
+3. Navigate to **Admin > System Configuration > Extensions Management**
+4. In the Extensions Management window, click the **Add** button to begin the process of adding a new extension
+5. Browse to and select the extension file downloaded from the App Exchange and click **Add** to begin installation
+6. Proceed through the subsequent dialogs to complete the installation process
 
 ### Download and Configure Workflows
 
 After the extension is installed, the other primary component of the integration is the pair of workflow definitions and parameters.  The two definitions files provide the logic to make the PM Cloud API calls to retrieve event data while the parameters files provide the necessary configuration for those workflows.
 
-These files are all published to IBM's Universal Cloud REST API connector library, available here:  [https://github.com/IBM/IBM-QRadar-Universal-Cloud-REST-API/tree/master/Community%20Developed/BeyondTrust](https://github.com/IBM/IBM-QRadar-Universal-Cloud-REST-API/tree/master/Community%20Developed/BeyondTrust)
+These files are all published to IBM's Universal Cloud REST API connector library, available here:  [https://github.com/IBM/IBM-QRadar-Universal-Cloud-REST-API/tree/master/Community%20Developed/BeyondTrust/PM%20Cloud](https://github.com/IBM/IBM-QRadar-Universal-Cloud-REST-API/tree/master/Community%20Developed/BeyondTrust/PM%20Cloud)
 1. From the link above, download all 4 XML files.  These should include:
     - BeyondTrust-PMCloud-ActivityAudits-Workflow.xml
     - BeyondTrust-PMCloud-ActivityAudits-Workflow-Parameter-Values.xml
@@ -78,7 +79,7 @@ The following steps describe how to add a Log Source for either of the two data 
     - *(Supply or modify other fields as needed)*
 6. Click the **Protocol** tab to proceed to the next configuration section
 7. On the **Protocol** tab, enter the appropriate values in each of the configuration fields:
-    - **Log Source Identifier** - Provide a value to describe the source of these events; IBM suggests the name / hostname of the system generating the events
+    - **Log Source Identifier** - It is suggested to initially use a dummy value, then once all configuration is entered and you reach the **Test** step below, the test should return the correct identifier. Use that value to replace the dummy value. 
     - **Workflow** - Copy and paste the contents of the appropriate workflow XML file here
     - **Workflow Parameters** - Copy and paste the contents of the appropriate workflow parameters XML file here
     - *(Supply or modify other fields as needed)*
