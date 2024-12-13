@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+    <Value name="api_key"    value="xoxp-111111111111-2222222222222-3333333333333-ffffffffffffffffffffffffffffffff" />
+    <Value name="api_url"    value="slack.com/api/" />
+    <Value name="api_method" value="team.accessLogs" /> 
+</WorkflowParameterValues>

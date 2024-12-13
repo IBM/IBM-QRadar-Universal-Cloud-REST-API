@@ -1,38 +1,21 @@
-### Workflow for Nozomi Networks Vantage
+### Workflows for Nozomi Networks Universal
 
 #### Author Name: Nozomi Networks
 #### Maintainer Name: NozomiNetworks
 #### Version Number: 1.0.0
-#### Event Types Currently Supported by the workflow: Alerts and Assets
+#### Event Types Currently Supported by the workflows: Alerts and Assets
 
 #### Workflow Parameter Values
 To configure the _Workflow_ the user has to add the _Workflow Parameter Values_ containing the Vantage `host`, `key_name`, `key_token` and the `org` (organization name).
-To generate the `key_name` and the `key_token` follow the Vantage guide.  
-The _organization name_ if match more than one organization will return the data of the first one: if does not match anyone will return the data of the default organization.
+To generate the `key_name` and the `key_token` follow the Vantage guide.
+
+#### Example host
+The host must without the protocol `http`
+```nozominetworkscom.customers.vantage.io```
 
 
-The organization name could contain a special character, every special characters has to be escaped, examples:
-
-`"` to  `&quot;`
-
-`'` to `&apos;`
-
-`<` to `&lt;`
-
-`>` to `&gt;`
-
-`&` to `&amp;`
-
-
-#### Example
-
-The organization name: 
-```Dolce&Gabbana``` 
-must be written inside the XML as: 
-```Dolce&amp;Gabbana```
-
-#### Workflow
-The workflow get all the Assets and Alerts from the host configured.
+#### Workflows
+The workflows are two, are thought to be used to configure LogSource to get Assets and Alerts from an host.
 It could be useful to get the Alerts only from a given time, to do it you can modify the Workflow bookmark initialization; for example if you want to get the Alerts from the last hour you can initialize the bookmark as:
 
 ```<Initialize path="/bookmark" value="${time() - 3600000}" />```
@@ -53,7 +36,7 @@ The `Asset` events are mapped with the `ASSET-INFO` mapping event if the `type` 
 To see all the Properties and `Event Mappings` in the `Nozomi Netoworks Vantage` app for QRadar go to the `DSM editor` and select the `Nozomi Networks Vantage`  `Log Source Type`.
 
 ### Troubbleshooting
-To see the logs of the apconnect via `ssh` with your QRadar instance and go to:
+To see the logs of the app connect via `ssh` with your QRadar instance and go to:
 
 ```
 docker ps #to get the container id 
@@ -68,7 +51,7 @@ or check for errors in the logs here:
 - /var/log/qradar.error
 ```
 
-the workflow print some logs starting with `NN Vantage`.
+the workflow print some logs starting with `NN Universal`. 
 
 ### Support
 If you have any issues with the Workflow and/or the `Nozomi Netoworks Vantage` app for QRadar you can ask support to:

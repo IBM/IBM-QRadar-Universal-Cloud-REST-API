@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Wiz" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="client_id" label="Client ID" required="true" />
+        <Parameter name="client_secret" label="Client Secret" required="true" secret="true" />
+        <Parameter name="token_url_domain" label="JWT Auth Endpoint" required="true" />
+        <Parameter name="host" label="API Endpoint" required="true" />
+        <Parameter name="auth_type" label="Authentication Type" required="true" />
+        <Parameter name="audit_logs_gql_query" label="GraphQL Query" required="true" />
+        <Parameter name="gql_query" label="GraphQL Query" required="false" />
+    </Parameters>
+
+    
+    <Actions>
+        <Log type="INFO" message="WIZ: Workflow Actions started for Audit Logs..." />
+        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3" />
+        <If condition="/audit_bookmark != null">
+            <!-- Format Date to be passed in fetching events -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/audit_bookmark}" savePath="/audit_timestamp" />
+        </If>
+        
+
+        <If condition="/audit_timestamp != null">
+            <Log type="INFO" message="WIZ: Incremental Polling started for Audit Logs. Pulling Audit Logs from: ${/audit_timestamp}" />
+        </If>
+        <Else>
+            <!-- Set the date for 14 days before Historical Polling -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${time() - 14 * 86400000}" savePath="/audit_timestamp" />
+            <Log type="INFO" message="WIZ: Historical Polling started. Pulling all Audit Logs from: ${/audit_timestamp}" />
+        </Else>
+        <Set path="/audit_bookmark" value="${time()}"/>
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/audit_bookmark}" savePath="/before_time" />
+        <!-- Updating the GraphQL query variable for Incremental/Historical Polling  -->
+        <Set
+            path="/audit_gql_query_variables"
+            value='{
+                "first":500,
+                "filterBy": {
+                    "timestamp":{
+                        "after": "${/audit_timestamp}",
+                        "before": "${/before_time}"
+                    }
+                }
+            }' 
+        />
+           
+
+        <!-- Initialize the Audience Parameter -->
+        <Initialize path="/audience_parameter" value="wiz-api" />
+
+        <If condition="'${/auth_type}' = 'auth0'">
+            <Set path="/audience_parameter" value="beyond-api" />
+        </If>
+        
+        <!-- Fetch API Token -->
+        <CallEndpoint url="https://${/token_url_domain}/oauth/token" method="POST" savePath="/get_access_token">
+            <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+            <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+            <UrlEncodedFormRequestBody>
+                <Parameter name="grant_type" value="client_credentials" />
+                <Parameter name="client_id" value="${/client_id}" />
+                <Parameter name="client_secret" value="${/client_secret}" />
+                <Parameter name="audience" value="${/audience_parameter}" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <Log type="INFO" message="WIZ: Auth Token API call status code:: ${/get_access_token/status_code}" />
+
+        <!-- Handle Errors -->
+        <If condition="/get_access_token/status_code != 200">
+            <Log type="ERROR" message="WIZ: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
+            <Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
+        </If>
+
+        <!-- Extract the Access Token -->
+        <Set path="/access_token" value="${/get_access_token/body/access_token}" />
+
+        <!-- Fetch Events -->
+        <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_audit_logs">
+            <QueryParameter name="query" value="${/audit_logs_gql_query}" />
+            <QueryParameter name="variables" value="${/audit_gql_query_variables}" />
+            <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+            <RequestHeader name="content-type" value="application/json" />
+            <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+        </CallEndpoint>
+
+        <Log type="INFO" message="WIZ: First API call for Audit Logs status code:: ${/get_audit_logs/status_code}" />
+       
+        <!-- Handle Errors -->
+        <If condition="/get_audit_logs/status_code != 200">
+            <Log type="ERROR" message="WIZ: Workflow Aborting.. Failure while fetching Audit Logs. Error:: ${/get_audit_logs/body}" />
+            <Abort reason="Failed while fetching Wiz Audit Logs. Error:: ${/get_audit_logs/body}" />
+        </If>
+
+        <Log type="INFO" message="WIZ: First API call fetched ${count(/get_audit_logs/body/data/auditLogEntries/nodes)}  Wiz Audit Logs" />
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_audit_logs/body/data/auditLogEntries/nodes) > 0">            
+            <PostEvents path="/get_audit_logs/body/data/auditLogEntries/nodes" source="${/host}__Audit" />
+            <Log type="INFO" message="WIZ: First API call for Audit Logs is done. Sent ${count(/get_audit_logs/body/data/auditLogEntries/nodes)} Wiz Audit Events to QRadar" />
+
+        </If>
+
+        
+        <!-- Fetch remaining events -->
+        <While condition="/get_audit_logs/body/data/auditLogEntries/pageInfo/hasNextPage">
+
+            <Set
+                path="/audit_gql_query_variables"
+                value='{
+                    "first":500,
+                    "filterBy": {
+                        "timestamp":{
+                            "after": "${/audit_timestamp}",
+                            "before": "${/before_time}"
+                        }   
+                    },
+                    "after": "${/get_audit_logs/body/data/auditLogEntries/pageInfo/endCursor}"
+                }' 
+            />
+
+
+
+            <Log type="INFO" message="WIZ: Paginated API call for Audit Logs: Using this GraphQL variable : ${/audit_gql_query_variables}" />
+            
+            <!-- Fetch events -->
+            <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_audit_logs">
+                <QueryParameter name="query" value="${/audit_logs_gql_query}" />
+                <QueryParameter name="variables" value="${/audit_gql_query_variables}" />
+                <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+                <RequestHeader name="content-type" value="application/json" />
+                <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+            </CallEndpoint>
+
+            <Log type="INFO" message="WIZ: Paginated API call for audit Logs status code: ${/get_audit_logs/status_code}" />
+
+            <!-- Handle Errors -->
+            <If condition="/get_audit_logs/status_code != 200">
+                <Log type="ERROR" message="WIZ: Workflow Aborting.. Failure while fetching Audit Logs. Error:: ${/get_audit_logs/body}" />
+                <Abort reason="Failed while fetching Wiz Audit Logs. Error:: ${/get_audit_logs/body}" />
+            </If>
+
+            <Log type="INFO" message="WIZ: Paginated API call for Audit Logs. Fetched ${count(/get_audit_logs/body/data/auditLogEntries/nodes)} Wiz Audit Logs" />
+
+            <!-- Post Events, if any -->
+            <If condition="count(/get_audit_logs/body/data/auditLogEntries/nodes) > 0">
+                <PostEvents path="/get_audit_logs/body/data/auditLogEntries/nodes" source="${/host}__Audit" />                
+                <Log type="INFO" message="WIZ: Paginated API call for Audit Logs is done. Sent ${count(/get_audit_logs/body/data/auditLogEntries/nodes)} Wiz Audit Logs to QRadar" />
+            </If>
+            
+
+        </While>
+        <Set path="/audit_bookmark" value="${/audit_bookmark + 1000}"/>
+        <Log type="INFO" message="WIZ: Updated the bookmark for Audit Logs ${/audit_bookmark}." />
+        <Log type="INFO" message="WIZ: All Actions for Audit Logs are completed." />
+
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <DNSResolutionTest host="${/token_url_domain}" />
+        <TCPConnectionTest host="${/token_url_domain}" />
+        <SSLHandshakeTest host="${/token_url_domain}" />
+    </Tests>
+
+
+</Workflow>

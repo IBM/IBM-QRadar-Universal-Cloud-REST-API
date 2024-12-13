@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="ZeroNetworks" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    <Parameters>
+        <Parameter name="api_token" label="API Token" required="true" secret="true" />
+        <Parameter name="host" label="Portal Hostname" required="true" />
+        <Parameter name="initial_historical_days" label="Historical Days" required="true" />
+    </Parameters>
+    <Actions>
+        <!-- Initialize the Bookmark -->
+        <Initialize path="/bookmark" value="${time() - (${/initial_historical_days} * 24 * 60 * 60 * 1000)}" />
+
+        <!-- Fetch Events -->
+        <CallEndpoint url="https://${/host}/api/v1/audit" method="GET" savePath="/get_events">
+            <QueryParameter name="_limit" value="400" />
+            <QueryParameter name="order" value="asc" />
+            <QueryParameter name="from" value="${/bookmark}" />
+            <RequestHeader name="Authorization" value="${/api_token}" />
+        </CallEndpoint>
+        
+        <!-- Handle Errors -->
+        <If condition="/get_events/status_code != 200">
+            <Log type="INFO" message="ZN Abort Reason Error:: ${/get_events/body}" />
+            <Abort reason="Failed while fetching ZN Audit Logs. Error:: ${/get_events/body}" />
+        </If>
+
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/items) > 0">
+
+            <PostEvents path="/get_events/body/items" source="${/host}" />
+
+            <!-- Update the bookmark -->
+            <Initialize path="/scrollCursor" value="${/get_events/body/scrollCursor}" />
+            <If condition="/scrollCursor + 1000 > /bookmark" >
+                <Set path="/bookmark" value="${/scrollCursor + 1000}" />
+            </If>
+        </If>
+
+        <!-- Fetch remaining events -->
+        <While condition="/get_events/body/scrollCursor">
+            
+            <!-- Fetch events -->
+            <CallEndpoint url="https://${/host}/api/v1/audit" method="GET" savePath="/get_events">
+                <SSLConfiguration allowUntrustedServerCertificate="true" />
+                <QueryParameter name="_limit" value="400" />
+                <QueryParameter name="order" value="asc" />
+                <QueryParameter name="from" value="${/scrollCursor}" />
+                <RequestHeader name="Authorization" value="${/api_token}" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_events/status_code != 200">
+                <Log type="INFO" message="ZN Abort Reason Error:: ${/get_events/body}" />
+                <Abort reason="Failed while fetching ZN Audit Logs. Error:: ${/get_events/body}" />
+            </If>
+
+            <!-- Post Events, if any -->
+            <If condition="count(/get_events/body/items) > 0">
+
+                <PostEvents path="/get_events/body/items" source="${/host}" />
+
+                <!-- Update the bookmark -->
+                <Initialize path="/scrollCursor" value="${/get_events/body/scrollCursor}" />
+                <If condition="/scrollCursor + 1000 > /bookmark" >
+                    <Set path="/bookmark" value="${/scrollCursor + 1000}" />
+                </If>
+            </If>
+        </While>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <!-- Fails even with certificate check disabled <SSLHandshakeTest host="${/host}" />-->
+    </Tests>
+
+</Workflow>
