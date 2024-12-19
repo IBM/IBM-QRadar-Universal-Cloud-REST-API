@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Vectra XDR" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+
+    <!-- Collect configurations from workflow parameter file -->
+    <Parameters>
+        <Parameter name="vectraHostName" label="Vectra Hostname" required="true"/>
+        <Parameter name="clientId" label="Client ID" required="true"/>
+        <Parameter name="historical" label="Historical Collection" required="true"/>
+        <Parameter name="secretKey" label="Secret Key" secret="true" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Clear status of log source -->
+        <ClearStatus />
+
+        <!-- Defining variables for running workflow -->
+        <Set path="/vectraUrl" value="https://${/vectraHostName}"/>
+        <Set path="/logPrefix" value="[Vectra_XDR_App_for_QRadar][Detections][${/vectraUrl}]" />
+        <Initialize path="/errorCount" value="0" />
+        <Initialize path="/maxRetry" value="3" />
+        <Initialize path="/createTokenEndpoint" value="/oauth2/token" />
+        <Initialize path="/eventDetectionEndpoint" value="/api/v3.3/events/detections" />
+        <Initialize path="/detectionEndpoint" value="/api/v3.3/detections" />
+        <Initialize path="/limit" value="250" />
+        <Initialize path="/refreshToken" value="" />
+        <Initialize path="/defaultSleepTime" value="30" />
+        <Initialize path="/appVersion" value="1.0.0" />
+        <Initialize path="/userAgentHeader" value="Vectra-QRadar-${/appVersion}" />
+
+        <!-- Detection checkpoint -->
+        <Initialize path="/detectionNextCheckpoint" value="" />
+
+        <!-- Store current timestamp -->
+        <Initialize path="/currentEpochTime" value="${time()}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/currentEpochTime}" savePath="/formattedCurrentTime" />
+
+        <!-- Store past 24 hours timestamp -->
+        <Initialize path="/defaultEpochTime" value="${time() - 86400000}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/defaultEpochTime}" savePath="/defaultEventTime" />
+
+        <!-- Print log in the /var/log/qradar.log file with info log level -->
+        <Log type="INFO" message="${/logPrefix} - Detection collection started." />
+
+        <Set path="/errorCount" value="0" />
+
+        <!-- Perform data collection continously in case of no error -->
+        <While condition="${/errorCount != ${/maxRetry}}">
+
+            <!-- Create Refresh Token if it is not created -->
+            <If condition="${empty(/refreshToken)} = 'true'">
+
+                <Log type="INFO" message="${/logPrefix} - Refresh token not found. Creating new Access and Refresh token using provided credentials." />
+
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                    <!-- Create Refresh token and Access Token using Client ID and secret and save response at Jpath /refreshTokenResponse -->
+                    <CallEndpoint url="${/vectraUrl}${/createTokenEndpoint}" method="POST" savePath="/refreshTokenResponse">
+
+                        <!-- Implicitly convert username and password in the format of basic authentication - "Basic Base64Encode(username:password)" -->
+                        <BasicAuthentication username="${/clientId}" password="${/secretKey}" />
+
+                        <!-- Request header -->
+                        <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
+
+                        <!-- Request body in the urlencoded format -->
+                        <UrlEncodedFormRequestBody>
+                            <Parameter name="grant_type" value="client_credentials" />
+                            <Parameter name="Accept" value="application/json" />
+                            <Parameter name="content-type" value="application/x-www-form-urlencoded" />
+                        </UrlEncodedFormRequestBody>
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/refreshTokenResponse/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
+                            <Abort reason="Number of retries exceeded for status code 429." />
+                        </If>
+
+                        <!-- Calculating back off time, if it is not present in header take default time -->
+                        <Set path="/sleepTime" value="${/refreshTokenResponse/headers/retry-after}" />
+                        <If condition="${/sleepTime = ''}">
+                            <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                        </If>
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                        <Sleep duration="${/sleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Storing Refresh token and Access token from API response -->
+                <If condition="${/refreshTokenResponse/status_code} = 200">
+                    <Log type="INFO" message="${/logPrefix} - Refresh token and Access token created successfully." />
+                    <Set path="/refreshToken" value="${/refreshTokenResponse/body/refresh_token}" />
+                    <Set path="/accessToken" value="${/refreshTokenResponse/body/access_token}" />
+                </If>
+
+                <!-- Aborting execution of workflow for http status code other than 200 -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access token with status code - ${/refreshTokenResponse/status_code}, Body - ${/refreshTokenResponse/body}" />
+                    <Abort reason="API call failed while creating Access token with status code - ${/refreshTokenResponse/status_code}" />
+                </Else>
+
+            </If>
+            <Else>
+
+                <Log type="INFO" message="${/logPrefix} - Refresh token found. Creating new Access token using stored Refresh token." />
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                    <!-- Create an Access Token using Refresh token and save response at Jpath /accessTokenResponse-->
+                    <CallEndpoint url="${/vectraUrl}${/createTokenEndpoint}" method="POST" savePath="/accessTokenResponse">
+
+                        <!-- Request header -->
+                        <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
+
+                        <!-- Request body in the urlencoded format -->
+                        <UrlEncodedFormRequestBody>
+                            <Parameter name="grant_type" value="refresh_token" />
+                            <Parameter name="Content-Type" value="application/x-www-form-urlencoded" />
+                            <Parameter name="refresh_token" value="${/refreshToken}" />
+                        </UrlEncodedFormRequestBody>
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/accessTokenResponse/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
+                            <Abort reason="Number of retries exceeded for status code 429." />
+                        </If>
+
+                        <!-- Calculating back off time, if it is not present in header take default time -->
+                        <Set path="/sleepTime" value="${/accessTokenResponse/headers/retry-after}" />
+                        <If condition="${/sleepTime = ''}">
+                            <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                        </If>
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                        <Sleep duration="${/sleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Storing Access token from API response -->
+                <If condition="${/accessTokenResponse/status_code} = 200">
+                    <Log type="INFO" message="${/logPrefix} - Access token created successfully." />
+                    <Set path="/accessToken" value="${/accessTokenResponse/body/access_token}" />
+                </If>
+
+                <!-- Incase of expired Refresh token -->
+                <ElseIf condition="${/accessTokenResponse/status_code} = 401">
+
+                    <Log type="INFO" message="${/logPrefix} - Refresh token is expired. Recreating an Access token and Refresh token using provided credentials." />
+                    <Set path="/rateLimitErrorCount" value="0" />
+                    <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                        <!-- Create a Refresh token and Access Token using Client ID and secret and save response at Jpath /refreshTokenResponse-->
+                        <CallEndpoint url="${/vectraUrl}${/createTokenEndpoint}" method="POST" savePath="/refreshTokenResponse">
+
+                            <!-- Implicitly convert username and password in the format of basic authentication - "Basic Base64Encode(username:password)" -->
+                            <BasicAuthentication username="${/clientId}" password="${/secretKey}" />
+
+                            <!-- Request header -->
+                            <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
+
+                            <!-- Request body in the urlencoded format -->
+                            <UrlEncodedFormRequestBody>
+                                <Parameter name="grant_type" value="client_credentials" />
+                                <Parameter name="Accept" value="application/json" />
+                                <Parameter name="content-type" value="application/x-www-form-urlencoded" />
+                            </UrlEncodedFormRequestBody>
+                        </CallEndpoint>
+
+                        <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                        <If condition="${/refreshTokenResponse/status_code} = 429">
+                            <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                            <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                            <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                                <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
+                                <Abort reason="Number of retries exceeded for status code 429." />
+                            </If>
+
+                            <!-- Calculating back off time, if it is not present in header take default time -->
+                            <Set path="/sleepTime" value="${/refreshTokenResponse/headers/retry-after}" />
+                            <If condition="${/sleepTime = ''}">
+                                <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                            </If>
+                            <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                            <Sleep duration="${/sleepTime * 1000}" />
+                        </If>
+                        <Else>
+                            <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                        </Else>
+                    </While>
+
+                    <!-- Storing Refresh token and Access token from API response -->
+                    <If condition="${/refreshTokenResponse/status_code} = 200">
+                        <Log type="INFO" message="${/logPrefix} - Refresh token and Access token created successfully." />
+                        <Set path="/refreshToken" value="${/refreshTokenResponse/body/refresh_token}" />
+                        <Set path="/accessToken" value="${/refreshTokenResponse/body/access_token}" />
+                    </If>
+
+                    <!-- Aborting execution of workflow for failed API call -->
+                    <Else>
+                        <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access token with status code - ${/refreshTokenResponse/status_code}, Body - ${/refreshTokenResponse/body}" />
+                        <Abort reason="API call failed while creating Access token with status code - ${/refreshTokenResponse/status_code}" />
+                    </Else>
+                </ElseIf>
+
+                <!-- Aborting execution of workflow for failed API call with status code other than 200 and 401 -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access token with status code - ${/accessTokenResponse/status_code}, Body - ${/accessTokenResponse/body}" />
+                    <Abort reason="API call failed while creating Access token with status code - ${/accessTokenResponse/status_code}" />
+                </Else>
+            </Else>
+
+            <!-- Set event timestamp value past 24 hours in case of historical is true else current time -->
+            <If condition="${'${lower(/historical)}' = 'true'}">
+                <Set path="/eventTimestamp" value="${/defaultEventTime}" />
+            </If>
+            <Else>
+                <Set path="/eventTimestamp" value="${/formattedCurrentTime}" />
+            </Else>
+
+            <If condition="${empty(/detectionNextCheckpoint)} = 'true'">
+                <Log type="INFO" message="${/logPrefix} Collecting detections from event_timestamp_gte ${/eventTimestamp}" />
+            </If>
+            <Else>
+                <Log type="INFO" message="${/logPrefix} Collecting detections from checkpoint id ${/detectionNextCheckpoint}" />
+            </Else>
+
+            <!-- Fetch Detections with retry mechanism for 401 status code and save response at Jpath /detection/response-->
+            <Set path="/errorCount" value="0" />
+            <Set path="/loopBreaker" value="false" />
+
+            <While condition="${/loopBreaker} = false">
+
+                <!-- Collect Detections using checkpoint ID if present else use event Timestamp -->
+                <If condition="${empty(/detectionNextCheckpoint)} = 'true'">
+                    <Log type="INFO" message="${/logPrefix} Collecting detections with limit = ${/limit}, event_time_gte = ${/eventTimestamp}" />
+                </If>
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Collecting detections with limit = ${/limit}, from = ${/detectionNextCheckpoint}" />
+                    <Set path="/eventTimestamp" value="" />
+                </Else>
+
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+                    <CallEndpoint url="${/vectraUrl}${/eventDetectionEndpoint}" method="GET" savePath="/detection/response">
+
+                        <BearerAuthentication token="${/accessToken}" />
+
+                        <QueryParameter name="limit" value="${/limit}" omitIfEmpty="true" />
+                        <QueryParameter name="event_timestamp_gte" value="${/eventTimestamp}" omitIfEmpty="true" />
+                        <QueryParameter name="from" value="${/detectionNextCheckpoint}" omitIfEmpty="true" />
+
+                        <!-- Request header -->
+                        <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
+
+                        <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "Accept": "application/json",
+                        "content-type": "application/x-www-form-urlencoded"
+                    }
+                        </RequestBody>
+
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/detection/response/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
+                            <Abort reason="Number of retries exceeded for status code 429." />
+                        </If>
+
+                        <!-- Calculating back off time, if it is not present in header take default time -->
+                        <Set path="/sleepTime" value="${/detection/response/headers/retry-after}" />
+                        <If condition="${/sleepTime = ''}">
+                            <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                        </If>
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                        <Sleep duration="${/sleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+                <If condition="/detection/response/status_code = 200">
+
+                    <Set path="/newEvents" value="[]" />
+
+                    <!-- Process collected detection events. -->
+                    <Set path="/idString" value="" />
+                    <ForEach item="/currentEvent" items="/detection/response/body/events">
+                        <If condition="${/currentEvent/type = 'host'}">
+                            <If condition="${empty(/idString)} = 'true'">
+                                <Set path="/idString" value="${/currentEvent/detection_id}" />
+                            </If>
+                            <Else>
+                                <Set path="/idString" value="${/idString},${/currentEvent/detection_id}" />
+                            </Else>
+                        </If>
+                        <Else>
+                            <Set path="/currentEvent/detail" value="'${/currentEvent/detail}'" />
+                            <Add path="/newEvents" value="${/currentEvent}" />
+                        </Else>
+                    </ForEach>
+                    <!-- Collect and add detection detials for host type of detection into the pipeline response. -->
+                    <Set path="/ingestEvents" value="true" />
+                    <If condition="${empty(/idString)} != 'true'">
+                        <Set path="/loopBreakerDetection" value="false" />
+
+                        <Set path="/page" value="1" />
+                        <Log type="INFO" message="${/logPrefix} Collecting detection details for ids = ${/idString}" />
+
+                        <While condition="${/loopBreakerDetection} = false">
+
+                            <Log type="INFO" message="${/logPrefix} Collecting detection details with page = ${/page}" />
+
+                            <Set path="/rateLimitErrorCountDetection" value="0" />
+                            <While condition="${/rateLimitErrorCountDetection != ${/maxRetry}}">
+                                <CallEndpoint url="${/vectraUrl}${/detectionEndpoint}" method="GET" savePath="/detections/response">
+
+                                    <BearerAuthentication token="${/accessToken}" />
+
+                                    <QueryParameter name="id" value="${/idString}" omitIfEmpty="true" />
+                                    <QueryParameter name="page" value="${/page}" omitIfEmpty="true" />
+
+                                    <!-- Request header -->
+                                    <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
+
+                                    <RequestBody type="application/json" encoding="UTF-8">
+                                {
+                                    "Accept": "application/json",
+                                    "content-type": "application/x-www-form-urlencoded"
+                                }
+                                    </RequestBody>
+
+                                </CallEndpoint>
+
+                                <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                                <If condition="${/detections/response/status_code} = 429">
+                                    <Set path="/rateLimitErrorCountDetection" value="${/rateLimitErrorCountDetection + 1}" />
+                                    <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                                    <If condition="${/rateLimitErrorCountDetection = ${/maxRetry}}">
+                                        <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
+                                        <Abort reason="Number of retries exceeded for status code 429." />
+                                    </If>
+
+                                    <!-- Calculating back off time, if it is not present in header take default time -->
+                                    <Set path="/sleepTime" value="${/detections/response/headers/retry-after}" />
+                                    <If condition="${/sleepTime = ''}">
+                                        <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                                    </If>
+                                    <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                                    <Sleep duration="${/sleepTime * 1000}" />
+                                </If>
+                                <Else>
+                                    <Set path="/rateLimitErrorCountDetection" value="${/maxRetry}" />
+                                </Else>
+                            </While>
+
+                            <If condition="/detections/response/status_code = 200">
+
+                                <ForEach item="/currentDetection" items="/detections/response/body/results">
+                                    <Set path="/detection_details/is_key_asset" value="${/currentDetection/src_host/is_key_asset}" />
+                                    <Set path="/detection_details/is_targeting_key_asset" value="${/currentDetection/is_targeting_key_asset}" />
+
+                                    <Set path="/eventLists" value="${/detection/response/body/events[@detection_id = /currentDetection/id]}" />
+
+                                    <ForEach item="/currentEvent" items="/eventLists">
+                                        <Set path="/currentEvent/detection_details" value="[${/detection_details}]" />
+                                        <Set path="/currentEvent/src_ip" value="${/currentDetection/src_ip}" />
+                                        <Set path="/currentEvent/grouped_details/bytes_sent" value="${/currentDetection/grouped_details/bytes_sent}" />
+                                        <Set path="/currentEvent/grouped_details/bytes_received" value="${/currentDetection/grouped_details/bytes_received}" />
+                                        <Set path="/currentEvent/grouped_details/dst_ips" value="${/currentDetection/grouped_details/dst_ips}" />
+
+                                        <Set path="/currentEvent/grouped_details" value="[${/currentEvent/grouped_details}]" />
+
+                                        <Set path="/currentEvent/summary" value="[${/currentDetection/summary}]" />
+                                        <Add path="/newEvents" value="${/currentEvent}" />
+                                    </ForEach>
+                                </ForEach>
+                                <If condition="${/detections/response/body/next = null}">
+                                    <Set path="/loopBreakerDetection" value="true"/>
+                                </If>
+                                <Else>
+                                    <Set path="/page" value="${/page + 1}"/>
+                                </Else>
+
+                            </If>
+                            <ElseIf condition="/detections/response/status_code = 401">
+
+                                <!-- To retry for 401 status code -->
+                                <Set path="/loopBreakerDetection" value="true"/>
+                                <Set path="/loopBreaker" value="true"/>
+                                <Set path="/ingestEvents" value="false"/>
+                                <Set path="/errorCount" value="${/errorCount + 1}" />
+                                <Log type="INFO" message="${/logPrefix} - Access token is expired with status code - 401" />
+                                <Set path="/accessToken" value="" />
+                            </ElseIf>
+                            <Else>
+                                <Log type="INFO" message="${/logPrefix} - API call failed for collecting detections with status code - ${/detections/response/status_code}, Body - ${/detections/response/body}" />
+                                <Abort reason="API call failed for collecting detections with status code - ${/detections/response/status_code}" />
+                            </Else>
+                        </While>
+                    </If>
+
+                    <If condition="${/ingestEvents} = true">
+                        <!-- Ingest collected detections into QRadar -->
+                        <PostEvents path="/newEvents" source="${/vectraUrl}" />
+
+                        <!-- Update checkpoint id to latest detection -->
+                        <Log type="INFO" message="${/logPrefix} - Total ${count(/newEvents)} detections ingested in QRadar." />
+                        <Log type="INFO" message="${/logPrefix} - Next checkpoint id = ${/detection/response/body/next_checkpoint}" />
+
+                        <Set path="/detectionNextCheckpoint" value="${/detection/response/body/next_checkpoint}" />
+                        <If condition="${count(/newEvents) != ${/limit}}">
+                            <Set path="/loopBreaker" value="true"/>
+                            <Set path="/errorCount" value="${/maxRetry}"/>
+                            <Log type="INFO" message="${/logPrefix} Detection collection completed." />
+                        </If>
+                    </If>
+                </If>
+                <ElseIf condition="/detection/response/status_code = 401">
+
+                    <!-- To retry for 401 status code -->
+                    <Set path="/loopBreaker" value="true"/>
+                    <Set path="/errorCount" value="${/errorCount + 1}" />
+                    <Log type="INFO" message="${/logPrefix} - Access token is expired with status code - 401" />
+                    <Set path="/accessToken" value="" />
+                </ElseIf>
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting detections with status code - ${/detection/response/status_code}, Body - ${/detection/response/body}" />
+                    <Abort reason="API call failed for collecting detections with status code - ${/detection/response/status_code}" />
+                </Else>
+            </While>
+        </While>
+    </Actions>
+
+    <!-- Performing some connectivity tests -->
+    <Tests>
+        <DNSResolutionTest host="${/vectraHostName}" />
+        <TCPConnectionTest host="${/vectraHostName}" />
+        <SSLHandshakeTest host="${/vectraHostName}" />
+        <HTTPConnectionThroughProxyTest url="https://${/vectraHostName}" />
+    </Tests>
+</Workflow>

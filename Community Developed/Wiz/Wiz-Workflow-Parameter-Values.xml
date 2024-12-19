@@ -9,66 +9,66 @@
     <!-- Enter the domain for Endpoint URL. Eg: api.eu.app.wiz.io -->
     <Value name="host"  value="" />
 
-    <Value name="initial_historical_days" value="10" />
-
     <!-- Defines Authentication for Wiz Server. Accepted values=cognito/auth0 -->
     <Value name="auth_type"     value="cognito" />
 
     <Value
         name="gql_query"
-        value="query IssuesTable(
-                $filterBy: IssueFilters
-                $first: Int
-                $after: String
-                $orderBy: IssueOrder
-                ) {
-                issues(
-                    filterBy: $filterBy
-                    first: $first
-                    after: $after
-                    orderBy: $orderBy
-                ) {
-                    nodes {
-                    ...IssueDetails
-                    }
-                    pageInfo {
-                    hasNextPage
-                    endCursor
-                    }
-                    totalCount
-                    informationalSeverityCount
-                    lowSeverityCount
-                    mediumSeverityCount
-                    highSeverityCount
-                    criticalSeverityCount
-                    uniqueEntityCount
-                }
-                }
-            
-                fragment IssueDetails on Issue {
+        value="
+           query IssuesTable($filterBy: IssueFilters, $first: Int, $after: String, $orderBy: IssueOrder) {
+            issues: issuesV2(
+                filterBy: $filterBy
+                first: $first
+                after: $after
+                orderBy: $orderBy
+            ) {
+                nodes {
                 id
-                control {
+                sourceRule {
+                    ... on Control {
                     id
                     name
-                    query
+                    controlDescription: description
+                    resolutionRecommendation
+                    risks
                     securitySubCategories {
-                        id
                         title
                         category {
+                        id
+                        name
+                        framework {
                             id
                             name
-                            framework {
-                                id
-                            }
                         }
+                        }
+                    }
+                    }
+                    ... on CloudEventRule {
+                    id
+                    name
+                    cloudEventRuleDescription: description
+                    sourceType
+                    type
+                    risks
+                    }
+                    ... on CloudConfigurationRule {
+                    id
+                    name
+                    cloudConfigurationRuleDescription: description
+                    remediationInstructions
+                    serviceType
+                    risks
                     }
                 }
                 createdAt
                 updatedAt
+                dueAt
+                type
+                resolvedAt
+                statusChangedAt
                 projects {
                     id
                     name
-                    slug
                     businessUnit
                     riskProfile {
                     businessImpact
@@ -76,45 +76,82 @@
                 }
                 status
                 severity
-                entity {
-                    id
-                    name
-                    type
-                }
                 entitySnapshot {
                     id
                     type
                     nativeType
                     name
-                    subscriptionId
-                    subscriptionExternalId
-                    subscriptionName
-                    resourceGroupId
-                    resourceGroupExternalId
-                    region
+                    status
                     cloudPlatform
                     cloudProviderURL
                     providerId
-                    status
-                    tags
+                    region
+                    resourceGroupExternalId
+                    subscriptionExternalId
+                    subscriptionName
                     subscriptionTags
-                }
-                note
-                serviceTicket {
+                    tags
+                    createdAt
                     externalId
-                    name
-                    url
                 }
                 serviceTickets {
                     externalId
                     name
                     url
-                    action {
-                    id
-                    type
+                }
+                notes {
+                    createdAt
+                    updatedAt
+                    text
+                    user {
+                    name
+                    email
+                    }
+                    serviceAccount {
+                    name
                     }
                 }
                 }
-            "
+                pageInfo {
+                hasNextPage
+                endCursor
+                }
+            }
+            }
+
+        "
+    />
+    
+    <Value
+        name="audit_logs_gql_query"
+        value="
+            query AuditLogTable($first: Int $after: String $filterBy: AuditLogEntryFilters){
+            auditLogEntries(first: $first after: $after filterBy: $filterBy) {
+            nodes {
+                __typename
+                id
+                action
+                requestId
+                status
+                timestamp
+                actionParameters
+                userAgent
+                sourceIP
+                serviceAccount {
+                id
+                name
+                }
+                user {
+                id
+                name
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+            }
+        }
+    "
     />
 </WorkflowParameterValues>

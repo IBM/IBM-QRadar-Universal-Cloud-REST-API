@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Gitlab Audit Events" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+
+    <Parameters>
+
+        <Parameter name="apiHost" label="API Host" required="true" />
+        <Parameter name="accessToken" label="Gitlab Personal Access Token" required="true" secret="true" />
+
+        <Parameter name="logType" label="Audit log type: `groups`, `projects` or `instance`" required="true" />
+	<!-- required onnly if logType is `groups` or `projects` -->
+        <Parameter name="objectId" label="Group or project ID" required="false" />
+
+    </Parameters>
+
+    <Actions>
+
+        <!-- determined api endpoint -->
+        <If condition="'${/logType}' = 'instance'">
+            <Initialize path="/url" value="https://${/apiHost}/api/v4/audit_events" />
+        </If>
+        <ElseIf condition="'${/logType}' = 'projects' or '${/logType}' = 'groups'">
+            <Initialize path="/url" value="https://${/apiHost}/api/v4/${/logType}/${/objectId}/audit_events" />
+        </ElseIf>
+        <Log type="INFO" message="Started new run. Fetching audit event logs against GitLab URL ${/url}." />
+
+        <!-- initializes required values -->
+        <Initialize path="/events/body" value="[]" />
+        <Initialize path="/nextPage" value="1" />
+
+        <!-- retrieves sinceTimestamp from State or (if its the first run) sets it to a minute ago -->
+        <FormatDate pattern="YYYY-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${time() - 60 * 1000}" savePath="/initialTime" />
+        <Initialize path="/sinceTimestamp" value="${/initialTime}" />
+
+        <DoWhile condition="count(/events/body) > 0">
+
+            <Log type="INFO" message="Processing events for page ${/nextPage - 1}." />
+
+            <ForEach item="/event" items="/events/body">
+                <!-- posts each event to QRadar -->
+                <PostEvent path="/event" source="${/apiHost}"/>
+
+                <!-- keeps track of the lastest event's timestamp -->
+                <Set path="/maxTimestamp" value="${/event/created_at}" />
+            </ForEach>
+
+            <CallEndpoint url="${/url}" method="GET" savePath="/events">
+                <QueryParameter name="private_token" value="${/accessToken}" />
+                <QueryParameter name="per_page" value="20" />
+                <QueryParameter name="page" value="${/nextPage}" />
+                <QueryParameter name="created_after" value="${/sinceTimestamp}" />
+            </CallEndpoint>
+
+            <If condition="/respose/status_code != 200">
+                <Log type="ERROR" message="Problem fetching logs, response was: CODE: ${/response/status_code} BODY: ${/response/body}" />
+            </If>
+
+            <Set path="/nextPage" value="${/nextPage + 1}" />
+
+        </DoWhile>
+
+        <!-- updates timestamp to be used in the next run -->
+        <Set path="/sinceTimestamp" value="${/maxTimestamp}" />
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/apiHost}" />
+        <TCPConnectionTest host="${/apiHost}" />
+        <SSLHandshakeTest host="${/apiHost}" />
+        <HTTPConnectionThroughProxyTest url="https://${/apiHost}" />
+    </Tests>
+
+</Workflow>
