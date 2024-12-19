@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="FireEye HX" version="1.0.3" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="Trellix HX" version="1.0.4" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 	<Parameters>
 		<Parameter name="host" label="Host" required="true" />
 		<Parameter name="hx_port" label="Port" required="true" />
 		<Parameter name="username" label="Username" required="true" />
 		<Parameter name="password" label="Password" required="true" secret="true" />
 		<Parameter name="limit" label="Limit" required="true" />
-		<Parameter name="ignore_selfsigned_certificate" label="Insecure" required="false" />
 	</Parameters>
 	
 	<Actions>
@@ -18,30 +17,24 @@
 
 			<!-- Authenticate and request API Token -->
 		<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="GET" savePath="/getFeApiToken" >
-			<If condition="/ignore_selfsigned_certificate == 1">
-				<SSLConfiguration allowUntrustedServerCertificate="true" />
-			</If>
 			<BasicAuthentication username="${/username}" password="${/password}" />
 			<RequestHeader name="Accept" value="application/json" />
 		</CallEndpoint>
 
 		<!-- Handle Errors -->
-		<If condition="/get_feapi_token/status_code != 204">
+		<If condition="/getFeApiToken/status_code != 204">
 			<Log type="Error" message="FE HX API: Error Authenticating to API: ${/getFeApiToken/body}" />
-			<Abort reason="Error login: ${/get_feapi_token/body}" />
+			<Abort reason="Error login: ${/getFeApiToken/body}" />
 		</If>
 		<Else>
 			<!-- Extract the API Token -->
-			<Set path="/x_feapi_token" value="${/get_feapi_token/headers/X-FeApi-Token}" />
+			<Set path="/x_feapi_token" value="${/getFeApiToken/headers/X-FeApi-Token}" />
 			<!-- Build filterQuery -->
 			<Set path="/filterQuery" value='{"operator":"gt","arg": ["${/starTime}"],"field":"reported_at"}' />
 			<!-- Get Alerts -->
 			<Set path="/offset" value="0" />
 
 			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getAlerts">
-				<If condition="/ignore_selfsigned_certificate == 1">
-					<SSLConfiguration allowUntrustedServerCertificate="true" />
-				</If>
 				<QueryParameter name="offset" value="${/offset}" />
 				<QueryParameter name="limit" value="${/limit}" />
 				<QueryParameter name="sort" value="_id" />
@@ -51,7 +44,7 @@
 			</CallEndpoint>
 
 			<!-- Handle Errors -->
-			<If condition="/get_alerts/status_code != 200">
+			<If condition="/getAlerts/status_code != 200">
 				<Log type="Error" message="FE HX API: Error fetching alerts ${/getAlerts/body}" />
 			</If>
 			<Else>
@@ -64,9 +57,6 @@
 						<!-- Enrich Alerts -->
 						<ForEach item="/alert" items="/alerts">
 							<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/hosts/${/alert/agent/_id}" method="GET" savePath="/getAagent">
-								<If condition="/ignore_selfsigned_certificate == 1">
-									<SSLConfiguration allowUntrustedServerCertificate="true" />
-								</If>
 								<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 								<RequestHeader name="Accept" value="application/json" />
 							</CallEndpoint>
@@ -76,23 +66,20 @@
 							</If>
 							<Log type="Info" message="FE HX API: Host found for ID: ${/alert/agent/_id}" />
 							<!-- Add host information to alert-->
-							<Set path="/alert/agent/hostname" value="${/agent/body/data/hostname}"  />
-							<Set path="/alert/agent/domain" value="${/agent/body/data/domain}"  />
-							<Set path="/alert/agent/primary_ip_address" value="${/agent/body/data/primary_ip_address}"  />
-							<Set path="/alert/agent/last_poll_ip" value="${/agent/body/data/last_poll_ip}"  />
+							<Set path="/alert/agent/hostname" value="${/getAagent/body/data/hostname}"  />
+							<Set path="/alert/agent/domain" value="${/getAagent/body/data/domain}"  />
+							<Set path="/alert/agent/primary_ip_address" value="${/getAagent/body/data/primary_ip_address}"  />
+							<Set path="/alert/agent/last_poll_ip" value="${/getAagent/body/data/last_poll_ip}"  />
 							<PostEvent path="/alert" source="${/host}" />
 						</ForEach>
 						<!-- Update bookmark -->
-						<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/alerts/reported_at)}" savePath="/last_alert_time" />
-            					<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/last_alert_time + 1}" savePath="/bookmark" />
+						<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/alerts/reported_at)}" savePath="/LastAlertTime" />
+            					<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/LastAlertTime + 1}" savePath="/bookmark" />
 						
 						<!-- Next Page -->
 						<Set path="/offset" value="${/offset + /limit - 1}" />
 						<!-- Get next page of alerts -->
 						<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getAlerts">
-							<If condition="/ignore_selfsigned_certificate == 1">
-								<SSLConfiguration allowUntrustedServerCertificate="true" />
-							</If>
 							<QueryParameter name="offset" value="${/offset}" />
 							<QueryParameter name="limit" value="${/limit}" />
 							<QueryParameter name="sort" value="_id" />
