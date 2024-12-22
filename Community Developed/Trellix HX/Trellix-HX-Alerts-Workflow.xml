@@ -73,8 +73,7 @@
 							<PostEvent path="/alert" source="${/host}" />
 						</ForEach>
 						<!-- Update bookmark -->
-						<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/alerts/reported_at)}" savePath="/LastAlertTime" />
-            					<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/LastAlertTime + 1}" savePath="/bookmark" />
+						<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/alerts/reported_at)}" savePath="/bookmark" />
 						
 						<!-- Next Page -->
 						<Set path="/offset" value="${/offset + /limit - 1}" />
