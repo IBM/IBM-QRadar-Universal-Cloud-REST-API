@@ -23,7 +23,7 @@
 
 		<!-- Handle Errors -->
 		<If condition="/getFeApiToken/status_code != 204">
-			<Log type="Error" message="FE HX API: Error Authenticating to API: ${/getFeApiToken/body}" />
+			<Log type="Error" message="Trellix HX API: Error Authenticating to API: ${/getFeApiToken/body}" />
 			<Abort reason="Error login: ${/getFeApiToken/body}" />
 		</If>
 		<Else>
@@ -45,10 +45,10 @@
 
 			<!-- Handle Errors -->
 			<If condition="/getAlerts/status_code != 200">
-				<Log type="Error" message="FE HX API: Error fetching alerts ${/getAlerts/body}" />
+				<Log type="Error" message="Trellix HX API: Error fetching alerts ${/getAlerts/body}" />
 			</If>
 			<Else>
-				<Log type="INFO" message="FE HX API: Got ${/getAlerts/body/data/total} events" />
+				<Log type="INFO" message="Trellix HX API: Got ${/getAlerts/body/data/total} events" />
 				<!-- Alert are returned in JSON format-->
 				<!-- Extract Alerts-->
 				<If condition="${/getAlerts/body/data/total} > 0">
@@ -61,10 +61,10 @@
 								<RequestHeader name="Accept" value="application/json" />
 							</CallEndpoint>
 							<If condition="/getAagent/status_code != 200">
-								<Log type="Error" message="FE HX API: Error fetching Agnet information: ${/getAagent/body}" />
+								<Log type="Error" message="Trellix HX API: Error fetching Agnet information: ${/getAagent/body}" />
 								<Abort reason="Error login: ${/getAagent/body}" />
 							</If>
-							<Log type="Info" message="FE HX API: Host found for ID: ${/alert/agent/_id}" />
+							<Log type="Info" message="Trellix HX API: Host found for ID: ${/alert/agent/_id}" />
 							<!-- Add host information to alert-->
 							<Set path="/alert/agent/hostname" value="${/getAagent/body/data/hostname}"  />
 							<Set path="/alert/agent/domain" value="${/getAagent/body/data/domain}"  />
@@ -74,6 +74,7 @@
 						</ForEach>
 						<!-- Update bookmark -->
 						<ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" date="${max(/alerts/reported_at)}" savePath="/bookmark" />
+						<Log type="Info" message="Trellix HX API: Last Alert Time set to: ${/bookmark}" />
 						
 						<!-- Next Page -->
 						<Set path="/offset" value="${/offset + /limit - 1}" />
@@ -87,13 +88,13 @@
 							<RequestHeader name="Accept" value="application/json" />
 						</CallEndpoint>
 						<If condition="/getAlerts/status_code != 200">
-							<Log type="Error" message="FE HX API: Error getting alerts: ${/getAlerts/body}" />
+							<Log type="Error" message="Trellix HX API: Error getting alerts: ${/getAlerts/body}" />
 							<Abort reason="Error login: ${/getAlerts/body}" />
 						</If>
 					</DoWhile>
 				</If>
 				<Else>
-					<Log type="Notice" message="FE HX API: No Alerts to Pull." />
+					<Log type="Notice" message="Trellix HX API: No Alerts to Pull." />
 				</Else>
 			</Else>
 			<!-- Dispose generated token to clear active session -->
@@ -106,7 +107,7 @@
 			</CallEndpoint>
 			<!-- Handle Errors -->
 			<If condition="/delFeApiToken/status_code != 204">
-				<Log type="Error" message="FE HX API: Error Deleteing Session: ${/delFeApiToken/body}" />
+				<Log type="Error" message="Trellix HX API: Error Deleteing Session: ${/delFeApiToken/body}" />
 				<Abort reason="${/delFeApiToken/body}" />
 			</If>
 		</Else>
