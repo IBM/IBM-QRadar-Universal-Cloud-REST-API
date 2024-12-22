@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Trellix HX" version="1.0.4" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+	<Parameters>
+		<Parameter name="host" label="Host" required="true" />
+		<Parameter name="hx_port" label="Port" required="true" />
+		<Parameter name="username" label="Username" required="true" />
+		<Parameter name="password" label="Password" required="true" secret="true" />
+    <Parameter name="limit" label="Limit" required="true"/>
+	</Parameters>
+	
+	<Actions>
+		<!-- Initialize the Bookmark -->
+		<Initialize path="/bookmark" value="0" />
+
+			<!-- Authenticate and request API Token -->
+		<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="GET" savePath="/getFeApiToken" >
+			<BasicAuthentication username="${/username}" password="${/password}" />
+			<RequestHeader name="Accept" value="application/json" />
+		</CallEndpoint>
+
+		<!-- Handle Errors -->
+		<If condition="/getFeApiToken/status_code != 204">
+			<Log type="Error" message="Trellix HX API: Error Authenticating to API: ${/getFeApiToken/body}" />
+			<Abort reason="Error login: ${/getFeApiToken/body}" />
+		</If>
+		<Else>
+			<!-- Extract the API Token -->
+			<Set path="/x_feapi_token" value="${/getFeApiToken/headers/X-FeApi-Token}" />
+      
+			<!-- Get PT Events -->
+			<Set path="/offset" value="${/bookmark}" />
+      <Set path="/limit" value="${/limit}" />
+
+			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getPTEvents">
+				<QueryParameter name="offset" value="${/offset}" />
+				<QueryParameter name="limit" value="${/limit}" />
+				<QueryParameter name="sort" value="created_at:asc" />
+				<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+				<RequestHeader name="Accept" value="application/json" />
+			</CallEndpoint>
+
+			<!-- Handle Errors -->
+			<If condition="/getAlerts/status_code != 200">
+				<Log type="Error" message="Trellix HX API: Error fetching PT Events ${/getPTEvents/body}" />
+			</If>
+			<Else>
+				<Log type="INFO" message="Trellix HX API: Got ${/getPTEvents/body/total} events" />
+				<!-- Events are returned in JSON format-->
+				<!-- Extract Alerts-->
+				<If condition="${/getPTEvents/body/total} > 0">
+          <Set path="entries" value="${/getPTEvents/body/total}">
+					<DoWhile condition="/entries > 0">
+						<Set path="/events" value="${/getPTEvents/body/data}" />
+						<ForEach item="/event" items="/events"
+							<PostEvent path="/event" source="${/host}" />
+              <!-- Update bookmark -->
+              <Set path="/bookmark" value="${/event/_id}" />
+						</ForEach>
+						<Set path="/offset" value="${/event/_id + 1}" />
+						<!-- Get next page of alerts -->
+						<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getPTEvents">
+							<QueryParameter name="offset" value="${/offset}" />
+							<QueryParameter name="limit" value="${/limit}" />
+							<QueryParameter name="sort" value="_id" />
+							<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+							<RequestHeader name="Accept" value="application/json" />
+						</CallEndpoint>
+						<If condition="/getAlerts/status_code != 200">
+							<Log type="Error" message="Trellix HX API: Error getting alerts: ${/getPTEvents/body}" />
+							<Abort reason="Error login: ${/getAlerts/body}" />
+						</If>
+            <Else>
+              <Set path="entries" value="${/getPTEvents/body/total}">
+            </Else>
+					</DoWhile>
+				</If>
+				<Else>
+					<Log type="Notice" message="Trellix HX API: No Alerts to Pull." />
+				</Else>
+			</Else>
+			<!-- Dispose generated token to clear active session -->
+			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="DELETE" savePath="/delFeApiToken" >
+				<If condition="/ignore_selfsigned_certificate == 1">
+					<SSLConfiguration allowUntrustedServerCertificate="true" />
+				</If>
+				<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+				<RequestHeader name="Accept" value="application/json" />
+			</CallEndpoint>
+			<!-- Handle Errors -->
+			<If condition="/delFeApiToken/status_code != 204">
+				<Log type="Error" message="Trellix HX API: Error Deleteing Session: ${/delFeApiToken/body}" />
+				<Abort reason="${/delFeApiToken/body}" />
+			</If>
+		</Else>
+	</Actions>
+	
+	<Tests>
+		<DNSResolutionTest host="${/host}" />
+		<TCPConnectionTest host="${/host}" port="${/hx_port}" />
+		<SSLHandshakeTest host="${/host}" port="${/hx_port}"/>
+		<HTTPConnectionThroughProxyTest url="https://${/host}:${/hx_port}" />
+	</Tests>
+</Workflow>
