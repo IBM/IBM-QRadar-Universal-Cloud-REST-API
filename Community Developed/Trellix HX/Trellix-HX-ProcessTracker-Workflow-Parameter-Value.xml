@@ -4,6 +4,4 @@
     <Value name="hx_port" value="443" /> <!-- 443 for CLoud and 3000 for On-Prem -->
     <Value name="username" value="api_analyst" />
     <Value name="password" value="api_analyst" />
-    <!-- Number of alert records to fetch per request -->
-    <Value name="limit" value="100" />
 </WorkflowParameterValues>
