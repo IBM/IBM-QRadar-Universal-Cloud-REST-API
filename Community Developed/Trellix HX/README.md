@@ -13,6 +13,6 @@ User account to access FireEye HX Controller with api_analyst role
   - - https://fireeye.dev/apis/lighthouse/
   
 ## Event Types Currently Supported by the workflow:
--   -  Alerts: Gets a list of non-suppressed alerts known to the system
--   -  Alert Groups: Lists all alert_groups
--   -  Process Tracker Module events
+-   Alerts: Gets a list of non-suppressed alerts known to the system
+-   Alert Groups: Lists all alert_groups
+-   Process Tracker Module events
