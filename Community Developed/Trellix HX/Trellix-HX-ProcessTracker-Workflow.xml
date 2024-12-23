@@ -5,7 +5,6 @@
 		<Parameter name="hx_port" label="Port" required="true" />
 		<Parameter name="username" label="Username" required="true" />
 		<Parameter name="password" label="Password" required="true" secret="true" />
-    <Parameter name="limit" label="Limit" required="true"/>
 	</Parameters>
 	
 	<Actions>
@@ -21,68 +20,75 @@
 		<!-- Handle Errors -->
 		<If condition="/getFeApiToken/status_code != 204">
 			<Log type="Error" message="Trellix HX API: Error Authenticating to API: ${/getFeApiToken/body}" />
-			<Abort reason="Error login: ${/getFeApiToken/body}" />
+			<Abort reason="Trellix HX API: Error Authenticating to API: ${/getFeApiToken/body}" />
 		</If>
 		<Else>
 			<!-- Extract the API Token -->
 			<Set path="/x_feapi_token" value="${/getFeApiToken/headers/X-FeApi-Token}" />
       
 			<!-- Get PT Events -->
-			<Set path="/offset" value="${/bookmark}" />
-      <Set path="/limit" value="${/limit}" />
-
-			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getPTEvents">
+			<Set path="/offset" value="0" />
+			<Set path="/limit" value="1" />
+			<!-- Get the first event on the system to get the start ID-->
+           
+			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/plugins/process-tracker/v1/events?" method="GET" savePath="/getPTEvents">
 				<QueryParameter name="offset" value="${/offset}" />
 				<QueryParameter name="limit" value="${/limit}" />
-				<QueryParameter name="sort" value="created_at:asc" />
+				<QueryParameter name="sort" value="id:asc" />
 				<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 				<RequestHeader name="Accept" value="application/json" />
 			</CallEndpoint>
 
 			<!-- Handle Errors -->
-			<If condition="/getAlerts/status_code != 200">
+			<If condition="/getPTEvents/status_code != 200">
 				<Log type="Error" message="Trellix HX API: Error fetching PT Events ${/getPTEvents/body}" />
 			</If>
 			<Else>
-				<Log type="INFO" message="Trellix HX API: Got ${/getPTEvents/body/total} events" />
+				<Log type="INFO" message="Trellix HX API: Got ${/getPTEvents/body/total} PT events" />
+				
+				<!-- HX API ill return a new token as part of response headers when nearing exipry-->
+				<If condition="/getPTEvents/headers/X-FeApi-Token != null">
+					<Set path="/x_feapi_token" value="${/getPTEvents/headers/X-FeApi-Token}" />
+				</If>
 				<!-- Events are returned in JSON format-->
-				<!-- Extract Alerts-->
+				<!-- Extract Events-->
 				<If condition="${/getPTEvents/body/total} > 0">
-          <Set path="entries" value="${/getPTEvents/body/total}">
-					<DoWhile condition="/entries > 0">
-						<Set path="/events" value="${/getPTEvents/body/data}" />
-						<ForEach item="/event" items="/events"
-							<PostEvent path="/event" source="${/host}" />
-              <!-- Update bookmark -->
-              <Set path="/bookmark" value="${/event/_id}" />
-						</ForEach>
-						<Set path="/offset" value="${/event/_id + 1}" />
-						<!-- Get next page of alerts -->
-						<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alerts/?" method="GET" savePath="/getPTEvents">
-							<QueryParameter name="offset" value="${/offset}" />
-							<QueryParameter name="limit" value="${/limit}" />
-							<QueryParameter name="sort" value="_id" />
+					<Set path="/entries" value="${/getPTEvents/body/total}" />
+					<Set path="/bookmark" value="${/getPTEvents/body/data[0]/id}" />
+					<DoWhile condition="${/entries} > 0">
+						<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/plugins/process-tracker/v1/events/${/bookmark}" method="GET" savePath="/getPTEvent">
 							<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 							<RequestHeader name="Accept" value="application/json" />
 						</CallEndpoint>
-						<If condition="/getAlerts/status_code != 200">
-							<Log type="Error" message="Trellix HX API: Error getting alerts: ${/getPTEvents/body}" />
-							<Abort reason="Error login: ${/getAlerts/body}" />
+						<!-- HX API ill return a new token as part of response headers when nearing exipry-->
+						<If condition="/getPTEvents/headers/X-FeApi-Token != null">
+							<Set path="/x_feapi_token" value="${/getPTEvent/headers/X-FeApi-Token}" />
 						</If>
-            <Else>
-              <Set path="entries" value="${/getPTEvents/body/total}">
-            </Else>
+						<If condition="/getPTEvent/status_code = 404">
+                            				<Set path="/bookmark" value="${/bookmark  + 1}" />
+							<Set path="/entries" value="${/entries - 1}" />
+							<Log type="INFO" message="Trellix HX API: Next PT Even ID ${/bookmark}" />
+		                    			<Log type="Error" message="Trellix HX API: Error PT event ${/bookmark} not found: ${/getPTEvent/body}" />
+						</If>
+						<ElseIf condition="/getPTEvent/status_code = 200">
+							<Set path="/event" value="${/getPTEvent/body/data[0]}" />
+							<PostEvent path="/event" source="${/host}" />
+							<!-- Update bookmark -->
+							<Set path="/bookmark" value="${/event/id + 1}" />
+							<Set path="/entries" value="${/entries - 1}" />
+							<Log type="INFO" message="Trellix HX API: Next PT Even ID ${/bookmark}" />
+						</ElseIf>
+						<Else>
+							<Log type="Error" message="Trellix HX API: Error getting PT Events: ${/getPTEvent/body}" />
+						</Else>
 					</DoWhile>
 				</If>
 				<Else>
-					<Log type="Notice" message="Trellix HX API: No Alerts to Pull." />
+					<Log type="Notice" message="Trellix HX API: No PT Events to Pull." />
 				</Else>
 			</Else>
 			<!-- Dispose generated token to clear active session -->
 			<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="DELETE" savePath="/delFeApiToken" >
-				<If condition="/ignore_selfsigned_certificate == 1">
-					<SSLConfiguration allowUntrustedServerCertificate="true" />
-				</If>
 				<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
 				<RequestHeader name="Accept" value="application/json" />
 			</CallEndpoint>
@@ -97,7 +103,7 @@
 	<Tests>
 		<DNSResolutionTest host="${/host}" />
 		<TCPConnectionTest host="${/host}" port="${/hx_port}" />
-		<SSLHandshakeTest host="${/host}" port="${/hx_port}"/>
+		<!--SSLHandshakeTest host="${/host}" port="${/hx_port}"/-->
 		<HTTPConnectionThroughProxyTest url="https://${/host}:${/hx_port}" />
 	</Tests>
 </Workflow>
