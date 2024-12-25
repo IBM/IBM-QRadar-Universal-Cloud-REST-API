@@ -1,4 +1,4 @@
-# QRadar Workflow for Trellix HX Alerts
+# QRadar Workflows for Trellix HX
 IBM QRadar Universal Cloud Connector Workflows for reading Trellix/FireEye HX Alerts and Events through REST API
 
 ## Requirements:
@@ -13,6 +13,6 @@ User account to access FireEye HX Controller with api_analyst role
   - - https://fireeye.dev/apis/lighthouse/
   
 ## Event Types Currently Supported by the workflow:
--   Alerts: Gets a list of non-suppressed alerts known to the system
--   Alert Groups: Lists all alert_groups
--   Process Tracker Module events
+-   Alerts: Collects non-suppressed alerts known to the system.
+-   Alert Groups: Collects alert_groups.
+-   Process Tracker: Collects Process Tracker module events.
