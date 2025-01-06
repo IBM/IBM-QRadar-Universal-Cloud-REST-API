@@ -14,7 +14,7 @@
     
     <Actions>
         <Log type="INFO" message="WIZ: Workflow Actions started for Audit Logs..." />
-        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3" />
+        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3-v2" />
         <If condition="/audit_bookmark != null">
             <!-- Format Date to be passed in fetching events -->
             <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/audit_bookmark}" savePath="/audit_timestamp" />
@@ -77,12 +77,16 @@
         <Set path="/access_token" value="${/get_access_token/body/access_token}" />
 
         <!-- Fetch Events -->
-        <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_audit_logs">
-            <QueryParameter name="query" value="${/audit_logs_gql_query}" />
-            <QueryParameter name="variables" value="${/audit_gql_query_variables}" />
+        <CallEndpoint url="https://${/host}/graphql" method="POST" savePath="/get_audit_logs">
             <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
             <RequestHeader name="content-type" value="application/json" />
             <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+            <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "query": "${/audit_logs_gql_query}",
+                    "variables": ${/audit_gql_query_variables}
+                }
+            </RequestBody>
         </CallEndpoint>
 
         <Log type="INFO" message="WIZ: First API call for Audit Logs status code:: ${/get_audit_logs/status_code}" />
@@ -125,12 +129,16 @@
             <Log type="INFO" message="WIZ: Paginated API call for Audit Logs: Using this GraphQL variable : ${/audit_gql_query_variables}" />
             
             <!-- Fetch events -->
-            <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_audit_logs">
-                <QueryParameter name="query" value="${/audit_logs_gql_query}" />
-                <QueryParameter name="variables" value="${/audit_gql_query_variables}" />
+            <CallEndpoint url="https://${/host}/graphql" method="POST" savePath="/get_audit_logs">
                 <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
                 <RequestHeader name="content-type" value="application/json" />
                 <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "query": "${/audit_logs_gql_query}",
+                        "variables": ${/audit_gql_query_variables}
+                    }
+                </RequestBody>
             </CallEndpoint>
 
             <Log type="INFO" message="WIZ: Paginated API call for audit Logs status code: ${/get_audit_logs/status_code}" />

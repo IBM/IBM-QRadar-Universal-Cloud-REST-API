@@ -14,7 +14,7 @@
     <Actions>
         
         <Log type="INFO" message="WIZ: Workflow Actions started..." />
-        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3" />
+        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3-v2" />
         <If condition="/bookmark != null">
             <!-- Format Date to be passed in fetching events -->
             <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
@@ -98,12 +98,16 @@
         <Log type="INFO" message="WIZ: First API call: Using this GraphQL variable : ${/gql_query_variables}" />
 
         <!-- Fetch Events -->
-        <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_events">
-            <QueryParameter name="query" value="${/gql_query}" />
-            <QueryParameter name="variables" value="${/gql_query_variables}" />
+        <CallEndpoint url="https://${/host}/graphql" method="POST" savePath="/get_events">
             <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
             <RequestHeader name="content-type" value="application/json" />
             <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+            <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "query": "${/gql_query}",
+                    "variables": ${/gql_query_variables}
+                }
+            </RequestBody>
         </CallEndpoint>
 
         <Log type="INFO" message="WIZ: First API call status code:: ${/get_events/status_code}" />
@@ -178,12 +182,16 @@
             <Log type="INFO" message="WIZ: Paginated API call: Using this GraphQL variable : ${/gql_query_variables}" />
             
             <!-- Fetch events -->
-            <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_events">
-                <QueryParameter name="query" value="${/gql_query}" />
-                <QueryParameter name="variables" value="${/gql_query_variables}" />
+            <CallEndpoint url="https://${/host}/graphql" method="POST" savePath="/get_events">
                 <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
                 <RequestHeader name="content-type" value="application/json" />
                 <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "query": "${/gql_query}",
+                        "variables": ${/gql_query_variables}
+                    }
+                </RequestBody>
             </CallEndpoint>
 
             <Log type="INFO" message="WIZ: Paginated API call status code: ${/get_events/status_code}" />
