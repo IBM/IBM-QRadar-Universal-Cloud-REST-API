@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope DLP Alert" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -89,7 +89,7 @@
             </While>
             <If condition="/dlpAlert/response/status_code = 200">
                 <!-- Ingest DLP Alerts into QRadar -->
-                <PostEvents path="/dlpAlert/response/body/result" source="netskope_dlp_alert" />
+                <PostEvents path="/dlpAlert/response/body/result" />
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/dlpAlert/response/body/result)} DLP Alerts ingested in QRadar." />
 
                 <If condition="${count(/dlpAlert/response/body/result) = 0}">

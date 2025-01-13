@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope Endpoint Event" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -89,7 +89,7 @@
             </While>
             <If condition="/endpointEvent/response/status_code = 200">
                 <!-- Ingest Endpoint Events into QRadar -->
-                <PostEvents path="/endpointEvent/response/body/result" source="netskope_endpoint_event" />
+                <PostEvents path="/endpointEvent/response/body/result" />
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/endpointEvent/response/body/result)} Endpoint Events ingested in QRadar." />
 
                 <If condition="${count(/endpointEvent/response/body/result) = 0}">

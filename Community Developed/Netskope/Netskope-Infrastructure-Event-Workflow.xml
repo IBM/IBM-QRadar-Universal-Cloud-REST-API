@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope Infrastructure Event" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -92,7 +92,7 @@
                 
                 <ForEach item="/current_event" items="/infrastructureEvent/response/body/result">
                     <Set path="/current_event/type" value="infrastructure" />
-                    <PostEvent path="/current_event" source="netskope_infrastructure_event" />
+                    <PostEvent path="/current_event" />
                 </ForEach>
 
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/infrastructureEvent/response/body/result)} Infrastructure Events ingested in QRadar." />

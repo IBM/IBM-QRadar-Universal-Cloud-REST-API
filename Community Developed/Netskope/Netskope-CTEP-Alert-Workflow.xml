@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope CTEP Alert" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -89,7 +89,7 @@
             </While>
             <If condition="/ctepAlert/response/status_code = 200">
                 <!-- Ingest CTEP Alerts into QRadar -->
-                <PostEvents path="/ctepAlert/response/body/result" source="netskope_ctep_alert" />
+                <PostEvents path="/ctepAlert/response/body/result" />
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/ctepAlert/response/body/result)} CTEP Alerts ingested in QRadar." />
 
                 <If condition="${count(/ctepAlert/response/body/result) = 0}">

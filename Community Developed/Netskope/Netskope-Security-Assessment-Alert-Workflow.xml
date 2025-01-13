@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope Security Assessment Alert" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -89,7 +89,7 @@
             </While>
             <If condition="/securityAssessmentAlert/response/status_code = 200">
                 <!-- Ingest Security Assessment Alerts into QRadar -->
-                <PostEvents path="/securityAssessmentAlert/response/body/result" source="netskope_security_assessment_alert" />
+                <PostEvents path="/securityAssessmentAlert/response/body/result" />
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/securityAssessmentAlert/response/body/result)} Security Assessment Alerts ingested in QRadar." />
 
                 <If condition="${count(/securityAssessmentAlert/response/body/result) = 0}">

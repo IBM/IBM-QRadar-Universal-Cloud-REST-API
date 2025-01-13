@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2_1">
 
     <!-- Do not add http or https in the below value of Tenant Hostname-->
     <Value name="tenantHostName" value=""/>

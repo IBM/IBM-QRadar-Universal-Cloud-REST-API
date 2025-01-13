@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope Quarantine Alert" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -89,7 +89,7 @@
             </While>
             <If condition="/quarantineAlert/response/status_code = 200">
                 <!-- Ingest Quarantine Alerts into QRadar -->
-                <PostEvents path="/quarantineAlert/response/body/result" source="netskope_quarantine_alert" />
+                <PostEvents path="/quarantineAlert/response/body/result" />
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/quarantineAlert/response/body/result)} Quarantine Alerts ingested in QRadar." />
 
                 <If condition="${count(/quarantineAlert/response/body/result) = 0}">
