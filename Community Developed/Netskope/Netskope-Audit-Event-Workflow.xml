@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope Audit Event" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -90,7 +90,7 @@
             </While>
             <If condition="/auditEvent/response/status_code = 200">
                 <!-- Ingest Audit Events into QRadar -->
-                <PostEvents path="/auditEvent/response/body/result" source="netskope_audit_event" />
+                <PostEvents path="/auditEvent/response/body/result" />
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/auditEvent/response/body/result)} Audit Events ingested in QRadar." />
 
                 <If condition="${count(/auditEvent/response/body/result) = 0}">

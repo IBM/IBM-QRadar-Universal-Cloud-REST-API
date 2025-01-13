@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Netskope Alert Event" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -89,7 +89,7 @@
             </While>
             <If condition="/alertEvent/response/status_code = 200">
                 <!-- Ingest Alert Events into QRadar -->
-                <PostEvents path="/alertEvent/response/body/result" source="netskope_alert_event" />
+                <PostEvents path="/alertEvent/response/body/result" />
                 <Log type="INFO" message="${/logPrefix} - Total ${count(/alertEvent/response/body/result)} Alert Events ingested in QRadar." />
 
                 <If condition="${count(/alertEvent/response/body/result) = 0}">
