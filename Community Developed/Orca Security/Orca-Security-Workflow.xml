@@ -4,7 +4,7 @@
 The Workflow is used to get Orca Alerts via REST API.
 
 Instructions:
-https://orcasecurity.zendesk.com/hc/en-us/articles/4401950668180
+https://docs.orcasecurity.io/docs/integrating-ibm-qradar
 
 Parameters:
 - "api_host" - Orca API host (required, default="api.orcasecurity.io")
@@ -22,13 +22,29 @@ Parameters:
         <!-- Clear the log source status before a new workflow run starts -->
         <ClearStatus />
 
+        <Set path="/event_start_time" value="${time()}" />
+
+        <If condition="/successful_event_start_time != null">
+            <Set path="/last_updated" value="${/successful_event_start_time}" />
+        </If>
+        <Else>
+            <Set path="/last_updated" value="0" />
+        </Else>
+
         <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
             <RequestHeader name="authorization" value="Token ${/api_token}" />
-            <UrlEncodedFormRequestBody>
-                <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
-                <Parameter name="limit" value="100" />
-                <Parameter name="next_page_token" value="${/get_alerts/body/next_page_token}" />
-            </UrlEncodedFormRequestBody>
+            <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "limit": "100",
+                    "next_page_token":"${/get_alerts/body/next_page_token}",
+                    "dsl_filter": [
+                        {
+                            "field": "state.last_updated",
+                            "range": {"gte": "${/last_updated}"}
+                        }
+                    ]
+                }
+            </RequestBody>
         </CallEndpoint>
 
         <If condition="/get_alerts/status_code = 403">
@@ -51,11 +67,18 @@ Parameters:
         <While condition="/get_alerts/body/has_next_page_token">
             <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
                 <RequestHeader name="authorization" value="Token ${/api_token}" />
-                <UrlEncodedFormRequestBody>
-                    <!-- keep this parameter at 100 to avoid request timeouts and large response payload size -->
-                    <Parameter name="limit" value="100" />
-                    <Parameter name="next_page_token" value="${/get_alerts/body/next_page_token}" />
-                </UrlEncodedFormRequestBody>
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "limit": "100",
+                        "next_page_token":"${/get_alerts/body/next_page_token}",
+                        "dsl_filter": [
+                            {
+                                "field": "state.last_updated",
+                                "range": {"gte": "${/last_updated}"}
+                            }
+                        ]
+                    }
+                </RequestBody>
             </CallEndpoint>
 
             <!-- Handle Errors -->
@@ -79,6 +102,8 @@ Parameters:
             </If>
 
         </While>
+
+        <Set path="/successful_event_start_time" value="${/event_start_time}" />
 
     </Actions>
 
