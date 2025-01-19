@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="GitHub Audit" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+    
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="app_id" label="App ID" required="false" />
+        <Parameter name="app_installation_id" label="App Installation ID" required="false" />
+        <Parameter name="app_private_key" label="App Private Key" required="false" secret="true"/>
+        <Parameter name="personal_access_token" label="Personal Access Token" required="false" secret="true"/>
+        <Parameter name="organization" label="Organization" required="false" />
+        <Parameter name="enterprise" label="Enterprise" required="false" />
+    </Parameters>
+    
+    <Actions>
+        <!-- CHECKING REQUIRED PARAMETERS SET 
+        Can't set conditional requirements with 'required' label above.
+        -->
+        <If condition="(1 > count(/enterprise) or 1 > count(/personal_access_token)) and (1 > count(/organization) or ((1 > count(/app_id) or 1 > count(/app_private_key) or 1 > count(/app_installation_id)) and 1 > count(/personal_access_token)))">
+            <Abort reason="required parameters not set. see documentation for more information about required paramters." />
+        </If>
+        
+        <!-- SETTING VARIABLES BASED ON CONFIGURATION VALUES SPECIFIED 
+        Setting
+            * token
+            * audit log API URL 
+        based on configuration information provided. These variables are used in the requests down stream -->
+        <If condition="count(/organization) > 0">
+            <!-- configured to get logs for organization -->
+            <Set path="/audit_log_url" value="https://${/host}/orgs/${/organization}/audit-log" />
+
+            <!-- can use either PAT or App for audit log authentication -->
+            <If condition="count(/app_id) > 0">
+                <!-- specified app - need to get an intallation token.
+                Create JWT Token with app private key -->
+                <CreateJWTAccessToken savePath="/jwt">
+                    <Header>
+                        <Value name="alg" value="RS256" />
+                        <Value name="typ" value="JWT" />
+                    </Header>
+                    <Payload>
+                        <Value name="iss" value="${/app_id}" />
+                        <Value name="iat" value="${time() / 1000}" />
+                        <!-- JWT expiration time (10 min max) -->
+                        <Value name="exp" value="${time() / 1000 + 600}" />
+                    </Payload>
+                    <Secret value="${/app_private_key}" />
+                </CreateJWTAccessToken>
+                
+                <!-- Requesting app installation token -->
+                <CallEndpoint url="https://${/host}/app/installations/${/app_installation_id}/access_tokens" method="POST" savePath="/installation_token">
+                    <BearerAuthentication token="${/jwt}" />
+                    <RequestHeader name="Accept" value="application/vnd.github+json" />
+                    <RequestHeader name="X-GitHub-Api-Version" value="2022-11-28" />
+                </CallEndpoint>
+
+                <If condition="/installation_token/status_code != 201">
+                    <Abort reason="${/installation_token/status_code}: ${/installation_token/body/message}" />
+                </If>
+
+                <!-- storing installation token as token to use in audit log request -->
+                <Set path="/auth_token" value="${/installation_token/body/token}" />
+            </If>
+            <Else>
+                <!-- No app information provided, use PAT. Storing PAT provided in configuration as token to use in audit log request -->
+                <Set path="/auth_token" value="${/personal_access_token}" />
+            </Else>
+
+        </If>
+        <ElseIf condition="count(/enterprise) > 0" >
+            <!-- configured to get logs for enterprise -->
+            <Set path="/audit_log_url" value="https://${/host}/enterprises/${/enterprise}/audit-log" />
+            <!-- must use PAT for enterprise audit logs. Storing PAT provided in configuration as token to use in audit log request -->
+            <Set path="/auth_token" value="${/personal_access_token}" />
+        </ElseIf>
+        <Else>
+            <!-- No organization or enterprise information provided in parameters -->
+            <Abort reason="required parameters not set. see documentation for more information about required paramters." />
+        </Else>
+        
+        <!-- RETRIEVING AUDIT EVENTS
+        Gets audit events from the GitHub REST API.
+        Three possible requests:
+        1. first request
+            - request made very first time workflow is ran - gather events from past 3 months.
+            - condtiion:
+                - /last_ingested_event_time is empty
+                - /next_page_url is empty 
+        2. initial run request
+            - initial request made for at the start of each workflow run.
+            - condition:
+                - /last_ingested_event_time not empty
+                - /next_page_url is empty
+        3. pagination request
+            - request for next page of events (pagination). Only happens if request 1 or 2 contains more events than were returned by GitHub.
+            - condition:
+                - /next_page_url is **not** empty
+        -->
+        <Set path="/looping_condition" value="true" />
+        <!-- Continue looping through audit logs while there are events -->
+        <DoWhile condition="/looping_condition = true">
+            <!-- figuring out what request needs to be made based on state variables. -->
+            <If condition="count(/next_page_url) = 0">
+                <!-- /next_page_url is not defined, first request being made for this workflow run. Need to determine if this is the very first time this workflow has ran (/last_ingested_event_time is null) or if the workflow has ran previously. Will determine whether not the 'created:>xxxxx' query parameter is provided in the audit log request. -->
+                <If condition="count(/last_ingested_event_time) > 0" >
+                    <!-- workflow has already run and ingested events. Set /search_query_param so it is used  as the 'created:>xxxxx' query parameter in audit log request -->
+                    <Set path="/search_query_param" value="created:>${/last_ingested_event_time}" />
+                    <Log type="INFO" message="retrieving events since ${/last_ingested_event_time}" />
+                </If>
+                <Else>
+                    <!-- workflow has not run or hasn't ingested events. /search_query_parameter will be empty. will send audit log request without 'created:>xxxxx' query parameter. This will retireve all events that have occurred in the past 3 months (GitHub default). -->
+                    <Log type="INFO" message="retrieving events from past 3 months" />
+                    <!-- /search_query_param _should_ be empty already. Clearing to be sure. -->
+                    <Set path="/search_query_param" value="" />
+                </Else>
+
+                <CallEndpoint url="${/audit_log_url}" method="GET" savePath="/audit_log_response">
+                    <BearerAuthentication token="${/auth_token}" />
+                    <QueryParameter name="phrase" value="${/search_query_param}" omitIfEmpty="true" />
+                    <QueryParameter name="order" value="asc" />
+                    <RequestHeader name="Accept" value="application/vnd.github+json" />
+                    <RequestHeader name="X-GitHub-Api-Version" value="2022-11-28" />
+                </CallEndpoint>
+            </If>
+            <Else>
+                <!-- `/next_page_url` defined, pagination is required. Get next page of events. -->
+                <Log type="INFO" message="getting next page of events" />
+                <!-- next page url is stored URL encoded to help with regex when parsing 'next' link. need to decode before making request -->
+                <CallEndpoint url="${url_decode(/next_page_url)}" method="GET" savePath="/audit_log_response">
+                    <BearerAuthentication token="${/auth_token}" />
+                    <RequestHeader name="Accept" value="application/vnd.github+json" />
+                    <RequestHeader name="X-GitHub-Api-Version" value="2022-11-28" />
+                </CallEndpoint>
+
+                <!-- clear next_link so it isn't used next iteration -->
+                <Set path="/next_page_url" value="" />
+            </Else>
+
+            <If condition="/audit_log_response/status_code != 200">
+                <!-- non 200 response - abort current run. /last_ingested_event_time is not updated, so next iteration will pick up where this search started - no events should be missed -->
+                <Log type="INFO" message="get audit logs request failed: ${/audit_log_response/body/code}: ${/audit_log_response/body/message}" />
+                <Abort reason="${/audit_log_response/body/code}: ${/audit_log_response/body/message}" />
+            </If>
+
+            <Log type="INFO" message="found ${count(/audit_log_response/body)} audit logs. ingesting" />
+
+            <!-- HANDLING / INGESTING PAGE OF EVENTS. 
+            For each event check if the event's time (rounded down to the second) matches `/last_ingested_event_time`.
+                If it does:
+                    - check if event has already been ingested by determining if event's `_document_id` is stored in `/last_ingested_event_ids`. Only ingest the event if it hasn't been ingested already
+                If it does not:
+                    - ingest event and update `/last_ingested_event_time` and `/last_ingested_event_ids` to the current event's data
+            
+            This ensures that we will not miss events in the event the workflow exits mid-run and minimizes the odds of duplicate events getting ingested in the same scenario.
+
+            NOTE: `/last_ingested_event_time` and `/last_ingested_event_ids` are updated **AFTER** the event is ingested - would rather have duplicate events ingested than miss events. Very small edge case if the workflow exits immediately after the event is ingested that event will get ingested again the next workflow run because `/last_ingested_event_time` and `/last_ingested_event_ids` will not have been updated.
+             -->
+            <ForEach item="/event" items="/audit_log_response/body" >
+                <!-- Parsing event time - rounding **down** to nearset second - ISO8601 standard required by GitHub - YYYY-MM-DDTHH:MM:SS+00:00. Took awhile to figure out to to access @timestamp - `/event/@timestamp` doesn't work -->
+                <FormatDate  pattern="yyyy-MM-dd'T'HH:mm:ssZ" timeZone="UTC" time="${/event/'@timestamp'}" savePath="/current_event_time" />
+                
+                <If condition="/current_event_time = /last_ingested_event_time" >
+                    <!-- have ingested events with the same timestamp (rounded down to second) as this event. Determine if this event has been ingested already -->
+                    <Set path="/event_ingested" value="false" />
+                    <!-- determining if event's `_document_id` is stored in `/last_ingested_event_ids` -->
+                    <ForEach item="/ingested_event_id" items="/last_ingested_event_ids">
+                        <If condition="/ingested_event_id = /event/_document_id">
+                            <!-- event has already been ingested, don't ingest again -->
+                            <Set path="/event_ingested" value="true" />
+                        </If>
+                    </ForEach>
+
+                    <If condition="${/event_ingested} = false">
+                        <!-- event's `_document_id` not stored in `/last_ingested_event_ids` - this event has not been ingested yet, ingest it -->
+                        <PostEvent path="/event" encoding="UTF-8" source="${/host}" />
+                        <!-- keep track that event has been ingested -->
+                        <Add path="/last_ingested_event_ids" value="${/event/_document_id}" />
+                    </If>          
+                </If>
+                <Else>
+                    <!-- have **not** ingested events with this event's timestamp (rounded down to the second) - no need to check if this event has already been ingested -->
+                    <PostEvent path="/event" encoding="UTF-8" source="${/host}" />
+                    <!-- store event's time (rounded down to the second) as `/last_ingested_event_time` -->
+                    <Set path="/last_ingested_event_time" value="${/current_event_time}" />
+                    <!-- overwrite `/last_ingested_event_ids` with list only contianing this event's `_document_id` -->
+                    <Set path="/last_ingested_event_ids" value="['${/event/_document_id}']" />
+                </Else>
+            </ForEach>
+
+            <!-- Determine if pagination is needed. Next page URL is returned in the `Link` header. Checking if the `Link` header was in the response -->
+            <If condition="${count(/audit_log_response/headers/Link) > 0}" >
+                <!-- `Link` header in response. `Link` header can contian multiple URLs ['next', 'prev', 'first']. see https://docs.github.com/en/github-ae@latest/admin/monitoring-activity-in-your-enterprise/reviewing-audit-logs-for-your-enterprise/using-the-audit-log-api-for-your-enterprise#querying-the-audit-log-rest-api
+                
+                determine if 'next' URL provided. If 'next' URL not provided pagination is complete. -->
+                <Log type="INFO" message="Determining if pagination is needed" />
+                <!-- Split `Link` header value by `,` to get list of all different links in the header. Can be a 'next', 'prev' and 'last' link -->
+                <Split value="${/audit_log_response/headers/Link}" delimiter="," savePath="/pagination_links" />
+                <!-- iterating over each link found in `Link` header to determine if 'next' link was supplied -->
+                <ForEach item="/i" items="/pagination_links">
+                    <!-- have to use a regex pattern that is guaranteed to match the value, otherwise RegexCapture action errors. Originally tried using RegexCapture to capture the 'next' link right away, but when the next link is not returned it would error -->
+                    <RegexCapture pattern='rel="(.+)"' value="${/i}" savePath="/pagination_link_type" />
+
+                    <If condition="/pagination_link_type = 'next'">
+                        <Log type="INFO" message="pagination required. parsing and storing next page URL" />
+                        <!-- parsing URL from the 'next link' string. 
+                        example 'next link' string: 
+                        `<https://api.github.com/organizations/123023102/audit-log?per_page=2&after=MS42NzcwNzUxNDk4MDFlKzEyfGIyYTVjMGYwLWQyZjYtNDk5MC1iODc1LTJmMTJlNzkwM2IxNg%3D%3D&before=>; rel="next"`
+                        
+                        regex pattern cannot contain `<` or `>`. URL encode 'link' string so regex pattern can search for `%3C` and `%3E` rather than `<` and `>` -->
+                        <RegexCapture pattern="%3C(.+)%3E%3B\+rel%3D%22next%22" value="${url_encode(/i)}" savePath="/next_page_url" />
+                    </If>
+                </ForEach>
+            </If>
+            <Else>
+                <Log type="INFO" message="Link header not found, pagination not required" />
+            </Else>
+
+            <!-- Exit from loop if pagination (next link) is not found -->
+            <If condition="count(/next_page_url) = 0">
+                <Log type="INFO" message="/next_page_url is empty, no additional events to retrieve" />
+                <!-- exit from loop -->
+                <Set path="/looping_condition" value="false" />
+            </If>
+
+        </DoWhile>
+
+        <Log type="INFO" message="querying for audit logs complete." />
+
+    </Actions>
+    
+    <Tests>
+        <DNSResolutionTest host="${/host}" /> 
+		<TCPConnectionTest host="${/host}" /> 
+		<SSLHandshakeTest host="${/host}" /> 
+    </Tests>
+
+</Workflow>
