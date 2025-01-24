@@ -72,6 +72,9 @@ reflected in the workflow parameter xml file in Qradar.
 About
 ---------------
 Author Name: Enio Basso
+
 Maintainer Name: @ebasso
+
 Version Number: 1
+
 Event type: Audit trail events from Dynatrace.
