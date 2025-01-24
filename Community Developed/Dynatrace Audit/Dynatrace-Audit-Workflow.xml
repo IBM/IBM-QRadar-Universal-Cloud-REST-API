@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+Dynatrace Audit Logs API - QRadar Integration (Universal Cloud REST API)
+-->
+<Workflow name="DynatraceAuditLogs" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="Dynatrace API URL" required="true" />
+        <Parameter name="apiToken" label="API Token" required="true" secret="true" />
+        <!-- Look parameter from for possible values of fromTime
+            https://docs.dynatrace.com/docs/discover-dynatrace/references/dynatrace-api/environment-api/audit-logs/get-log 
+        -->
+        <Parameter name="fromTime" label="From Time" required="false" default="now-2w"/>
+    </Parameters>
+
+    <Actions>
+        <!-- Clear status of log source -->
+        <ClearStatus />
+                
+        <!-- Set max retry to 3 in case of API rate limit error and timeout for 60 secs -->
+        <Initialize path="/dynatrace_audit/maxRetry" value="3" />
+        
+        <Initialize path="/dynatrace_audit/logPrefix" value="Dynatrace::AuditLogs" />
+        
+        <!-- Set limit for max fetch to now -->
+        <Set path="/dynatrace_audit/max_created" value="${time()}" />
+        
+        <!-- Fetch the audit logs from Dynatrace -->
+        <CallEndpoint url="https://${/host}/api/v2/auditlogs" method="GET" savePath="/get_audit_logs">
+            <QueryParameter name="from" value="${fromTime}" />
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestHeader name="Authorization" value="Api-Token ${/apiToken}" />
+        </CallEndpoint>
+
+        <!-- Check for errors during log fetch -->
+        <If condition="/get_audit_logs/status_code != 200">
+            <Log type="INFO" message="${/dynatrace_audit/logPrefix} - Abort - Fetch logs failed ${/get_audit_logs/status_code} : ${/get_audit_logs/status_message}" />
+            <Abort reason="${/get_audit_logs/status_message}" />
+        </If>
+        
+        <!-- Log the status of the API call -->
+        <Log type="INFO" message="${/dynatrace_audit/logPrefix} - ${/get_audit_logs/status_code} : ${/get_audit_logs/status_message}" />
+        <Log type="INFO" message="${/dynatrace_audit/logPrefix} - ${/get_audit_logs/total_count} : ${/get_audit_logs/totalCount}" />
+        <Log type="INFO" message="${/dynatrace_audit/logPrefix} - ${/get_audit_logs/page_size} : ${/get_audit_logs/pageSize}" />
+ 
+        <!-- Loop through each audit log entry -->
+        <ForEach item="/current_audit_log" items="/get_audit_logs/body/auditLogs">
+            <!-- Process each audit log entry -->
+            <Log type="INFO" message="${/dynatrace_audit/logPrefix} - Processing audit log entry with ID: ${/current_audit_log/id}" />
+            <!-- Post each audit log entry to QRadar -->
+            <PostEvent path="/current_audit_log" source="${/host}" />
+        </ForEach>
+        
+        <!-- Update bookmark to last running max time (start from this next time) -->
+        <Set path="/dynatrace_audit/bookmark" value="${/dynatrace_audit/max_created}" />
+        
+    </Actions>
+    
+    <Tests>
+        <DNSResolutionTest host="${/host}"/>
+        <TCPConnectionTest host="${/host}"/>
+    </Tests>
+</Workflow>
