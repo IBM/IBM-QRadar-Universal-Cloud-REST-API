@@ -37,8 +37,8 @@ where:
 
 In `host`, depends on your environment. For:
 
-- SaaS	{your-environment-id}.live.dynatrace.com/api/v2/auditlogs
-- Environment ActiveGateCluster ActiveGate	{your-activegate-domain}:9999/e/{your-environment-id}
+- SaaS:	{your-environment-id}.live.dynatrace.com/api/v2/auditlogs
+- Environment ActiveGateCluster ActiveGate:	{your-activegate-domain}:9999/e/{your-environment-id}
 
 In `fromTime`. You can use multiple formats, but my sugestion is to use Relative timeframe, back from now. Example: `now-5m`, the last 5 minutes.
 
