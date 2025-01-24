@@ -3,13 +3,11 @@ Dynatrace Audit Configuration
 
 1) Steps to obtain an integration with QRadar:
 
-Easily check configuration changes or environment sign ins with the new Audit logs API
-https://www.dynatrace.com/news/blog/easily-check-configuration-changes-or-environment-sign-ins-with-the-new-audit-logs-api/
+- [Easily check configuration changes or environment sign ins with the new Audit logs API](https://www.dynatrace.com/news/blog/easily-check-configuration-changes-or-environment-sign-ins-with-the-new-audit-logs-api/)
 
 2) There are the following source type:
 
-Audit logs API - GET audit log
-https://docs.dynatrace.com/docs/discover-dynatrace/references/dynatrace-api/environment-api/audit-logs/get-log
+- [Audit logs API - GET audit log](https://docs.dynatrace.com/docs/discover-dynatrace/references/dynatrace-api/environment-api/audit-logs/get-log)
 
 
 QRadar Log Source Configuration
@@ -71,10 +69,9 @@ reflected in the workflow parameter xml file in Qradar.
 
 About
 ---------------
-Author Name: Enio Basso
+- Author Name: Enio Basso
+- Maintainer Name: @ebasso
+- Version Number: 1
+- Event Types Currently Supported by the workflow: Audit events from Dynatrace.
+- Endpoint Documentation: https://docs.dynatrace.com/docs/discover-dynatrace/references/dynatrace-api/environment-api/audit-logs/get-log
 
-Maintainer Name: @ebasso
-
-Version Number: 1
-
-Event type: Audit trail events from Dynatrace.
