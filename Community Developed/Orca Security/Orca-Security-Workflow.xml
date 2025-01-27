@@ -16,6 +16,7 @@ Parameters:
     <Parameters>
         <Parameter name="api_host" label="API Host" required="true" default="api.orcasecurity.io" />
         <Parameter name="api_token" label="API Token" required="true" secret="true" />
+        <Parameter name="api_start_date" label="API Start Date" required="true" default="0" />
     </Parameters>
 
     <Actions>
@@ -28,7 +29,7 @@ Parameters:
             <Set path="/last_updated" value="${/successful_event_start_time}" />
         </If>
         <Else>
-            <Set path="/last_updated" value="0" />
+            <Set path="/last_updated" value="${/api_start_date}" />
         </Else>
 
         <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
