@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Graylog_OVH" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="serverurl" label="Server URL" required="true" />
+        <Parameter name="username" label="Username" required="true" />
+        <Parameter name="password" label="Password" required="true" secret="true" />
+        <Parameter name="streamId" label="Stream ID" required="false" />
+    </Parameters>
+
+    <Actions>
+            <!-- Authenticate Using Basic Authentication -->
+            <CallEndpoint url="${/serverurl}/api/streams" method="GET" savePath="/get_streams">
+                <BasicAuthentication username="${/username}" password="${/password}" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/get_streams/status_code != 200">
+                <Log type="error" message="Auth Error: ${/get_streams/status_code} - ${/get_streams/body}" />
+                <Abort reason="Error: ${/get_streams/status_code} - ${/get_streams/body}" />
+            </If>
+
+            <!-- Extract Stream ID -->
+            <Set path="/streamId" value="${/get_streams/body/streams[0]/id}" />
+
+            <!-- Get Messages - View Search -->
+            <CallEndpoint url="${/serverurl}/api/views/search/messages" method="POST" savePath="/search_messages">
+                <RequestHeader name="X-Requested-By" value="PostMan" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/search_messages/status_code != 200">
+                <Log type="error" message="Search Error: ${/search_messages/status_code} - ${/search_messages/body}" />
+                <Abort reason="Error: ${/search_messages/status_code} - ${/search_messages/body}" />
+            </If>
+
+            <!-- Get Universal Search Messages -->
+            <CallEndpoint url="${/serverurl}/api/search/universal/absolute?query=*&amp;from=2025-01-23T15:34:49.000Z&amp;to=2025-01-22T15:34:49.000Z&amp;decorate=true&amp;filter=streams:${/streamId}" method="GET" savePath="/search_universal">
+                <RequestHeader name="X-Requested-By" value="PostMan" />
+                <RequestHeader name="Accept" value="application/json" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/search_universal/status_code != 200">
+                <Log type="error" message="Universal Search Error: ${/search_universal/status_code} - ${/search_universal/body}" />
+                <Abort reason="Error: ${/search_universal/status_code} - ${/search_universal/body}" />
+            </If>
+
+            <!-- Post the Logs -->
+            <PostEvents path="/search_universal/body" source="${/serverurl}" />
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/serverurl}" />
+        <TCPConnectionTest host="${/serverurl}" />
+        <HTTPConnectionThroughProxyTest url="${/serverurl}" />
+    </Tests>
+
+</Workflow>
