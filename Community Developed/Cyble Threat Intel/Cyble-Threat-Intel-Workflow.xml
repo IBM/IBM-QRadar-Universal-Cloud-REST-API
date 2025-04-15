@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Cyble Threat Intel" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<?xml version="1.0" encoding="UTF-8"?>
+<Workflow name="Cyble Threat Intel" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <!--    Reading required parameters for the Workflow-->
     <Parameters>
@@ -35,110 +36,96 @@
 
         <Log type="INFO" message="CybleThreatIntel:: Fetching events from: ${/fromDateFormatted} to: ${/toDateFormatted}" />
 
-        <!--        Fetching count of total events available in the given time frame-->
-        <CallEndpoint url="https://${/hostname}/apollo/api/v1/y/alerts" method="POST" savePath="/get_count">
+        <!--        Fetching Service List -->
+        <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts/services" method="GET" savePath="/service_response">
             <RequestHeader name="Accept" value="*/*" />
             <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
             <RequestHeader name="Content-Type" value="application/json" />
-            <RequestBody type="application/json" encoding="UTF-8">
-                {
-                "countOnly": true,
-                "where": {
-                "created_at": {
-                "gte": "${/fromDateFormatted}",
-                "lte": "${/toDateFormatted}"
-                }
-                }
-                }
-            </RequestBody>
         </CallEndpoint>
 
         <!--        Handling error-->
-        <If condition="${/get_count/status_code} != 200">
-            <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
-            <Abort reason="${/get_count/status_code}: ${/get_count/status_message}" />
+        <If condition="${/service_response/status_code} != 200">
+            <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/service_response/status_message}" />
+            <Abort reason="${/service_response/status_code}: ${/service_response/status_message}" />
         </If>
 
-        <!--        Setting parameters for API request for fetching events-->
-        <Set path="/total_count" value="${/get_count/body/data/count}" />
-        <Set path="/skip" value="0" />
-        <Set path="/take" value="1000" />
-
-        <While condition="${/total_count} > 0" >
-            <If condition="${/take} > ${/total_count}">
-                <Set path="/take" value="${/total_count}" />
-            </If>
-
-            <CallEndpoint url="https://${/hostname}/apollo/api/v1/y/alerts" method="POST" savePath="/get_events">
+        <ForEach item="/service" items="/service_response/body/data">
+            <!--        Fetching count of total events available in the given time frame-->
+            <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts" method="POST" savePath="/get_count">
                 <RequestHeader name="Accept" value="*/*" />
                 <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
                 <RequestHeader name="Content-Type" value="application/json" />
                 <RequestBody type="application/json" encoding="UTF-8">
                     {
-                    "orderBy": [
-                    {
-                    "created_at": "asc"
-                    }
-                    ],
-                    "select": {
-                    "archive_date": true,
-                    "archived": true,
-                    "assignee_id": true,
-                    "assignment_date": true,
-                    "created_at": true,
-                    "data_id": true,
-                    "deleted_at": true,
-                    "description": true,
-                    "hash": true,
-                    "id": true,
-                    "metadata": true,
-                    "risk_score": true,
-                    "service": true,
-                    "severity": true,
-                    "status": true,
-                    "tags": true,
-                    "updated_at": true,
-                    "user_severity": true
-                    },
-                    "skip": ${/skip},
-                    "take": ${/take},
-                    "withDataMessage": true,
-                    "where": {
+                    "filters": {
+                    "service" : [ "${/service/name}" ],
                     "created_at": {
                     "gte": "${/fromDateFormatted}",
                     "lte": "${/toDateFormatted}"
                     },
-                    "status": {
-                    "in": [
-                    "VIEWED",
-                    "UNREVIEWED",
-                    "CONFIRMED_INCIDENT",
-                    "UNDER_REVIEW",
-                    "INFORMATIONAL"
-                    ]
-                    }
-                    }
+                    "status": [ "VIEWED", "UNREVIEWED", "CONFIRMED_INCIDENT", "UNDER_REVIEW", "INFORMATIONAL" ]
+                    },
+                    "orderBy": [{ "created_at": "desc" }],
+                    "skip": 0,
+                    "take": 1,
+                    "countOnly": true,
+                    "taggedAlert" : false,
+                    "withDataMessage": false
                     }
                 </RequestBody>
             </CallEndpoint>
-
-
-            <If condition="${/get_events/status_code} != 200">
+            <If condition="${/get_count/status_code} != 200">
                 <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
-                <Abort reason="${/get_events/status_code}: ${/get_events/status_message}" />
+                <Set path="/get_count/body/data" value="0" />
             </If>
+            <!--        Setting parameters for API request for fetching events-->
+            <Set path="/total_count" value="${/get_count/body/data}" />
+            <Set path="/skip" value="0" />
+            <Set path="/take" value="1000" />
+            <While condition="${/total_count} > 0">
+                <If condition="${/take} > ${/total_count}">
+                    <Set path="/take" value="${/total_count}" />
+                </If>
 
-            <Log type="INFO" message="CybleThreatIntel:: Fetched ${count(/get_events/body/data)} events." />
+                <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts" method="POST" savePath="/get_events">
+                    <RequestHeader name="Accept" value="*/*" />
+                    <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
+                    <RequestHeader name="Content-Type" value="application/json" />
+                    <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                        "filters": {
+                        "service" : [ "${/service/name}" ],
+                        "created_at": {
+                        "gte": "${/fromDateFormatted}",
+                        "lte": "${/toDateFormatted}"
+                        },
+                        "status": [ "VIEWED", "UNREVIEWED", "CONFIRMED_INCIDENT", "UNDER_REVIEW", "INFORMATIONAL" ]
+                        },
+                        "orderBy": [{ "created_at": "desc" }],
+                        "skip": ${/skip},
+                        "take": ${/take},
+                        "countOnly": false,
+                        "taggedAlert" : false,
+                        "withDataMessage": false
+                        }
+                    </RequestBody>
+                </CallEndpoint>
 
-            <ForEach item="/current_event" items="/get_events/body/data">
-                <PostEvent path="/current_event" source="${/hostname}" />
-            </ForEach>
+                <If condition="${/get_events/status_code} != 200">
+                    <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
+                    <Abort reason="${/get_events/status_code}: ${/get_events/status_message}" />
+                </If>
 
-            <Set path="/total_count" value="${/total_count - /take}" />
-            <Set path="/skip" value="${/skip + /take}" />
+                <Log type="INFO" message="CybleThreatIntel:: Fetched ${count(/get_events/body/data)} events." />
 
-        </While>
+                <ForEach item="/current_event" items="/get_events/body/data">
+                    <PostEvent path="/current_event" source="${/hostname}" />
+                </ForEach>
 
+                <Set path="/total_count" value="${/total_count - /take}" />
+                <Set path="/skip" value="${/skip + /take}" />
+            </While>
+        </ForEach>
     </Actions>
 
     <!--    Running tests-->
