@@ -1,0 +1,443 @@
+<?xml version="1.0"?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    targetNamespace="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2"
+    xmlns:wf="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2" >
+
+    <xs:simpleType name="nonEmptyString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:group name="actionSequence">
+        <xs:sequence>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element name="Abort" type="wf:abortType" maxOccurs="unbounded" />
+                <xs:element name="Add" type="wf:addType" maxOccurs="unbounded" />
+                <xs:element name="CallEndpoint" type="wf:callEndpointType" maxOccurs="unbounded" />
+                <xs:element name="ClearStatus" type="wf:clearStatusType" maxOccurs="unbounded" />
+                <xs:element name="Copy" type="wf:copyType" maxOccurs="unbounded" />
+                <xs:element name="CreateJWTAccessToken" type="wf:createJWTAccessTokenAction" maxOccurs="unbounded" />
+                <xs:element name="Delete" type="wf:deleteType" maxOccurs="unbounded" />
+                <xs:element name="DoWhile" type="wf:doWhileType" maxOccurs="unbounded" />
+                <xs:element name="ForEach" type="wf:forEachType" maxOccurs="unbounded" />
+                <xs:element name="FormatDate" type="wf:formatDateType" maxOccurs="unbounded" />
+                <xs:element name="GenerateHMAC" type="wf:generateHMACType" maxOccurs="unbounded" />
+                <xs:sequence maxOccurs="unbounded">
+                    <xs:element name="If" type="wf:ifType" />
+                    <xs:element name="ElseIf" type="wf:elseIfType" minOccurs="0" maxOccurs="unbounded" />
+                    <xs:element name="Else" type="wf:elseType" minOccurs="0" />
+                </xs:sequence>
+                <xs:element name="Initialize" type="wf:initializeType" maxOccurs="unbounded" />
+                <xs:element name="Log" type="wf:logType" maxOccurs="unbounded" />
+                <xs:element name="Merge" type="wf:mergeType" maxOccurs="unbounded" />
+                <xs:element name="ParseDate" type="wf:parseDateType" maxOccurs="unbounded" />
+                <xs:element name="PostEvent" type="wf:postEventType" maxOccurs="unbounded" />
+                <xs:element name="PostEvents" type="wf:postEventsType" maxOccurs="unbounded" />
+                <xs:element name="RegexCapture" type="wf:regexCaptureType" maxOccurs="unbounded" />
+                <xs:element name="Set" type="wf:setType" maxOccurs="unbounded" />
+                <xs:element name="SetStatus" type="wf:setStatusType" maxOccurs="unbounded" />
+                <xs:element name="Sleep" type="wf:sleepType" maxOccurs="unbounded" />
+                <xs:element name="Split" type="wf:splitType" maxOccurs="unbounded" />
+                <xs:element name="While" type="wf:whileType" maxOccurs="unbounded" />
+                <xs:element name="XPathQuery" type="wf:xPathQueryType" maxOccurs="unbounded" />
+            </xs:choice>
+        </xs:sequence>
+    </xs:group>
+
+    <xs:complexType name="abortType">
+        <xs:attribute name="reason" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="terminate" type="wf:nonEmptyString" default="false" />
+    </xs:complexType>
+
+    <xs:complexType name="actionSequenceType">
+        <xs:sequence>
+            <xs:group ref="wf:actionSequence" maxOccurs="unbounded" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="addType">
+        <xs:attribute name="path" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="value" type="xs:string" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="callEndpointType">
+        <xs:sequence>
+
+            <xs:element name="SSLConfiguration" minOccurs="0" >
+                <xs:complexType>
+                    <xs:attribute name="protocol" type="wf:nonEmptyString" default="TLSv1.2" />
+                    <xs:attribute name="allowUntrustedServerCertificate" type="wf:nonEmptyString" default="false" />
+                </xs:complexType>
+            </xs:element>
+
+            <xs:choice minOccurs="0">
+
+                <xs:element name="BasicAuthentication">
+                    <xs:complexType>
+                        <xs:attribute name="username" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="password" type="xs:string" use="required" />
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="BearerAuthentication">
+                    <xs:complexType>
+                        <xs:attribute name="token" type="wf:nonEmptyString" use="required" />
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="DigestAuthentication">
+                    <xs:complexType>
+                        <xs:attribute name="username" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="password" type="xs:string" use="required" />
+                        <xs:attribute name="realm" type="xs:string" />
+                        <xs:attribute name="nonce" type="xs:string" />
+                        <xs:attribute name="algorithm" type="xs:string" />
+                        <xs:attribute name="qop" type="xs:string" />
+                        <xs:attribute name="cnonce" type="xs:string" />
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="AkamaiEdgeGridAuthentication">
+                    <xs:complexType>
+                        <xs:attribute name="accessToken" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="clientToken" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="clientSecret" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="baseUrl" type="wf:nonEmptyString" />
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="HawkAuthentication">
+                    <xs:complexType>
+                        <xs:attribute name="keyId" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="key" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="algorithm" type="wf:nonEmptyString" use="required" />
+                        <xs:attribute name="hash" type="xs:string" />
+                        <xs:attribute name="ext" type="xs:string" />
+                        <xs:attribute name="app" type="xs:string" />
+                        <xs:attribute name="dlg" type="xs:string" />
+                    </xs:complexType>
+                </xs:element>
+
+            </xs:choice>
+
+            <xs:element name="QueryParameter" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                    <xs:attribute name="name" type="wf:nonEmptyString" use="required" />
+                    <xs:attribute name="value" type="xs:string" />
+                    <xs:attribute name="omitIfEmpty" type="xs:string" default="false" />
+                </xs:complexType>
+            </xs:element>
+
+            <xs:element name="RequestHeader" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                    <xs:attribute name="name" type="wf:nonEmptyString" use="required" />
+                    <xs:attribute name="value" type="xs:string" />
+                    <xs:attribute name="omitIfEmpty" type="xs:string" default="false" />
+                </xs:complexType>
+            </xs:element>
+
+            <xs:choice minOccurs="0">
+
+                <xs:element name="RequestBody">
+                    <xs:complexType>
+                        <xs:simpleContent>
+                            <xs:extension base="xs:string">
+                                <xs:attribute name="type" type="wf:nonEmptyString" use="required" />
+                                <xs:attribute name="encoding" type="wf:nonEmptyString" use="required" />
+                            </xs:extension>
+                        </xs:simpleContent>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="UrlEncodedFormRequestBody">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="Parameter" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:attribute name="name" type="wf:nonEmptyString" use="required" />
+                                    <xs:attribute name="value" type="xs:string" />
+                                    <xs:attribute name="omitIfEmpty" type="xs:string" default="false" />
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="XmlRequestBody">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:any processContents="skip" />
+                        </xs:sequence>
+                        <xs:attribute name="type" type="wf:nonEmptyString" default="application/xml" />
+                        <xs:attribute name="encoding" type="wf:nonEmptyString" default="UTF-8" />
+                    </xs:complexType>
+                </xs:element>
+
+            </xs:choice>
+
+        </xs:sequence>
+
+        <xs:attribute name="url" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="method" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="savePath" type="wf:nonEmptyString" />
+
+    </xs:complexType>
+
+    <xs:complexType name="clearStatusType" />
+
+    <xs:complexType name="copyType">
+        <xs:attribute name="sourcePath" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="targetPath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="createJWTAccessTokenAction">
+        <xs:sequence>
+
+            <xs:element name="Header">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="Value" maxOccurs="unbounded">
+                            <xs:complexType>
+                                <xs:attribute name="name" type="wf:nonEmptyString" use="required" />
+                                <xs:attribute name="value" type="xs:string" use="required" />
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+
+            <xs:element name="Payload">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="Value" maxOccurs="unbounded">
+                            <xs:complexType>
+                                <xs:attribute name="name" type="wf:nonEmptyString" use="required" />
+                                <xs:attribute name="value" type="xs:string" use="required" />
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+
+            <xs:element name="Secret">
+                <xs:complexType>
+                    <xs:attribute name="value" type="wf:nonEmptyString" use="required" />
+                </xs:complexType>
+            </xs:element>
+
+        </xs:sequence>
+        <xs:attribute name="savePath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="deleteType">
+        <xs:attribute name="path" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="doWhileType">
+        <xs:complexContent>
+            <xs:extension base="wf:actionSequenceType">
+                <xs:attribute name="condition" type="wf:nonEmptyString" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="elseType">
+        <xs:complexContent>
+            <xs:extension base="wf:actionSequenceType" />
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="elseIfType">
+        <xs:complexContent>
+            <xs:extension base="wf:actionSequenceType">
+                <xs:attribute name="condition" type="wf:nonEmptyString" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="forEachType">
+        <xs:complexContent>
+            <xs:extension base="wf:actionSequenceType">
+                <xs:attribute name="item" type="wf:nonEmptyString" use="required" />
+                <xs:attribute name="items" type="wf:nonEmptyString" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="formatDateType">
+        <xs:attribute name="pattern" type="wf:nonEmptyString" use="required"/>
+        <xs:attribute name="timeZone" type="wf:nonEmptyString" />
+        <xs:attribute name="time" type="wf:nonEmptyString" />
+        <xs:attribute name="savePath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="generateHMACType">
+        <xs:attribute name="algorithm" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="secretKey" type="xs:string" use="required" />
+        <xs:attribute name="message" type="xs:string" use="required" />
+        <xs:attribute name="saveFormat"  type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="savePath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="ifType">
+        <xs:complexContent>
+            <xs:extension base="wf:actionSequenceType">
+                <xs:attribute name="condition" type="wf:nonEmptyString" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="initializeType">
+        <xs:attribute name="path" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="value" type="xs:string" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="logType">
+        <xs:attribute name="type" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="message" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="mergeType">
+        <xs:attribute name="sourcePath" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="targetPath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="parseDateType">
+        <xs:attribute name="pattern" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="timeZone" type="wf:nonEmptyString" />
+        <xs:attribute name="date" type="wf:nonEmptyString" />
+        <xs:attribute name="savePath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="postEventType">
+        <xs:attribute name="path" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="encoding" type="wf:nonEmptyString" default="UTF-8" />
+        <xs:attribute name="source" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="postEventsType">
+        <xs:attribute name="path" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="encoding" type="wf:nonEmptyString" default="UTF-8" />
+        <xs:attribute name="source" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="regexCaptureType">
+        <xs:attribute name="pattern" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="value" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="savePath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="setType">
+        <xs:attribute name="path" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="value" type="xs:string" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="setStatusType">
+        <xs:attribute name="type" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="message" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="sleepType">
+        <xs:attribute name="duration" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="splitType">
+        <xs:attribute name="value" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="delimiter" type="wf:nonEmptyString" default="(\r\n|\r|\n)" />
+        <xs:attribute name="savePath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="whileType">
+        <xs:complexContent>
+            <xs:extension base="wf:actionSequenceType">
+                <xs:attribute name="condition" type="wf:nonEmptyString" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="xPathQueryType">
+        <xs:attribute name="xmlPath" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="xPathQuery" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="singleton" type="wf:nonEmptyString" default="false" />
+        <xs:attribute name="savePath" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="dnsResolutionTestType">
+        <xs:attribute name="host" type="wf:nonEmptyString" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="httpConnectionThroughProxyTest">
+        <xs:attribute name="url" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="expectedResponseStatus" type="wf:nonEmptyString" default="200" />
+    </xs:complexType>
+
+    <xs:complexType name="sslHandshakeTestType">
+        <xs:attribute name="host" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="port" type="wf:nonEmptyString" default="443" />
+    </xs:complexType>
+
+    <xs:complexType name="tcpConnectionTestType">
+        <xs:attribute name="host" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="port" type="wf:nonEmptyString" default="443" />
+    </xs:complexType>
+
+    <xs:complexType name="configType">
+        <xs:sequence>
+
+            <xs:element name="Workflow">
+            </xs:element>
+
+        </xs:sequence>
+
+    </xs:complexType>
+
+    <xs:complexType name="workflowType">
+        <xs:sequence>
+
+            <xs:element name="Parameters" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="Parameter" maxOccurs="unbounded">
+                            <xs:complexType>
+                                <xs:attribute name="name" type="wf:nonEmptyString" use="required" />
+                                <xs:attribute name="label" type="wf:nonEmptyString" use="required" />
+                                <xs:attribute name="description" type="xs:string" />
+                                <xs:attribute name="required" type="xs:boolean" default="false" />
+                                <xs:attribute name="secret" type="xs:boolean" default="false" />
+                                <xs:attribute name="default" type="xs:string" />
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+
+            <xs:element name="Actions" type="wf:actionSequenceType" />
+
+            <xs:element name="Tests" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:choice maxOccurs="unbounded">
+                            <xs:element name="DNSResolutionTest" type="wf:dnsResolutionTestType" />
+                            <xs:element name="HTTPConnectionThroughProxyTest" type="wf:httpConnectionThroughProxyTest" />
+                            <xs:element name="SSLHandshakeTest" type="wf:sslHandshakeTestType" />
+                            <xs:element name="TCPConnectionTest" type="wf:tcpConnectionTestType" />
+                        </xs:choice>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+
+        </xs:sequence>
+
+        <xs:attribute name="name" type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="description" type="xs:string" />
+        <xs:attribute name="version"  type="wf:nonEmptyString" use="required" />
+        <xs:attribute name="minimumRecurrence"  type="wf:nonEmptyString" default="0" />
+
+    </xs:complexType>
+
+    <xs:element name="Workflow" type="wf:workflowType" />
+
+</xs:schema>

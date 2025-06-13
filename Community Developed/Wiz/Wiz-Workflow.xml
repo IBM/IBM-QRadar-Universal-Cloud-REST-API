@@ -8,11 +8,13 @@
         <Parameter name="host" label="API Endpoint" required="true" />
         <Parameter name="auth_type" label="Authentication Type" required="true" />
         <Parameter name="gql_query" label="GraphQL Query" required="true" />
+        <Parameter name="audit_logs_gql_query" label="GraphQL Query" required="false" />
     </Parameters>
 
     <Actions>
         
         <Log type="INFO" message="WIZ: Workflow Actions started..." />
+        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3" />
         <If condition="/bookmark != null">
             <!-- Format Date to be passed in fetching events -->
             <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
@@ -73,6 +75,7 @@
         <!-- Fetch API Token -->
         <CallEndpoint url="https://${/token_url_domain}/oauth/token" method="POST" savePath="/get_access_token">
             <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+            <RequestHeader name="User-Agent" value="${/user_agent_header}" />
             <UrlEncodedFormRequestBody>
                 <Parameter name="grant_type" value="client_credentials" />
                 <Parameter name="client_id" value="${/client_id}" />
@@ -100,6 +103,7 @@
             <QueryParameter name="variables" value="${/gql_query_variables}" />
             <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
             <RequestHeader name="content-type" value="application/json" />
+            <RequestHeader name="User-Agent" value="${/user_agent_header}" />
         </CallEndpoint>
 
         <Log type="INFO" message="WIZ: First API call status code:: ${/get_events/status_code}" />
@@ -114,7 +118,7 @@
 
         <!-- Post Events, if any -->
         <If condition="count(/get_events/body/data/issues/nodes) > 0">            
-            <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
+            <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}__Issues" />
 
             <!-- Update the bookmark -->
             <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/statusChangedAt)}" savePath="/current_event_time" />
@@ -179,6 +183,7 @@
                 <QueryParameter name="variables" value="${/gql_query_variables}" />
                 <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
                 <RequestHeader name="content-type" value="application/json" />
+                <RequestHeader name="User-Agent" value="${/user_agent_header}" />
             </CallEndpoint>
 
             <Log type="INFO" message="WIZ: Paginated API call status code: ${/get_events/status_code}" />
@@ -193,11 +198,11 @@
 
             <!-- Post Events, if any -->
             <If condition="count(/get_events/body/data/issues/nodes) > 0">
-                <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
+                <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}__Issues" />
                 
                 <!-- Update the bookmark -->
                 <If condition="max(/get_events/body/data/issues/nodes/statusChangedAt) != null">
-                    <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/statusChangedAt)}" savePath="/current_event_time" />
+                    <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.[SSSSSS][SSSSSS][SSSSS][SSSS][SSS][SS][S]]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/statusChangedAt)}" savePath="/current_event_time" />
                     <If condition="/current_event_time + 1000 > /bookmark" >
                         <Set path="/bookmark" value="${/current_event_time + 1000}" />
                         <Log type="INFO" message="WIZ: Updated bookmark value to: ${/bookmark}" />

@@ -15,88 +15,143 @@
     <Value
         name="gql_query"
         value="
-            query IssuesTable(
-            $filterBy: IssueFilters
-            $first: Int
-            $after: String
-            $orderBy: IssueOrder
+           query IssuesTable($filterBy: IssueFilters, $first: Int, $after: String, $orderBy: IssueOrder) {
+            issues: issuesV2(
+                filterBy: $filterBy
+                first: $first
+                after: $after
+                orderBy: $orderBy
             ) {
-            issues(filterBy: $filterBy, first: $first, after: $after, orderBy: $orderBy) {
                 nodes {
-                    __typename
+                id
+                sourceRule {
+                    ... on Control {
                     id
-                    control {
+                    name
+                    controlDescription: description
+                    resolutionRecommendation
+                    risks
+                    securitySubCategories {
+                        title
+                        category {
                         id
                         name
-                        resolutionRecommendation
-                        securitySubCategories {
+                        framework {
                             id
-                            title
-                            category {
-                                id
-                                name
-                                framework {
-                                    id
-                                }
-                            }
+                            name
+                        }
                         }
                     }
+                    }
+                    ... on CloudEventRule {
+                    id
+                    name
+                    cloudEventRuleDescription: description
+                    sourceType
+                    type
+                    risks
+                    }
+                    ... on CloudConfigurationRule {
+                    id
+                    name
+                    cloudConfigurationRuleDescription: description
+                    remediationInstructions
+                    serviceType
+                    risks
+                    }
+                }
+                createdAt
+                updatedAt
+                dueAt
+                type
+                resolvedAt
+                statusChangedAt
+                projects {
+                    id
+                    name
+                    businessUnit
+                    riskProfile {
+                    businessImpact
+                    }
+                }
+                status
+                severity
+                entitySnapshot {
+                    id
+                    type
+                    nativeType
+                    name
+                    status
+                    cloudPlatform
+                    cloudProviderURL
+                    providerId
+                    region
+                    resourceGroupExternalId
+                    subscriptionExternalId
+                    subscriptionName
+                    subscriptionTags
+                    tags
+                    createdAt
+                    externalId
+                }
+                serviceTickets {
+                    externalId
+                    name
+                    url
+                }
+                notes {
                     createdAt
                     updatedAt
-                    dueAt
-                    statusChangedAt
-                    projects {
-                        id
-                        name
-                        slug
-                        businessUnit
-                        riskProfile {
-                            businessImpact
-                        }
+                    text
+                    user {
+                    name
+                    email
                     }
-                    status
-                    severity
-                    entitySnapshot {
-                        id
-                        type
-                        nativeType
-                        name
-                        externalId
-                        subscriptionExternalId
-                        subscriptionName
-                        resourceGroupExternalId
-                        region
-                        cloudPlatform
-                        cloudProviderURL
-                        providerId
-                        status
-                        tags
-                        subscriptionTags
+                    serviceAccount {
+                    name
                     }
-                    notes{
-                        text
-                        user{
-                            name
-                            email
-                        }
-                        serviceAccount{
-                            name
-                        }
-                        createdAt
-                        updatedAt
-                    }
-                    serviceTickets {
-                        externalId
-                        name
-                        url
-                    }
+                }
                 }
                 pageInfo {
-                    hasNextPage
-                    endCursor
+                hasNextPage
+                endCursor
                 }
             }
             }
+
         "
+    />
+    
+    <Value
+        name="audit_logs_gql_query"
+        value="
+            query AuditLogTable($first: Int $after: String $filterBy: AuditLogEntryFilters){
+            auditLogEntries(first: $first after: $after filterBy: $filterBy) {
+            nodes {
+                __typename
+                id
+                action
+                requestId
+                status
+                timestamp
+                actionParameters
+                userAgent
+                sourceIP
+                serviceAccount {
+                id
+                name
+                }
+                user {
+                id
+                name
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+            }
+        }
+    "
     />
 </WorkflowParameterValues>
