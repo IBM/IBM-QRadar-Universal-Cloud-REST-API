@@ -3,7 +3,7 @@
   name="BeyondTrust PM Cloud - Activity Audits"
   description="Retrieves activity audit data from a PM Cloud site via standard REST API calls"
   version="23.1" 
-  xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+  xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <Parameters>
         <Parameter name="hostname" 
@@ -107,7 +107,7 @@
             <!-- Update the last ingested date -->
             <ForEach item="/event" items="/events_response/body/data">
                 <!-- Post Event -->
-                <PostEvent path="/event" source="${/hostname}"/>
+                <PostEvent path="/event" />
                 <Set path="/total_ingested_count" value="${/total_ingested_count + 1}" />
                 
                 <!-- Save the date as the last ingested date -->
@@ -123,6 +123,8 @@
             <Set path="/page_number" value="${/page_number + 1}" />
 
         </DoWhile>
+		
+		<Delete path="/access_token" />
             
         <Log type="INFO" message="Ingested ${/total_ingested_count} activity audits from ${/hostname} starting at ${/start_date} through ${/end_date}" />
 
