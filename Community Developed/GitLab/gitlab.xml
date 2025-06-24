@@ -50,8 +50,8 @@
                 <QueryParameter name="created_after" value="${/sinceTimestamp}" />
             </CallEndpoint>
 
-            <If condition="/respose/status_code != 200">
-                <Log type="ERROR" message="Problem fetching logs, response was: CODE: ${/response/status_code} BODY: ${/response/body}" />
+            <If condition="/events/status_code != 200">
+                <Log type="ERROR" message="Problem fetching logs, response was: CODE: ${/events/status_code} BODY: ${/events/body}" />
             </If>
 
             <Set path="/nextPage" value="${/nextPage + 1}" />
