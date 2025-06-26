@@ -17,88 +17,119 @@
 		<Parameter name="secret_key"        label="Secret Key"      required="true" secret="true" />
 	</Parameters>
 	<Actions>
-  	<!--
-      /////////////////////////
-      // Authentication Logs //
-      /////////////////////////
-    -->
+
+		<Log type="DEBUG" message="Calling workflow after recurrence" />
+
+		<!--
+        /////////////////////////
+        // Authentication Logs //
+        /////////////////////////
+      	-->
+      	
 		<!-- Initialize the Bookmarks - mintime and maxtime -->
 		<Initialize path="/auth_logs/mintime" value="${time() - 60000 * 60 * 24 * 30}" />
 		<Set path="/auth_logs/maxtime" value="${time() - 60000 * 2}" />
 		<!-- Log events are ranging from the last 30 days up to as recently as two minutes before the API request -->
 		<Set path="/method" value="GET" />
 		<Set path="/endpoint" value="/admin/v2/logs/authentication" />
+		<Set path="/limit" value="1000" />
+		<Set path="/retry_counter" value="0" />
+		<Set path="/retry_interval_in_seconds" value="60" />
 
-		<!--
-      Generate the HTTP Password as an HMAC signature of the request https://duo.com/docs/adminapi#authentication
-        - Date enumerated as RFC 2822 format [Tue, 21 Aug 2012 17:29:18 -0000]
-        - Method [GET, POST, etc.]
-        - API Hostname [api-xxxxxxxx.duosecurity.com]
-        - API method's path [/admin/v2/logs/]
-        - Parameters [mintime=xxxxxx&maxtime=xxxxxx&limit=1000&next_offset=xxxxxx]
-    -->
-    <FormatDate pattern="EEE, dd MMM yyyy HH:mm:ss Z" timeZone="UTC" savePath="/auth_logs/date" />
-    <If condition="/auth_logs/response/body/response/metadata/next_offset != null">
-      <Set path="/value" value="${/auth_logs/date}&#xA;${/method}&#xA;${/host}&#xA;${/endpoint}&#xA;limit=1000&amp;maxtime=${/auth_logs/maxtime}&amp;mintime=${/auth_logs/mintime}&amp;next_offset=${url_encode(/auth_logs/offset)}" />
-			<GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
-    </If>
-    <Else>
-      <Set path="/value" value="${/auth_logs/date}&#xA;${/method}&#xA;${/host}&#xA;${/endpoint}&#xA;limit=1000&amp;maxtime=${/auth_logs/maxtime}&amp;mintime=${/auth_logs/mintime}" />
-			<GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
-    </Else>
+		<While condition="${/retry_counter &lt; 4}">
+			<!--
+            Generate the HTTP Password as an HMAC signature of the request https://duo.com/docs/adminapi#authentication
+                - Date enumerated as RFC 2822 format [Tue, 21 Aug 2012 17:29:18 -0000]
+                - Method [GET, POST, etc.]
+                - API Hostname [api-xxxxxxxx.duosecurity.com]
+                - API method's path [/admin/v2/logs/]
+                - Parameters [mintime=xxxxxx&maxtime=xxxxxx&limit=1000&next_offset=xxxxxx]
+            -->
+			<FormatDate pattern="EEE, dd MMM yyyy HH:mm:ss Z" timeZone="UTC" savePath="/auth_logs/date" />
 
-		<CallEndpoint url="https://${/host}${/endpoint}" method="${/method}" savePath="/auth_logs/response">
-			<BasicAuthentication username="${/integration_key}" password="${/signature}" />
-			<QueryParameter name="limit" value="1000" />
-			<QueryParameter name="maxtime" value="${/auth_logs/maxtime}" />
-			<QueryParameter name="mintime" value="${/auth_logs/mintime}" />
-			<QueryParameter name="next_offset" value="${/auth_logs/offset}" omitIfEmpty="true"/>
-			<RequestHeader name="Date" value="${/auth_logs/date}" />
-		</CallEndpoint>
-		<Delete path="/auth_logs/offset" />
-    <!--
-      RESPONSE FORMAT:
-      {
-        "stat":"OK",
-        "response":
-        {
-          "authlogs":[...], <- logs are stored in this array /auth_logs/response/authlogs
-          "metadata":
-          {
-            "next_offset":[
-              "1532951895000",
-              "af0ba235-0b33-23c8-bc23-a31aa0231de8"
-            ],
-            "total_objects":0
-          }
-        }
-      }
-    -->
-		<If condition="/auth_logs/response/status_code != 429">
-			<!-- Handle Errors -->
-			<If condition="/auth_logs/response/status_code != 200">
-				<!-- Event retriever thread is a bit slow to kill error'd out provider threads, this prevents duplicate errors. -->
-				<Sleep duration="2000" />
-				<Log type="ERROR" message="Received error from Cisco Duo Protocol: ${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}. Abort polling events until next recurrence time" />
-				<Abort reason="${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}" />
-			</If>
-			<!-- Post the Events -->
-			<PostEvents path="/auth_logs/response/body/response/authlogs" source="${/host}" />
-			<!-- Set the offset -->
-			<If condition="/auth_logs/response/body/response/metadata/next_offset != null">
-				<Set path="/auth_logs/offset" value="${/auth_logs/response/body/response/metadata/next_offset[0]},${/auth_logs/response/body/response/metadata/next_offset[1]}" />
-				<Log type="DEBUG" message="An offset value of [${/auth_logs/offset}] was found. A request with the offset value will be send in the next recurrence." />
+			<If condition="/auth_logs/offset != null">
+				<Set path="/value" value="${/auth_logs/date}&#xA;${/method}&#xA;${/host}&#xA;${/endpoint}&#xA;limit=${/limit}&amp;maxtime=${/auth_logs/maxtime}&amp;mintime=${/auth_logs/mintime}&amp;next_offset=${url_encode(/auth_logs/offset)}" />
+				<GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
 			</If>
 			<Else>
-				<Log type="DEBUG" message="No offset value detected in response." />
-				<!-- Update the Bookmark for the next iteration. Set the current maxtime + 1 as next poll's mintime. -->
-				<Set path="/auth_logs/mintime" value="${/auth_logs/maxtime + 1}" />
-				<Log type="DEBUG" message="Done posting events for this recurrence. Updating bookmark to begin at ${/auth_logs/maxtime + 1}." />
+				<Set path="/value" value="${/auth_logs/date}&#xA;${/method}&#xA;${/host}&#xA;${/endpoint}&#xA;limit=${/limit}&amp;maxtime=${/auth_logs/maxtime}&amp;mintime=${/auth_logs/mintime}" />
+				<GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/value}" saveFormat="HEX" savePath="/signature" />
 			</Else>
-		</If>
-		<Else>
-			<Log type="WARN" message="Received warning from Cisco Duo: ${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}." />
-		</Else>
+
+			<CallEndpoint url="https://${/host}${/endpoint}" method="${/method}" savePath="/auth_logs/response">
+				<BasicAuthentication username="${/integration_key}" password="${/signature}" />
+				<QueryParameter name="limit" value="${/limit}" />
+				<QueryParameter name="maxtime" value="${/auth_logs/maxtime}" />
+				<QueryParameter name="mintime" value="${/auth_logs/mintime}" />
+				<QueryParameter name="next_offset" value="${/auth_logs/offset}" omitIfEmpty="true"/>
+				<RequestHeader name="Date" value="${/auth_logs/date}" />
+			</CallEndpoint>
+
+			<!--
+            RESPONSE FORMAT:
+            {
+                "stat":"OK",
+                "response":
+                {
+                "authlogs":[...], <- logs are stored in this array /auth_logs/response/authlogs
+                "metadata":
+                {
+                    "next_offset":[
+                    "1532951895000",
+                    "af0ba235-0b33-23c8-bc23-a31aa0231de8"
+                    ],
+                    "total_objects":0
+                }
+                }
+            }
+            -->
+            
+			<If condition="/auth_logs/response/status_code != 429">
+				<!-- Handle Errors -->
+				<If condition="/auth_logs/response/status_code != 200">
+					<!-- Event retriever thread is a bit slow to kill error'd out provider threads, this prevents duplicate errors. -->
+					<Sleep duration="2000" />
+					<Log type="ERROR" message="Received error from Cisco Duo Protocol: ${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}. Abort polling events until next recurrence time" />
+					<Abort reason="${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}" />
+				</If>
+
+				<!-- Post the Events -->
+				<PostEvents path="/auth_logs/response/body/response/authlogs" source="${/host}" />
+
+				<!--Reset retry_counter-->
+				<Log type="DEBUG" message="Check for Retry counter : ${/retry_counter} :: Authlogs is not null: ${count(/auth_logs/response/body/response/authlogs) &gt; 0}." />
+				<If condition="${/retry_counter!=0 and count(/auth_logs/response/body/response/authlogs) &gt; 0}"> <!---Data is for new records-->
+					<Set path="/retry_counter" value="0" />
+					<Log type="DEBUG" message="Retry counter is reset to 0" />
+				</If>
+
+				<!--Set next_offset-->
+				<If condition="${count(/auth_logs/response/body/response/authlogs) &gt; 0}">
+					<Set path="/auth_logs/offset" value="${/auth_logs/response/body/response/metadata/next_offset[0]},${/auth_logs/response/body/response/metadata/next_offset[1]}" />
+					<Log type="DEBUG" message="An offset value of [${/auth_logs/offset}] was found. Sleeping for [${/retry_interval_in_seconds}] seconds." />
+					<Sleep duration="${/retry_interval_in_seconds * 1000}" />
+				</If>
+				<Else>
+					<Log type="DEBUG" message="No more logs to fetch for this time range : [${/auth_logs/mintime} - ${/auth_logs/maxtime}]. Retrying to fetch logs after ${/retry_interval_in_seconds} seconds... " />
+					<Sleep duration="${/retry_interval_in_seconds * 1000}" />
+
+					<!--Delete next_offset for next API call-->
+					<Delete path="/auth_logs/offset" />
+
+					<!-- Set the mintime and maxtime -->
+					<If condition="${/retry_counter = 0}">
+						<Set path="/auth_logs/mintime" value="${/auth_logs/maxtime + 1}" />
+						<Log type="DEBUG" message="Retry counter is : ${/retry_counter} :: New Mintime: ${/auth_logs/mintime}." />
+					</If>
+					<Set path="/auth_logs/maxtime" value="${time() - 60000 * 2}" />
+					<Set path="/retry_counter" value="${/retry_counter + 1}" />
+					<Log type="DEBUG" message="Retry counter is incremented to : ${/retry_counter} :: New Maxtime: ${/auth_logs/maxtime}." />
+				</Else>
+			</If>
+			<Else>
+				<Log type="WARN" message="Received warning from Cisco Duo: ${/auth_logs/response/body/code}: ${/auth_logs/response/body/message}." />
+			</Else>
+		</While>
 	</Actions>
 	<Tests>
 		<DNSResolutionTest host="${/host}" />
