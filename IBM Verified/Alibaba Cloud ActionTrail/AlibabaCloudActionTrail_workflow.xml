@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+AliCloud Workflow
+-->
+<Workflow name="AliCloudLogstore" version="1.0" minimumRecurrence="360" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+
+    <Parameters>
+        <Parameter name="host" label="Host" required="true" />
+        <Parameter name="logstore_name" label="The name of the logstore we are pulling from" required="true" />
+        <Parameter name="access_key_id" label="Access Key" required="true" />
+        <Parameter name="secret_key" label="Secret Key" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--
+            ///////////////////////////////
+            Get data from AliCloud Logstore
+            ///////////////////////////////
+        -->
+
+        <!-- Get epoch from 10 minutes ago for "from" -->
+        <Initialize path="/AliCloudLogstore/from" value="${(time() / 1000) - (60 * 15)}" />
+        <!-- 15 minutes. Gets updated at end of workflow to current time to prepare for next run, which queries to cover the time since last run. -->
+
+        <!-- Get epoch for current time for "to" -->
+        <Set path="/AliCloudLogstore/to" value="${time() / 1000}" />
+
+        <!-- get ISO822 time for Date fields -->
+        <FormatDate pattern="E, dd MMM yyyy HH:mm:ss z" timeZone="GMT" time="${/AliCloudLogstore/to * 1000}" savePath="/AliCloudLogstore/current_time_formatted" />
+
+        <!-- Header Definitions -->
+        <Set path="/AliCloudLogstore/headers/apiVersion"   value="0.6.0" />
+        <Set path="/AliCloudLogstore/headers/signatureMethod" value="hmac-sha1"/>
+
+        <!--
+            Parameters we can work with:
+            https://www.alibabacloud.com/help/en/sls/developer-reference/api-getlogs?spm=a2c63.p38356.0.0.56474d49f4kUvz#parameters
+
+            Generating an HMAC-SHA1 Signature:
+            https://www.alibabacloud.com/help/en/sls/developer-reference/request-signatures?spm=a2c63.p38356.0.0.61b554d4UEl1ik#section-8e1-lk0-m0z
+        -->
+
+        <Set path="/AliCloudLogstore/offset" value="0"/>
+        <Set path="/AliCloudLogstore/line" value="100"/> <!-- Page size to use, 100 is maximum size. -->
+
+        <SetStatus type="INFO" message="Querying for events..." />
+
+        <!-- Set the endpoint once, as it does not change -->
+        <Initialize path="/AliCloudLogstore/endpoint" value="/logstores/${/logstore_name}" />
+        <Set path="/AliCloudLogstore/totalCount" value="0" />
+
+        <DoWhile condition="/AliCloudLogstore/eventCount = /AliCloudLogstore/line"> <!-- If the count of events received is not the full page size, then we have received them all.-->
+
+            <!-- Build sorted parameter string (alphabetical) -->
+            <Set path="/AliCloudLogstore/params" value="?from=${/AliCloudLogstore/from}&amp;line=${/AliCloudLogstore/line}&amp;offset=${/AliCloudLogstore/offset}&amp;to=${/AliCloudLogstore/to}&amp;type=log" />
+
+            <!-- Build the signing string according to the documented requirements -->
+            <Set path="/AliCloudLogstore/signString" value="GET&#xA;&#xA;&#xA;${/AliCloudLogstore/current_time_formatted}&#xA;x-log-apiversion:${/AliCloudLogstore/headers/apiVersion}&#xA;x-log-bodyrawsize:0&#xA;x-log-signaturemethod:${/AliCloudLogstore/headers/signatureMethod}&#xA;${/AliCloudLogstore/endpoint}${/AliCloudLogstore/params}"/>
+
+            <!-- Create the signature -->
+            <GenerateHMAC algorithm="SHA1" secretKey="${/secret_key}" message="${/AliCloudLogstore/signString}" saveFormat="BASE64" savePath="/AliCloudLogstore/signature" />
+
+            <!-- Create the authorization string -->
+            <Set path="/AliCloudLogstore/authorization" value="LOG ${/access_key_id}:${/AliCloudLogstore/signature}" />
+
+            <!-- Fetch the Events - Parameters and headers need to be in the same order as HMAC or signature will fail to pass. Alphabetical order for each set, but Auth at the bottom of headers.-->
+            <CallEndpoint url="https://${/host}${/AliCloudLogstore/endpoint}${/AliCloudLogstore/params}" method="GET" savePath="/AliCloudLogstore/logs/response">
+
+                <QueryParameter name="from" value="${/AliCloudLogstore/from}" />
+                <QueryParameter name="line" value="${/AliCloudLogstore/line}" />
+                <QueryParameter name="offset" value="${/AliCloudLogstore/offset}" />
+                <QueryParameter name="to" value="${/AliCloudLogstore/to}" />
+                <QueryParameter name="type" value="log" />
+
+                <RequestHeader name="Date" value="${/AliCloudLogstore/current_time_formatted}" />
+                <RequestHeader name="Host" value="${/host}" />
+                <RequestHeader name="x-log-apiversion" value="${/AliCloudLogstore/headers/apiVersion}" />
+                <RequestHeader name="x-log-bodyrawsize" value="0" />
+                <RequestHeader name="x-log-signaturemethod" value="${/AliCloudLogstore/headers/signatureMethod}" />
+                <RequestHeader name="Authorization" value="${/AliCloudLogstore/authorization}" />
+
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/AliCloudLogstore/logs/response/status_code != 200">
+                <Abort reason="${/AliCloudLogstore/logs/response/body/errorCode}: ${/AliCloudLogstore/logs/response/body/errorMessage}" />
+            </If>
+
+            <Set path="/AliCloudLogstore/eventCount" value="${count(/AliCloudLogstore/logs/response/body)}" />
+            <Log type="DEBUG" message="We received a total of ${/AliCloudLogstore/eventCount} Events." />
+
+            <!-- Post the Events -->
+            <PostEvents path="/AliCloudLogstore/logs/response/body" source="${/host}" />
+
+            <Set path="/AliCloudLogstore/totalCount" value="${/AliCloudLogstore/totalCount + /AliCloudLogstore/eventCount}" />
+
+            <If condition="/AliCloudLogstore/eventCount = /AliCloudLogstore/line">
+                <Set path="/AliCloudLogstore/offset" value="${/AliCloudLogstore/offset + /AliCloudLogstore/line}" />
+                <Log type="DEBUG" message="Full page received, continuing to loop with offset of [${/AliCloudLogstore/offset}]" />
+            </If>
+            <Else>
+                <Log type="DEBUG" message="The current iteration event count [${/AliCloudLogstore/eventCount}] was less that our  page size of [${/AliCloudLogstore/line}], so we will exit the loop." />
+                <Log type="DEBUG" message="Total events received in this iteration is [${/AliCloudLogstore/totalCount}]." />
+            </Else>
+
+        </DoWhile>
+
+        <SetStatus type="INFO" message="Successfully queried for events." />
+
+        <!-- Set the next recurrence to begin immediately after the last end time, increment 1 millisecond -->
+        <Set path="/AliCloudLogstore/from" value="${/AliCloudLogstore/to + 1}"/>
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+        <TCPConnectionTest host="${/host}" />
+        <SSLHandshakeTest host="${/host}" />
+        <HTTPConnectionThroughProxyTest url="https://${/host}" />
+    </Tests>
+
+</Workflow>
