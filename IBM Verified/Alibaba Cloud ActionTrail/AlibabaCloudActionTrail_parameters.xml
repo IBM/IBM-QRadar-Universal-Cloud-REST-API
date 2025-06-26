@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
+    <!--
+        Refer to https://static-aliyun-doc.oss-cn-hangzhou.aliyuncs.com/download%2Fpdf%2F29006%2FAPI_Reference_intl_en-US.pdf for URLs:
+
+        The value of the Host parameter consists of a project name and a Log Service endpoint. You must specify a project in the Host
+        parameter when you call this API operation.
+
+        See page 11 for different endpoints to use with your project.
+    -->
+    <Value name="host"  value="" />
+    <Value name="logstore_name" value="" />
+    <Value name="access_key_id" value="" />
+    <Value name="secret_key"    value="" />
+</WorkflowParameterValues>
