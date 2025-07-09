@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="host" value="dynlocal.company.com/e/XXXXX-XXXXX-XXXXX-XXXX" />
+    <Value name="apiToken" value="dt0c01.XXXXXX.XXXXXXXXXXXXXXXXXXXX" />    
+    <Value name="fromTime" value="now-1d" />
+</WorkflowParameterValues>
