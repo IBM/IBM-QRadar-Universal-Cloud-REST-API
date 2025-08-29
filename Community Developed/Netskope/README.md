@@ -84,7 +84,7 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 | Netskope-Audit-Event-Workflow.xml | Audit Event | /api/v2/events/dataexport/events/audit |
 | Netskope-Connection-Event-Workflow.xml | Connection Event | /api/v2/events/dataexport/alerts/connection | 
 | Netskope-Endpoint-Event-Workflow.xml | Endpoint Event | /api/v2/events/dataexport/events/endpoint | 
-| Netskope-Incident-Event-Workflow.xml | Incident Event | /api/v2/events/dataexport/events/incident | 
+| Netskope-Incident-Event-Workflow.xml | DLP Incident | /api/v2/events/dataexport/events/incident | 
 | Netskope-Infrastructure-Event-Workflow.xml | Infrastructure Event | /api/v2/events/dataexport/events/infrastructure | 
 | Netskope-Network-Event-Workflow.xml | Network Event | /api/v2/events/dataexport/events/network |
 | Netskope-Page-Event-Workflow.xml | Page Event | /api/v2/events/dataexport/events/page |
