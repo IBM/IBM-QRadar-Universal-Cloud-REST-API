@@ -88,3 +88,6 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 | Netskope-Infrastructure-Event-Workflow.xml | Infrastructure Event | /api/v2/events/dataexport/events/infrastructure | 
 | Netskope-Network-Event-Workflow.xml | Network Event | /api/v2/events/dataexport/events/network |
 | Netskope-Page-Event-Workflow.xml | Page Event | /api/v2/events/dataexport/events/page |
+
+Note: Data retrieved through the workflow “Netskope-Incident-Event-Workflow.xml” will be
+parsed as a “DLP Incident” in QRadar.
