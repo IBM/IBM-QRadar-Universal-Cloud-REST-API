@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow 
+  name="BeyondTrust PM Cloud - Activity Audits"
+  description="Retrieves activity audit data from a PM Cloud site via standard REST API calls"
+  version="23.1" 
+  xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
+
+    <Parameters>
+        <Parameter name="hostname" 
+          label="PM Cloud Services Hostname" 
+          description="Be sure to include the '-services' portion of the hostname (ex: if you access the web site at 'mysite.example.com' then the value to enter here would be 'mysite-services.example.com')" 
+          required="true" />
+        <Parameter name="client_id" 
+          label="Client ID" 
+          required="true" />
+        <Parameter name="client_secret" 
+          label="Client Secret" 
+          required="true" 
+          secret="true" />
+        <Parameter name="page_size" 
+          label="Page Size" 
+          description="Audit activity is retrieved from your PM Cloud site in chunks of data (pages). The page size determines how many records are retrieved by any single request. (default: 200 - max: 200)"
+          required="true"
+          default="200" />
+    </Parameters>
+
+    <Actions>
+        
+        <!-- Initialize the last ingested date (current time minus 1 hour) -->
+        <Initialize path="/last_ingested_date" value="${time() - 3600000}" />
+        <!-- Prepare the start and end date filter, based on the current last ingested date -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" time="${/last_ingested_date}" timeZone="UTC" savePath="/start_date" />
+        <!-- Prepare the end date filter, which is the current time. -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" savePath="/end_date" />
+        <Log type="INFO" message="Preparing to attempt activity audit ingestion from ${/hostname} starting at ${/start_date} through ${/end_date}" />
+        
+        <!--
+        //////////////////////
+        // Get Access Token //
+        //////////////////////
+        -->
+        <Log type="DEBUG" message="Preparing to attempt authentication call to ${/hostname}" />
+        <CallEndpoint url="https://${/hostname}/oauth/connect/token" method="POST" savePath="/auth_token_response" >
+            <RequestHeader name="Accept" value="*/*" />
+            <!-- <BasicAuthentication username="${/client_id}" password="${/client_secret}" /> -->
+            <RequestHeader name="Authorization" value="Basic ${base64_encode('${/client_id}:${/client_secret}')}"/>
+            <UrlEncodedFormRequestBody>
+              <Parameter name="grant_type" value="client_credentials" />
+            </UrlEncodedFormRequestBody>
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/auth_token_response/status_code = 429">
+            <Set path="/temp_message" value="(HTTP 429) API rate limit hit. The polling process for this interval will exit and another attempt will be made on the next interval" />
+            <Log type="WARN" message="${/temp_message}" />
+            <Abort reason="${/temp_message}" />
+        </If>
+        <ElseIf condition="/auth_token_response/status_code != 200">
+            <Set path="/temp_message" value="Authentication attempt failed: ${/auth_token_response/body}" />
+            <Log type="ERROR" message="${/temp_message}" />
+            <Abort reason="${/temp_message}" />
+        </ElseIf>
+
+        <!-- Extract the Access Token -->
+        <Log type="DEBUG" message="Successfully authenticated" />
+        <Set path="/access_token" value="${/auth_token_response/body/access_token}" />
+
+
+        <!--
+        ////////////////////
+        // Request Events //
+        ////////////////////
+        -->
+
+        <Set path="/page_number" value="1" />
+        <Set path="/total_ingested_count" value="0" />
+
+        <!-- Fetch all events, one page at a time -->
+        <DoWhile condition="/events_response/body/pageCount >= /page_number">
+        
+            <Log type="DEBUG" message="Retrieving activity audit records from ${/hostname} starting at ${/start_date} through ${/end_date} (Page: ${/page_number} - Page Size: ${/page_size})" />
+
+            <!-- Fetch the current page -->
+            <CallEndpoint url="https://${/hostname}/management-api/v1/ActivityAudits/Details" method="GET" savePath="/events_response" >
+                <BearerAuthentication token="${/access_token}" />
+                <QueryParameter name="Filter.Created.Dates" value="${/start_date}" />
+                <QueryParameter name="Filter.Created.Dates" value="${/end_date}" />
+                <QueryParameter name="Filter.Created.SelectionMode" value="Range" />
+                <QueryParameter name="Pagination.PageSize" value="${/page_size}" />
+                <QueryParameter name="Pagination.PageNumber" value="${/page_number}" />
+            </CallEndpoint>
+
+            <!-- Handle Errors -->
+            <If condition="/events_response/status_code = 429">
+                <Set path="/temp_message" value="(HTTP 429) API rate limit hit. The polling process for this interval will exit and another attempt will be made on the next interval" />
+                <Log type="WARN" message="${/temp_message}" />
+                <Abort reason="${/temp_message}" />
+            </If>
+            <ElseIf condition="/events_response/status_code != 200">
+                <Set path="/temp_message" value="Activity audits ingestion failed: ${/events_response/status_code} ${/events_response/status_message}" />
+                <Log type="ERROR" message="${/temp_message}" />
+                <Abort reason="${/temp_message}" />
+            </ElseIf>
+
+            <Log type="DEBUG" message="Found a total of ${/events_response/body/totalRecordCount} activity audit record(s) spanning ${/events_response/body/pageCount} page(s) - current page is ${/page_number}" />
+            
+            <!-- Update the last ingested date -->
+            <ForEach item="/event" items="/events_response/body/data">
+                <!-- Post Event -->
+                <PostEvent path="/event" />
+                <Set path="/total_ingested_count" value="${/total_ingested_count + 1}" />
+                
+                <!-- Save the date as the last ingested date -->
+                <Set path="/event_created" value="${/event/created}" />
+                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSSS][.SSSSSS][.SSSSS][.SSSS][.SSS][.SS][.S]" date="${/event_created}" timeZone="UTC" savePath="/event_timestamp" />
+                <If condition="/event_timestamp > /last_ingested_date">
+                    <Set path="/last_ingested_date" value="${/event_timestamp + 1}" />
+                </If>
+                <Log type="DEBUG" message="Event ingested datetime is (${/event_timestamp}) for activity audit data ID: ${/event/id}" />
+            </ForEach>
+
+            <!-- Move to the next page -->
+            <Set path="/page_number" value="${/page_number + 1}" />
+
+        </DoWhile>
+		
+		<Delete path="/access_token" />
+            
+        <Log type="INFO" message="Ingested ${/total_ingested_count} activity audits from ${/hostname} starting at ${/start_date} through ${/end_date}" />
+
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/hostname}" />
+        <TCPConnectionTest host="${/hostname}" />
+        <SSLHandshakeTest host="${/hostname}" />
+        <HTTPConnectionThroughProxyTest url="https://${/hostname}/bogus-path" expectedResponseStatus="404" />
+    </Tests>
+
+</Workflow>

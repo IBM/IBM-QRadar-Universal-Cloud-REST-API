@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2_1">
+
+    <!-- PM Cloud Services Hostname : Be sure to include the '-services' portion of the hostname (ex: if you access the web site at 'mysite.example.com' then the value to enter here would be 'mysite-services.example.com') -->
+    <Value name="hostname"      value="" />    
+    <!-- Client ID -->
+    <Value name="client_id"     value="" />    
+    <!-- Client Secret -->
+    <Value name="client_secret" value="" />    
+    <!-- Page Size : Audit activity is retrieved from your PM Cloud site in chunks of data (pages). The page size determines how many records are retrieved by any single request. (default: 200 - max: 200) -->
+    <Value name="page_size"     value="200" />    
+    
+</WorkflowParameterValues>
