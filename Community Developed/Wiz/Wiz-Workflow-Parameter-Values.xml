@@ -30,7 +30,6 @@
                     name
                     controlDescription: description
                     resolutionRecommendation
-                    risks
                     securitySubCategories {
                         title
                         category {
@@ -49,7 +48,6 @@
                     cloudEventRuleDescription: description
                     sourceType
                     type
-                    risks
                     }
                     ... on CloudConfigurationRule {
                     id
@@ -57,7 +55,6 @@
                     cloudConfigurationRuleDescription: description
                     remediationInstructions
                     serviceType
-                    risks
                     }
                 }
                 createdAt
@@ -153,5 +150,174 @@
             }
         }
     "
+    />
+
+    <Value
+        name="detections_gql_query"
+        value="
+              query Detections($filterBy: DetectionFilters, $first: Int, $after: String, $orderBy: DetectionOrder, $includeTriggeringEvents: Boolean = true) {
+  detections(
+    filterBy: $filterBy
+    first: $first
+    after: $after
+    orderBy: $orderBy
+    enforceTimestampContinuity: true
+  ) {
+    nodes {
+     __typename
+      id
+      issue {
+        id
+        url
+      }
+      ruleMatch {
+        rule {
+          id
+          name
+          sourceType
+          securitySubCategories {
+            title
+            category {
+              name
+              framework {
+                name
+              }
+            }
+          }
+        }
+      }
+      description
+      severity
+      createdAt
+      cloudAccounts {
+        cloudProvider
+        externalId
+        name
+        linkedProjects {
+          id
+          name
+        }
+      }
+      cloudOrganizations {
+        cloudProvider
+        externalId
+        name
+      }
+      startedAt
+      endedAt
+      actors {
+        id
+        externalId
+        name
+        type
+        nativeType
+        actingAs {
+          id
+          externalId
+          name
+          type
+          nativeType
+        }
+      }
+      primaryActor {
+        id
+      }
+      resources {
+        id
+        externalId
+        name
+        type
+        nativeType
+        region
+        cloudAccount {
+          cloudProvider
+          externalId
+          name
+        }
+        kubernetesNamespace {
+          id
+          providerUniqueId
+          name
+        }
+        kubernetesCluster {
+          id
+          providerUniqueId
+          name
+        }
+      }
+      primaryResource {
+        id
+      }
+      triggeringEvents(first: 10) @include(if: $includeTriggeringEvents) {
+        nodes {
+          ... on CloudEvent {
+            id
+            origin
+            name
+            description
+            cloudProviderUrl
+            cloudPlatform
+            timestamp
+            source
+            category
+            status
+            actor {
+              id
+              actingAs {
+                id
+              }
+            }
+            actorIP
+            actorIPMeta {
+              country
+              autonomousSystemNumber
+              autonomousSystemOrganization
+              reputation
+              reputationDescription
+              reputationSource
+              relatedAttackGroupNames
+              customIPRanges {
+                id
+                name
+                isInternal
+                ipRanges
+              }
+            }
+            resources {
+              id
+            }
+            extraDetails {
+              ... on CloudEventRuntimeDetails {
+                processTree {
+                  command
+                  container {
+                    id
+                    externalId
+                    name
+                    image {
+                      id
+                      externalId
+                    }
+                  }
+                  path
+                  hash
+                  size
+                  executionTime
+                  runtimeProgramId
+                  userId
+                  userName
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}"
     />
 </WorkflowParameterValues>

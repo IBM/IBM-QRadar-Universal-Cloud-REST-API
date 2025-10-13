@@ -1,6 +1,7 @@
 ## Data Types to Retrieve from Wiz
 1. **Wiz-Workflow.xml**: This file retrieves various types of Wiz issues from the Wiz server and imports them into QRadar.
 2. **Wiz-AuditLogs-Workflow.xml**: This file retrieves different categories of Wiz audit logs from the Wiz server and imports them into QRadar.
+3. **Wiz-Detections-Workflow.xml**: This file retrieves different types of Wiz Detections from the Wiz server and imports them into QRadar.
 
 ## Collect authentication info from Wiz
 
@@ -24,7 +25,7 @@ To generate a client ID and client secret:
 1. Go to <a href="https://app.wiz.io/settings/service-accounts" target="_blank">Settings > Service Accounts</a>, then click **Add Service Account**.
 2. On the New Service Account page:
    1. Give the new service account a meaningful name, e.g. "QRadar integration".
-   2. Select the permission **read:issues** and **admin:audit**.
+   2. Select the permission **read:issues** and **admin:audit** and **read:detections**.
    3. Click **Add Service Account**.
 3. From the secret credential dialog, copy the **Client ID** and **Client Secret** to a local file or secret manager for use below.
 **Note: The Client ID and Client Secret are only shown once. Do not close the dialog without copying them to a local file or secret manager.**
@@ -59,3 +60,4 @@ Parameter Values).
 5. auth_type : The Authentication type used to fetch JWT Token from Wiz.
 6. gql_query : The GraphQL query to be used while fetching the Issues from Wiz (default GraphQL query already present).
 7. audit_logs_gql_query : The GraphQL query to be used while fetching the Audit Logs from Wiz (default GraphQL query already present).
+8. detections_gql_query : The GraphQL query to be used while fetching the Detections from Wiz (default GraphQL query already present).
