@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Netskope Page Event" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
+
+    <!-- Collect configurations from workflow parameter file -->
+    <Parameters>
+        <Parameter name="tenantHostName" label="Tenant Hostname" required="true"/>
+        <Parameter name="apiToken" label="API Token" secret="true" required="true" />
+        <Parameter name="operationIndex" label="Operation Index" required="true" />
+        <Parameter name="indexParam" label="Index" required="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!-- Clear status of log source -->
+        <ClearStatus />
+
+        <!-- Defining variables for running workflow -->
+        <Set path="/netskopeUrl" value="https://${/tenantHostName}"/>
+        <Set path="/logPrefix" value="[Netskope_App_for_QRadar][Page_Event][${/netskopeUrl}]" />
+        <Initialize path="/maxRetry" value="3" />
+        <Initialize path="/pageEventEndpoint" value="/api/v2/events/dataexport/events/page" />
+        <Initialize path="/defaultSleepTime" value="30" />
+        <Initialize path="/defaultWaitTime" value="5" />
+        <Initialize path="/appVersion" value="4.0.0" />
+        <Initialize path="/userAgentHeader" value="Netskope-QRadar-${/appVersion}" />
+        <Initialize path="/index" value="${/indexParam}_page_event" />
+
+        <!-- Operation  -->
+        <Initialize path="/operation" value="${/operationIndex}" />
+
+        <!-- Print log in the /var/log/qradar.log file with info log level -->
+        <Log type="INFO" message="${/logPrefix} - Page Event collection started." />
+
+        <Set path="/loopBreaker" value="false" />
+
+        <!-- Perform data collection continuously in case of no error -->
+        <While condition="${/loopBreaker} = false">
+
+            <Set path="/retryCount" value="0" />
+            <While condition="${/retryCount != ${/maxRetry}}">
+                <Log type="INFO" message="${/logPrefix} - Requesting URL ${/netskopeUrl}${/pageEventEndpoint} with query parameters operation=${/operation}, index=${/index}." />
+
+                <CallEndpoint url="${/netskopeUrl}${/pageEventEndpoint}" method="GET" savePath="/pageEvent/response">
+                    <QueryParameter name="operation" value="${/operation}" />
+                    <QueryParameter name="index" value="${/index}" />
+
+                    <!-- Request header -->
+                    <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
+                    <RequestHeader name="Netskope-Api-Token" value="${/apiToken}" />
+                </CallEndpoint>
+
+                <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                <If condition="${/pageEvent/response/status_code} = 429">
+                    <Set path="/retryCount" value="${/retryCount + 1}" />
+                    <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+
+                    <If condition="${/retryCount = ${/maxRetry}}">
+                        <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
+                        <Abort reason="Number of retries exceeded for status code 429." />
+                    </If>
+
+                    <!-- Calculating back off time, if it is not present in header take default time -->
+                    <Set path="/sleepTime" value="${/pageEvent/response/headers/ratelimit-reset}" />
+                    <If condition="${/sleepTime = ''}">
+                        <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                    </If>
+                    <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                    <Sleep duration="${/sleepTime * 1000}" />
+                </If>
+                
+                <!-- Retry 3 times if the status code is 5xx. i.e internal server error. -->
+                <ElseIf condition="${/pageEvent/response/status_code} >= 500">
+                    <Set path="/retryCount" value="${/retryCount + 1}" />
+                    <Log type="INFO" message="${/logPrefix} - Internal server Error. Status Code: ${/pageEvent/response/status_code}." />
+
+                    <If condition="${/retryCount = ${/maxRetry}}">
+                        <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code ${/pageEvent/response/status_code} exceeded." />
+                        <Abort reason="Number of retries exceeded for status code ${/pageEvent/response/status_code}." />
+                    </If>
+                    <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultWaitTime} seconds." />
+                    <Sleep duration="${/defaultWaitTime * 1000}" />
+                </ElseIf>
+
+                <Else>
+                    <Set path="/retryCount" value="${/maxRetry}" />
+                </Else>
+
+            </While>
+            <If condition="/pageEvent/response/status_code = 200">
+                <!-- Ingest Page Events into QRadar -->
+                <PostEvents path="/pageEvent/response/body/result" />
+                <Log type="INFO" message="${/logPrefix} - Total ${count(/pageEvent/response/body/result)} Page Events ingested in QRadar." />
+
+                <If condition="${count(/pageEvent/response/body/result) = 0}">
+                    <Log type="INFO" message="${/logPrefix} - Page Event collection completed."/>
+                    <Set path="/loopBreaker" value="true"/>
+                </If>
+                <Else>
+                    
+                    <Set path="/waitTime" value="${/pageEvent/response/body/wait_time}" />
+                    
+                    <If condition="${/waitTime = ''}">
+                        <Set path="/waitTime" value="${/defaultWaitTime}" />
+                    </If>
+                    <Log type="INFO" message="${/logPrefix} - Sleeping for ${/waitTime} seconds." />
+                    <Sleep duration="${/waitTime * 1000}" />
+                </Else>
+                <Set path="/operation" value="next" />
+                
+            </If>
+            <ElseIf condition="/pageEvent/response/status_code = 401">
+                <Log type="INFO" message="${/logPrefix} Abort - Invalid API token is provided. status code - 401, Body - ${/pageEvent/response/body}" />
+                <Abort reason="Invalid API token is provided. status code - 401." />
+            </ElseIf>
+            <Else>
+                <Log type="INFO" message="${/logPrefix} Abort - API call failed for collecting Page Events with status code - ${/pageEvent/response/status_code}, Body - ${/pageEvent/response/body}" />
+                <Abort reason="API call failed for collecting Page Events with status code - ${/pageEvent/response/status_code}" />
+            </Else>
+        </While>
+    </Actions>
+
+    <!-- Performing some connectivity tests -->
+    <Tests>
+        <DNSResolutionTest host="${/tenantHostName}" />
+        <TCPConnectionTest host="${/tenantHostName}" />
+        <SSLHandshakeTest host="${/tenantHostName}" />
+        <HTTPConnectionThroughProxyTest url="https://${/tenantHostName}" />
+    </Tests>
+</Workflow>

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workflow name="Cyble Threat Intel" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <!--    Reading required parameters for the Workflow-->
+    <Parameters>
+        <Parameter name="hostname" label="Hostname" required="true" secret="true" />
+        <Parameter name="api_key" label="Api Key" required="true" secret="true" />
+        <Parameter name="fetch_since" label="Fetch Since" required="true" secret="true" />
+    </Parameters>
+
+    <Actions>
+
+        <!--        Initializing parameters-->
+        <Initialize path="/isFirstFetch" value="True" />
+        <Initialize path="/fromDate" value="" />
+        <Initialize path="/toDate" value="" />
+        <Initialize path="/fetch_since_int" value="1" />
+
+        <!--        Checking whether the current run is fetching for the first time-->
+        <If condition="/isFirstFetch = 'True'">
+            <Set path="/fetch_since_int" value="${/fetch_since}" />
+            <Set path="/fromDate" value="${time() - /fetch_since_int * 24 * 60 * 60 * 1000}" />
+            <Set path="/isFirstFetch" value="False" />
+            <Log type="INFO" message="CybleThreatIntel:: Fetching events for the first time." />
+        </If>
+        <Else>
+            <Set path="/fromDate" value="${/toDate + 1}" />
+        </Else>
+
+        <Set path="/toDate" value="${time() - 1}" />
+
+        <!--        Formatting date from epoch notation to standard notation-->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/fromDate}" savePath="/fromDateFormatted" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/toDate}" savePath="/toDateFormatted" />
+
+        <Log type="INFO" message="CybleThreatIntel:: Fetching events from: ${/fromDateFormatted} to: ${/toDateFormatted}" />
+
+        <!--        Fetching Service List -->
+        <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts/services" method="GET" savePath="/service_response">
+            <RequestHeader name="Accept" value="*/*" />
+            <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
+            <RequestHeader name="Content-Type" value="application/json" />
+        </CallEndpoint>
+
+        <!--        Handling error-->
+        <If condition="${/service_response/status_code} != 200">
+            <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/service_response/status_message}" />
+            <Abort reason="${/service_response/status_code}: ${/service_response/status_message}" />
+        </If>
+
+        <ForEach item="/service" items="/service_response/body/data">
+            <!--        Fetching count of total events available in the given time frame-->
+            <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts" method="POST" savePath="/get_count">
+                <RequestHeader name="Accept" value="*/*" />
+                <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
+                <RequestHeader name="Content-Type" value="application/json" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                    "filters": {
+                    "service" : [ "${/service/name}" ],
+                    "created_at": {
+                    "gte": "${/fromDateFormatted}",
+                    "lte": "${/toDateFormatted}"
+                    },
+                    "status": [ "VIEWED", "UNREVIEWED", "CONFIRMED_INCIDENT", "UNDER_REVIEW", "INFORMATIONAL" ]
+                    },
+                    "orderBy": [{ "created_at": "desc" }],
+                    "skip": 0,
+                    "take": 1,
+                    "countOnly": true,
+                    "taggedAlert" : false,
+                    "withDataMessage": false
+                    }
+                </RequestBody>
+            </CallEndpoint>
+            <If condition="${/get_count/status_code} != 200">
+                <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
+                <Set path="/get_count/body/data" value="0" />
+            </If>
+            <!--        Setting parameters for API request for fetching events-->
+            <Set path="/total_count" value="${/get_count/body/data}" />
+            <Set path="/skip" value="0" />
+            <Set path="/take" value="1000" />
+            <While condition="${/total_count} > 0">
+                <If condition="${/take} > ${/total_count}">
+                    <Set path="/take" value="${/total_count}" />
+                </If>
+
+                <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts" method="POST" savePath="/get_events">
+                    <RequestHeader name="Accept" value="*/*" />
+                    <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
+                    <RequestHeader name="Content-Type" value="application/json" />
+                    <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                        "filters": {
+                        "service" : [ "${/service/name}" ],
+                        "created_at": {
+                        "gte": "${/fromDateFormatted}",
+                        "lte": "${/toDateFormatted}"
+                        },
+                        "status": [ "VIEWED", "UNREVIEWED", "CONFIRMED_INCIDENT", "UNDER_REVIEW", "INFORMATIONAL" ]
+                        },
+                        "orderBy": [{ "created_at": "desc" }],
+                        "skip": ${/skip},
+                        "take": ${/take},
+                        "countOnly": false,
+                        "taggedAlert" : false,
+                        "withDataMessage": false
+                        }
+                    </RequestBody>
+                </CallEndpoint>
+
+                <If condition="${/get_events/status_code} != 200">
+                    <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
+                    <Abort reason="${/get_events/status_code}: ${/get_events/status_message}" />
+                </If>
+
+                <Log type="INFO" message="CybleThreatIntel:: Fetched ${count(/get_events/body/data)} events." />
+
+                <ForEach item="/current_event" items="/get_events/body/data">
+                    <PostEvent path="/current_event" source="${/hostname}" />
+                </ForEach>
+
+                <Set path="/total_count" value="${/total_count - /take}" />
+                <Set path="/skip" value="${/skip + /take}" />
+            </While>
+        </ForEach>
+    </Actions>
+
+    <!--    Running tests-->
+    <Tests>
+        <DNSResolutionTest host="${/hostname}" />
+        <TCPConnectionTest host="${/hostname}" />
+        <SSLHandshakeTest host="${/hostname}"/>
+        <HTTPConnectionThroughProxyTest url="https://${/hostname}" />
+    </Tests>
+
+</Workflow>

@@ -1,0 +1,3 @@
+For more information about configuring and using this workflow, see the Alibaba Cloud Simple Log Service protocol configuration options on IBM Documentation. https://www.ibm.com/docs/no/dsm?topic=options-alibaba-cloud-object-storage-protocol-configuration
+
+Although this workflow can be used as-is, most users will use the Protocol configuration documented above, but the workflow here is provided as a reference to the workflow that is embedded there.

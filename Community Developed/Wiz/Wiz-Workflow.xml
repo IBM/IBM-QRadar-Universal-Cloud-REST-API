@@ -7,20 +7,66 @@
         <Parameter name="token_url_domain" label="JWT Auth Endpoint" required="true" />
         <Parameter name="host" label="API Endpoint" required="true" />
         <Parameter name="auth_type" label="Authentication Type" required="true" />
-        <Parameter name="initial_historical_days" label="Historical Days" required="true" />
         <Parameter name="gql_query" label="GraphQL Query" required="true" />
+        <Parameter name="audit_logs_gql_query" label="GraphQL Query" required="false" />
     </Parameters>
 
     <Actions>
+        
+        <Log type="INFO" message="WIZ: Workflow Actions started..." />
+        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3-v2" />
+        <If condition="/bookmark != null">
+            <!-- Format Date to be passed in fetching events -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
+        </If>
+       
+        <!-- Initializing GraphQL query variables for Historical Polling -->
+        <Initialize
+            path="/gql_query_variables"
+            value='{
+                    "first":500,
+                    "filterBy": {
+                        "status": [
+                            "OPEN",
+                            "IN_PROGRESS"
+                        ]
+                    },
+                    "orderBy": {
+                        "field": "SEVERITY",
+                        "direction": "DESC"
+                    }                
+                }'
+        />
 
+        <!-- Updating the GraphQL query variable Incremental Polling  -->
+        <If condition="/timestamp != null">
+            <Set
+                path="/gql_query_variables"
+                value='{
+                    "first":500,
+                    "filterBy": {
+                        "statusChangedAt": {
+                            "after": "${/timestamp}"
+                        }
+                    },
+                    "orderBy": {
+                        "field": "STATUS_CHANGED_AT",
+                        "direction": "DESC"
+                    }
+                }' 
+            />
+            <Log type="INFO" message="WIZ: Incremental Polling started. Pulling Issues from: ${/timestamp}" />
+        </If>
+        <Else>
+            <Log type="INFO" message="WIZ: Historical Polling started. Pulling all Issues..." />
+        </Else>
+
+        
         <!-- Initialize the Bookmark -->
-        <Initialize path="/bookmark" value="${time() - (${/initial_historical_days} * 24 * 60 * 60 * 1000)}" />
+        <Initialize path="/bookmark" value="${time()}" />
 
         <!-- Initialize the Audience Parameter -->
         <Initialize path="/audience_parameter" value="wiz-api" />
-        
-        <!-- Format Date to be passed in fetching events -->
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
 
         <If condition="'${/auth_type}' = 'auth0'">
             <Set path="/audience_parameter" value="beyond-api" />
@@ -29,6 +75,7 @@
         <!-- Fetch API Token -->
         <CallEndpoint url="https://${/token_url_domain}/oauth/token" method="POST" savePath="/get_access_token">
             <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+            <RequestHeader name="User-Agent" value="${/user_agent_header}" />
             <UrlEncodedFormRequestBody>
                 <Parameter name="grant_type" value="client_credentials" />
                 <Parameter name="client_id" value="${/client_id}" />
@@ -37,109 +84,151 @@
             </UrlEncodedFormRequestBody>
         </CallEndpoint>
 
+        <Log type="INFO" message="WIZ: Auth Token API call status code:: ${/get_access_token/status_code}" />
+
         <!-- Handle Errors -->
         <If condition="/get_access_token/status_code != 200">
+            <Log type="ERROR" message="WIZ: Workflow Aborting.. API Token Failure. Error:: ${/get_access_token/body}" />
             <Abort reason="Failed requesting API token. Error: ${/get_access_token/body}" />
         </If>
 
         <!-- Extract the Access Token -->
         <Set path="/access_token" value="${/get_access_token/body/access_token}" />
 
+        <Log type="INFO" message="WIZ: First API call: Using this GraphQL variable : ${/gql_query_variables}" />
+
         <!-- Fetch Events -->
-        <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_events">
-            <QueryParameter name="query" value="${/gql_query}" />
-            <QueryParameter
-                name="variables"
-                value='{
-                    "first":500,
-                    "orderBy": {
-                        "field": "SEVERITY",
-                        "direction": "DESC"
-                    },
-                    "filterBy": {
-                        "createdAt": {
-                                    "after": "${/timestamp}"
-                                },
-                        "status": [
-                        "OPEN",
-                        "IN_PROGRESS",
-                        "REJECTED",
-                        "RESOLVED"
-                        ]
-                    }
-                }'
-            />
+        <CallEndpoint url="https://${/host}/graphql" method="POST" savePath="/get_events">
             <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
-            
+            <RequestHeader name="content-type" value="application/json" />
+            <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+            <RequestBody type="application/json" encoding="UTF-8">
+                {
+                    "query": "${/gql_query}",
+                    "variables": ${/gql_query_variables}
+                }
+            </RequestBody>
         </CallEndpoint>
+
+        <Log type="INFO" message="WIZ: First API call status code:: ${/get_events/status_code}" />
 
         <!-- Handle Errors -->
         <If condition="/get_events/status_code != 200">
-            <Log type="INFO" message="WIZ Abort Reason Error:: ${/get_events/body}" />
+            <Log type="ERROR" message="WIZ: Workflow Aborting.. Failure while fetching Issues. Error:: ${/get_events/body}" />
             <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
         </If>
 
-        <!-- Post Events, if any -->
-        <If condition="count(/get_events/body/data/issues/nodes) > 0">
+        <Log type="INFO" message="WIZ: First API call fetched ${count(/get_events/body/data/issues/nodes)} Wiz Issues" />
 
-            <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
+        <!-- Post Events, if any -->
+        <If condition="count(/get_events/body/data/issues/nodes) > 0">            
+            <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}__Issues" />
 
             <!-- Update the bookmark -->
-            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
-            <If condition="/current_event_time + 1000 > /bookmark" >
+            <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/statusChangedAt)}" savePath="/current_event_time" />
+            
+            <If condition="/current_event_time + 1000 > /bookmark" >            
                 <Set path="/bookmark" value="${/current_event_time + 1000}" />
+                <Log type="INFO" message="WIZ: Updated bookmark value to: ${/bookmark}" />
             </If>
+
+            <Log type="INFO" message="WIZ: First API call done. Sent ${count(/get_events/body/data/issues/nodes)} Wiz Issues to QRadar" />
+
         </If>
 
+        
         <!-- Fetch remaining events -->
         <While condition="/get_events/body/data/issues/pageInfo/hasNextPage">
-            
-            <!-- Fetch events -->
-            <CallEndpoint url="https://${/host}/graphql" method="GET" savePath="/get_events">
-                <QueryParameter name="query" value="${/gql_query}" />
-                <QueryParameter
-                    name="variables"
+
+            <If condition="/timestamp != null">
+                <Set
+                    path="/gql_query_variables"
                     value='{
                         "first":500,
+                        "filterBy": {
+                            "statusChangedAt": {
+                                "after": "${/timestamp}"
+                            }
+                        },
+                        "orderBy": {
+                            "field": "STATUS_CHANGED_AT",
+                            "direction": "DESC"
+                        },
+                        "after": "${/get_events/body/data/issues/pageInfo/endCursor}"
+                    }' 
+                />
+            </If>
+
+            <Else>
+                <Set
+                    path="/gql_query_variables"
+                    value='{
+                        "first":500,
+                        "filterBy": {
+                            "status": [
+                                "OPEN",
+                                "IN_PROGRESS"
+                            ]
+                        },
                         "orderBy": {
                             "field": "SEVERITY",
                             "direction": "DESC"
                         },
-                        "filterBy": {
-                            "createdAt": {
-                                        "after": "${/timestamp}"
-                                    },
-                            "status": [
-                            "OPEN",
-                            "IN_PROGRESS"
-                            ]
-                        },
                         "after": "${/get_events/body/data/issues/pageInfo/endCursor}"
-                    }'
+                    }' 
                 />
-                <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+            </Else>
+
+            <Log type="INFO" message="WIZ: Paginated API call: Using this GraphQL variable : ${/gql_query_variables}" />
             
+            <!-- Fetch events -->
+            <CallEndpoint url="https://${/host}/graphql" method="POST" savePath="/get_events">
+                <RequestHeader name="Authorization" value="Bearer ${/access_token}" />
+                <RequestHeader name="content-type" value="application/json" />
+                <RequestHeader name="User-Agent" value="${/user_agent_header}" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "query": "${/gql_query}",
+                        "variables": ${/gql_query_variables}
+                    }
+                </RequestBody>
             </CallEndpoint>
+
+            <Log type="INFO" message="WIZ: Paginated API call status code: ${/get_events/status_code}" />
 
             <!-- Handle Errors -->
             <If condition="/get_events/status_code != 200">
-                <Log type="INFO" message="WIZ Abort Reason Error:: ${/get_events/body}" />
+                <Log type="ERROR" message="WIZ: Workflow Aborting.. Failure while fetching Issues. Error:: ${/get_events/body}" />
                 <Abort reason="Failed while fetching Wiz Issues. Error:: ${/get_events/body}" />
             </If>
 
+            <Log type="INFO" message="WIZ: Paginated API call. Fetched ${count(/get_events/body/data/issues/nodes)} Wiz Issues" />
+
             <!-- Post Events, if any -->
             <If condition="count(/get_events/body/data/issues/nodes) > 0">
-
-                <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}" />
-
+                <PostEvents path="/get_events/body/data/issues/nodes" source="${/host}__Issues" />
+                
                 <!-- Update the bookmark -->
-                <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/createdAt)}" savePath="/current_event_time" />
-                <If condition="/current_event_time + 1000 > /bookmark" >
-                    <Set path="/bookmark" value="${/current_event_time + 1000}" />
+                <If condition="max(/get_events/body/data/issues/nodes/statusChangedAt) != null">
+                    <ParseDate pattern="yyyy-MM-dd'T'HH:mm:ss[.[SSSSSS][SSSSSS][SSSSS][SSSS][SSS][SS][S]]'Z'" timeZone="UTC" date="${max(/get_events/body/data/issues/nodes/statusChangedAt)}" savePath="/current_event_time" />
+                    <If condition="/current_event_time + 1000 > /bookmark" >
+                        <Set path="/bookmark" value="${/current_event_time + 1000}" />
+                        <Log type="INFO" message="WIZ: Updated bookmark value to: ${/bookmark}" />
+                    </If> 
                 </If>
-
+                
+                <Log type="INFO" message="WIZ: Paginated API call done. Sent ${count(/get_events/body/data/issues/nodes)} Wiz Issues to QRadar" />
             </If>
+            
+
         </While>
+
+        <If condition="/bookmark != null">
+            <!-- Format Date to be passed in fetching events -->
+            <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/formatted_bookmark" />
+        </If>
+        <Log type="INFO" message="WIZ: All Actions completed. Final Bookmark value : ${/formatted_bookmark}" />
+
 
     </Actions>
 

@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2_1">
+
+    <!-- Do not add http or https in the below value of Tenant Hostname-->
+    <Value name="tenantHostName" value=""/>
+
+    <!-- API token for authentication. -->
+    <Value name="apiToken" value=""/>
+
+    <!-- 
+        Accepted values for 'operationIndex' are ["head","tail",<epoch timestamp>]
+        - "head": Retrieve logs from the beginning.
+        - "tail": Retrieve logs from the current timestamp.
+        - <epoch timestamp>: Retrieve logs from the specified timestamp (e.g., "1609459200").
+        
+        Note: The parameter ‘operationIndex’ is only used during the initial configuration of the workflow. Once data collection begins, the API will only use the value 'next'.
+    -->
+    <Value name="operationIndex" value=""/>
+
+    <!-- Enter a unique identifier. This will be used to create an iterator. -->
+    <Value name="indexParam" value=""/>
+</WorkflowParameterValues>

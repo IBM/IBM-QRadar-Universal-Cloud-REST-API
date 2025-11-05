@@ -13,7 +13,7 @@ IBM Security QRadar is pleased to announce the release of the Universal Cloud Co
 
   - Augment threat detection abilities. Connecting your data sources with the Universal Cloud REST API Protocol facilitates the applying security use cases and analytics to new environments. The analyst sees threat intelligence, asset information, rule details, risk indicators, and by leveraging QRadar’s Analyst Workflow, they’ll have access to key investigation information in their workspace, minimizing the need to, navigate elsewhere for additional context.
 
- 
+
 # Before you begin
 
 QRadar currently integrates with approximately 450 third-party devices. However, as organizations adapt to new technology, there is an immediate  need to monitor network traffic for new data sources. As an example, I’ll walk you through how to easily ingest data from a third party service, Duo Security.  
@@ -37,4 +37,3 @@ For instructions on how to contribute your own workflow to this repository, refe
 
 # Configuration Documentation
 Universal Cloud REST API configuration documentation and be found here: https://www.ibm.com/support/knowledgecenter/SS42VS_DSM/com.ibm.dsm.doc/c_universal_rest_overview.html?cp=SS42VS_7.4
-

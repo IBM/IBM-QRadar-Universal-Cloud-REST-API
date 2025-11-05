@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Dragos" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+
+	<Parameters>
+		<Parameter name="access_token"   label="Access Token"   required="true" />
+		<Parameter name="access_key"     label="Access Key"     required="true"   secret="true" />
+	</Parameters>
+
+	<Actions>
+
+		<FormatDate pattern="yyyy-MM-dd HH:mm:ss" timeZone="UTC" savePath="/current_time" />
+		<Log type="INFO" message="Dragos-Workflow: Workflow started at ${/current_time} (UTC)." />
+
+		<!-- initialize the bookmark -->
+		<!-- if this workflow hasn't been run before this will be the current time - 7 days -->
+		<!-- indicators from the previous 7 days will be retrieved on the first run -->
+		<Initialize path="/initial_poll_epoch" value="${time() - (7 * 24 * 60 * 60 * 1000)}" />
+		<FormatDate pattern="yyyy-MM-dd HH:mm:ss" time="${/initial_poll_epoch}" timeZone="UTC" savePath="/initial_poll_date" />
+		<Initialize path="/updated_after" value="${/initial_poll_date}" />
+
+		<Set path="/current_page" value="1" />
+		<Set path="/page_size" value="100" />
+
+		<Log type="INFO" message="Dragos-Workflow: Start-Bookmark: updated_after=[${/updated_after}]" />
+
+		<Log type="INFO" message="Dragos-Workflow: Fetching indicators..." />
+		<CallEndpoint url="https://portal.dragos.com/api/v1/indicators" method="GET" savePath="/get_events">
+			<QueryParameter name="page" value="${/current_page}" omitIfEmpty="false" />
+			<QueryParameter name="page_size" value="${/page_size}" omitIfEmpty="false" />
+			<QueryParameter name="updated_after" value="${/updated_after}" omitIfEmpty="false" />
+			<RequestHeader name="API-Token" value="${/access_token}" />
+			<RequestHeader name="API-Secret" value="${/access_key}" />
+		</CallEndpoint>
+
+		<!-- handle any errors -->
+		<If condition="/get_events/status_code != 200">
+			<Log type="ERROR" message="Dragos-Workflow: ${/get_events/body/details}" />
+			<SetStatus type="ERROR" message="${/get_events/body/details}" />
+			<Abort reason="${/get_events/body/details}" />
+		</If>
+
+		<Log type="INFO" message="Dragos-Workflow: ${/get_events/body/total} indicators available (total_pages=${/get_events/body/total_pages})." />
+		<Set path="/total_pages" value="${/get_events/body/total_pages}" />
+		
+		<!-- if there are indicators available, post them as events -->
+		<If condition="${count(/get_events/body/indicators)} > 0">
+			<Log type="INFO" message="Dragos-Workflow: Posting ${count(/get_events/body/indicators)} events..." />
+			<PostEvents path="/get_events/body/indicators" source="dragos" />
+		</If>
+
+		<!-- get the additonal pages of indicators as required -->
+		<While condition="/total_pages > /current_page">
+
+			<Set path="/current_page" value="${/current_page + 1}" />
+			<Log type="INFO" message="Dragos-Workflow: Fetching indicators (page ${/current_page} of ${/total_pages})..." />
+			<CallEndpoint url="https://portal.dragos.com/api/v1/indicators" method="GET" savePath="/get_events">
+				<QueryParameter name="page" value="${/current_page}" omitIfEmpty="false" />
+				<QueryParameter name="page_size" value="${/page_size}" omitIfEmpty="false" />
+				<QueryParameter name="updated_after" value="${/updated_after}" omitIfEmpty="false" />
+				<RequestHeader name="API-Token" value="${/access_token}" />
+				<RequestHeader name="API-Secret" value="${/access_key}" />
+			</CallEndpoint>
+
+			<If condition="/get_events/status_code != 200">
+				<Log type="ERROR" message="Dragos-Workflow: ${/get_events/body/details}" />
+				<SetStatus type="ERROR" message="${/get_events/body/details}" />
+				<Abort reason="${/get_events/body/details}" />
+			</If>
+
+			<Log type="INFO" message="Dragos-Workflow: Posting ${count(/get_events/body/indicators)} events..." />
+			<PostEvents path="/get_events/body/indicators" source="dragos" />
+
+		</While>
+
+		<!-- update the bookmark -->
+		<Set path="/updated_after" value="${/current_time}" />
+		<Log type="INFO" message="Dragos-Workflow: End-Bookmark: updated_after=[${/updated_after}]" />
+		<Log type="INFO" message="Dragos-Workflow: Workflow ended." />
+
+	</Actions>
+
+	<Tests>
+		<DNSResolutionTest host="portal.dragos.com" />
+		<TCPConnectionTest host="portal.dragos.com" />
+		<SSLHandshakeTest host="portal.dragos.com" />
+		<HTTPConnectionThroughProxyTest url="https://portal.dragos.com" />
+	</Tests>
+
+</Workflow>
