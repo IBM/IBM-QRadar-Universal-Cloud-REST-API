@@ -74,7 +74,7 @@ Parameters:
         </If>
 
         <!-- Fetch the rest of alerts -->
-        <While condition="(/limit * /page) &lt; /total_items">
+        <While condition="/total_items > (/limit * /page)">
             <Set path="/page" value="${/page + 1}" />
 
             <CallEndpoint url="https://${/api_host}/api/automations/query/alerts" method="POST"
