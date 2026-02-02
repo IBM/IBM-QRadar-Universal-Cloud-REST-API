@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="XM Cyber Audit Trails" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
+
+    <!-- Collect configurations from workflow parameter file -->
+    <Parameters>
+        <Parameter name="tenantName" label="Tenant Name" required="true"/>
+        <Parameter name="apiKey" label="API Key" secret="true" required="true" />
+        <Parameter name="auditTrailsStartTime" label="Audit Trails Start Time" required="true"/>
+        <Parameter name="ingestChokepointStats" label="Ingest Chokepoint Stats" required="false"/>
+        <Parameter name="ingestScenarios" label="Ingest Scenarios" required="false"/>
+        <Parameter name="timeId" label="Time ID" required="false"/>
+    </Parameters>
+
+    <Actions>
+
+        <!-- Clear status of log source -->
+        <ClearStatus />
+
+        <!-- Defining variables for running workflow -->
+        <Set path="/xmCyberUrl" value="https://${/tenantName}"/>
+        <Set path="/logPrefix" value="[XM_Cyber_App_for_QRadar][AuditTrails][${/xmCyberUrl}]" />
+        <Initialize path="/errorCount" value="0" />
+        <Initialize path="/maxRetry" value="3" />
+        <Initialize path="/authEndpoint" value="/api/auth" />
+        <Initialize path="/refreshEndpoint" value="/api/refresh-token" />
+        <Initialize path="/auditTrailsEndpoint" value="/api/audit-trail/auditRecords" />
+        <Initialize path="/pageSize" value="1000" />
+        <Initialize path="/refreshToken" value="" />
+        <Initialize path="/accessToken" value="" />
+        <Initialize path="/defaultSleepTime" value="60" />
+        <Initialize path="/appVersion" value="2.0.0" />
+        <Initialize path="/userAgentHeader" value="QRadar-v${/appVersion}" />
+        <Initialize path="/collectionType" value="audit_trails" />
+        <Initialize path="/auditTrailsPage" value="" />
+        <Initialize path="/auditTrailsTime" value="" />
+
+        <Set path="/currentPage" value="1" />
+        <Set path="/totalPages" value="1" />
+
+        <!-- Print log in the /var/log/qradar.log file with info log level -->
+        <Log type="INFO" message="${/logPrefix} - Audit Trails collection started." />
+
+        <!-- Validate auditTrailsStartTime format with regex -->
+        <RegexCapture pattern="^(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\.\d{3}Z)$" value="${/auditTrailsStartTime}" savePath="/auditTrailsStartTimeValidation" />
+
+        <If condition="${empty(/auditTrailsStartTimeValidation)} = 'true'">
+            <Log type="INFO" message="${/logPrefix} Abort - Invalid auditTrailsStartTime format. Expected format: YYYY-MM-DDTHH:MM:SS.SSSZ" />
+            <Abort reason="Invalid auditTrailsStartTime format. Expected format: YYYY-MM-DDTHH:MM:SS.SSSZ" />
+        </If>
+
+        <!-- Get current UTC timestamp -->
+        <Set path="/currentTimestamp" value="${time()}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/currentTimestamp}" savePath="/currentTimestampFormatted" />
+
+
+        <!-- Calculate 90 days retention limit -->
+        <Set path="/retentionDays" value="90" />
+        <Set path="/millisecondsPerDay" value="86400000" />
+        <Set path="/retentionLimitMillis" value="${/retentionDays * /millisecondsPerDay}" />
+        <Set path="/retentionLimitTimestamp" value="${/currentTimestamp - /retentionLimitMillis}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timeZone="UTC" time="${/retentionLimitTimestamp}" savePath="/retentionLimitFormatted" />
+
+        <!-- Validate that auditTrailsStartTime is not greater than current time -->
+        <If condition="${/auditTrailsStartTime &gt; /currentTimestampFormatted}">
+            <Log type="INFO" message="${/logPrefix} Abort - auditTrailsStartTime cannot be greater than current UTC time." />
+            <Abort reason="auditTrailsStartTime cannot be greater than current UTC time." />
+        </If>
+
+
+        <!-- Check for stored auditTrailsTime checkpoint -->
+        <Initialize path="/fromTimestamp" value="${/auditTrailsStartTime}" />
+        <Log type="INFO" message="${/logPrefix} - Checking for stored auditTrailsTime checkpoint parameter." />
+
+        <!-- Get checkpoint parameter if it exists -->
+        <If condition="${empty(/auditTrailsTime)} = 'true'">
+            <!-- No checkpoint - validate auditTrailsStartTime retention before using it -->
+            <If condition="${/auditTrailsStartTime &lt; /retentionLimitFormatted}">
+                <Log type="INFO" message="${/logPrefix} Abort - auditTrailsStartTime cannot be earlier than ${/retentionDays} days from current UTC time." />
+                <Abort reason="auditTrailsStartTime cannot be earlier than ${/retentionDays} days from current UTC time." />
+            </If>
+            <Log type="INFO" message="${/logPrefix} - No auditTrailsTime checkpoint found. Using auditTrailsStartTime from parameter file: ${/fromTimestamp}" />
+        </If>
+        <Else>
+            <Log type="INFO" message="${/logPrefix} - Found stored auditTrailsTime checkpoint: ${/auditTrailsTime}" />
+            
+            <!-- Validate checkpoint timestamp format with regex -->
+            <RegexCapture pattern="^(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\.\d{3}Z)$" value="${/auditTrailsTime}" savePath="/checkpointValidation" />
+            <If condition="${empty(/checkpointValidation)} = 'true'">
+                <Log type="INFO" message="${/logPrefix} - Invalid checkpoint auditTrailsTime format. Using current time." />
+                <Set path="/fromTimestamp" value="${/currentTimestampFormatted}" />
+            </If>
+            <Else>
+                <!-- Validate that auditTrailsTime is not earlier than retention limit -->
+                <If condition="${/auditTrailsTime &lt; /retentionLimitFormatted}">
+                    <Log type="INFO" message="${/logPrefix} - Checkpoint auditTrailsTime is earlier than ${/retentionDays} days. Using 90 days back time." />
+                    <Set path="/fromTimestamp" value="${/retentionLimitFormatted}" />
+                </If>
+                <Else>
+                    <Set path="/fromTimestamp" value="${/auditTrailsTime}" />
+                    <Log type="INFO" message="${/logPrefix} - Using checkpoint auditTrailsTime: ${/fromTimestamp}" />
+                    
+                    <!-- Check for page checkpoint if auditTrailsTime is being used -->
+                    <If condition="${empty(/auditTrailsPage)} = 'false' and ${/auditTrailsPage} != '1'">
+                        <Set path="/currentPage" value="${/auditTrailsPage}" />
+                        <Log type="INFO" message="${/logPrefix} - Found stored auditTrailsPage checkpoint: ${/auditTrailsPage}. Resuming from page ${/currentPage}" />
+                    </If>
+                </Else>
+            </Else>
+        </Else>
+
+        <!-- Set to_timestamp to current UTC formatted time -->
+        <Set path="/toTimestamp" value="${/currentTimestampFormatted}" />
+
+        <Log type="INFO" message="${/logPrefix} - Data collection period: from ${/fromTimestamp} to ${/toTimestamp}" />
+
+        <Set path="/errorCount" value="0" />
+
+        <!-- Perform data collection continuously in case of no error -->
+        <While condition="${/errorCount != ${/maxRetry}}">
+
+            <!-- Create Refresh Token if it is not created -->
+            <If condition="${empty(/refreshToken)} = 'true'">
+
+                <Log type="INFO" message="${/logPrefix} - Refresh token not found. Creating new Access and Refresh token using provided API key." />
+
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                    <!-- Create Refresh token and Access Token using API key and save response at Jpath /refreshTokenResponse -->
+                    <CallEndpoint url="${/xmCyberUrl}${/authEndpoint}" method="POST" savePath="/refreshTokenResponse">
+
+                        <!-- Request header -->
+                        <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+                        <RequestHeader name="Content-Type" value="application/json" />
+                        <RequestHeader name="x-api-key" value="${/apiKey}" />
+
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/refreshTokenResponse/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                            <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                        </If>
+
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                        <Sleep duration="${/defaultSleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Storing Refresh token and Access token from API response -->
+                <If condition="${/refreshTokenResponse/status_code} = 200">
+                    <Log type="INFO" message="${/logPrefix} - Refresh token and Access token created successfully." />
+                    <Set path="/refreshToken" value="${/refreshTokenResponse/body/refreshToken}" />
+                    <Set path="/accessToken" value="${/refreshTokenResponse/body/accessToken}" />
+                </If>
+
+                <!-- Handle 401 Unauthorized -->
+                <ElseIf condition="${/refreshTokenResponse/status_code} = 401">
+                    <Log type="INFO" message="${/logPrefix} Abort - Invalid API token provided while collecting ${/collectionType} data. Status code = 401." />
+                    <Abort reason="Invalid API token provided while collecting ${/collectionType} data. Status code = 401." />
+                </ElseIf>
+
+                <!-- Handle 403 Forbidden -->
+                <ElseIf condition="${/refreshTokenResponse/status_code} = 403">
+                    <Log type="INFO" message="${/logPrefix} Abort - Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                    <Abort reason="Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                </ElseIf>
+
+                <!-- Aborting execution of workflow for http status code other than 200 -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access and Refresh token with status code - ${/refreshTokenResponse/status_code}, Body - ${/refreshTokenResponse/body}" />
+                    <Abort reason="API call failed while creating Access and Refresh token with status code - ${/refreshTokenResponse/status_code}." />
+                </Else>
+
+            </If>
+            <Else>
+                <Log type="INFO" message="${/logPrefix} - Refresh token found. Creating new Access token using stored Refresh token." />
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                    <!-- Create an Access Token using Refresh token and save response at Jpath /accessTokenResponse-->
+                    <CallEndpoint url="${/xmCyberUrl}${/refreshEndpoint}" method="POST" savePath="/accessTokenResponse">
+
+                        <!-- Request header -->
+                        <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+                        <RequestHeader name="Content-Type" value="application/json" />
+
+                        <!-- Request body with refresh token -->
+                        <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                            "refreshToken": "${/refreshToken}"
+                        }
+                        </RequestBody>
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/accessTokenResponse/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while creating access token using saved refresh token." />
+                            <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while creating access token using saved refresh token." />
+                        </If>
+
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                        <Sleep duration="${/defaultSleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Storing Access token from API response -->
+                <If condition="${/accessTokenResponse/status_code} = 200">
+                    <Log type="INFO" message="${/logPrefix} - Access token created successfully." />
+                    <Set path="/accessToken" value="${/accessTokenResponse/body/accessToken}" />
+                </If>
+
+                <!-- In case of expired Refresh token -->
+                <ElseIf condition="${/accessTokenResponse/status_code} = 401 or ${/accessTokenResponse/status_code} = 400">
+
+                    <Log type="INFO" message="${/logPrefix} - Refresh token is expired. Recreating an Access token and Refresh token using provided API key." />
+                    <Set path="/rateLimitErrorCount" value="0" />
+                    <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                        <!-- Create a Refresh token and Access Token using API key and save response at Jpath /refreshTokenResponse-->
+                        <CallEndpoint url="${/xmCyberUrl}${/authEndpoint}" method="POST" savePath="/refreshTokenResponse">
+
+                            <!-- Request header -->
+                            <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+                            <RequestHeader name="Content-Type" value="application/json" />
+                            <RequestHeader name="x-api-key" value="${/apiKey}" />
+
+                        </CallEndpoint>
+
+                        <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                        <If condition="${/refreshTokenResponse/status_code} = 429">
+                            <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                            <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                            <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                                <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                                <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                            </If>
+                            <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                            <Sleep duration="${/defaultSleepTime * 1000}" />
+                        </If>
+                        <Else>
+                            <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                        </Else>
+                    </While>
+
+                    <!-- Storing Refresh token and Access token from API response -->
+                    <If condition="${/refreshTokenResponse/status_code} = 200">
+                        <Log type="INFO" message="${/logPrefix} - Refresh token and Access token created successfully." />
+                        <Set path="/refreshToken" value="${/refreshTokenResponse/body/refreshToken}" />
+                        <Set path="/accessToken" value="${/refreshTokenResponse/body/accessToken}" />
+                    </If>
+
+                    <!-- Aborting execution of workflow for failed API call -->
+                    <Else>
+                        <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Refresh and Access token with status code - ${/refreshTokenResponse/status_code}, Body - ${/refreshTokenResponse/body}" />
+                        <Abort reason="API call failed while creating Refresh and Access token with status code - ${/refreshTokenResponse/status_code}." />
+                    </Else>
+                </ElseIf>
+
+                <!-- Aborting execution of workflow for failed API call with status code other than 200 and 401 -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access token with status code - ${/accessTokenResponse/status_code}, Body - ${/accessTokenResponse/body}" />
+                    <Abort reason="API call failed while creating Access token with status code - ${/accessTokenResponse/status_code}." />
+                </Else>
+            </Else>
+
+            <!-- Reset errorCount after successful authentication -->
+            <Set path="/errorCount" value="0" />
+            <Set path="/loopBreaker" value="false" />
+
+            <!-- Fetch audit trails data with pagination support and retry mechanism -->
+            <While condition="${/loopBreaker} = false">
+
+                <Log type="INFO" message="${/logPrefix} Collecting ${/collectionType} data from ${/auditTrailsEndpoint} with query parameters page: ${/currentPage}, pageSize: ${/pageSize}, filter: {&quot;timestamp&quot;:{&quot;$gt&quot;:&quot;${/fromTimestamp}&quot;,&quot;$lte&quot;:&quot;${/toTimestamp}&quot;}}, sort: timestamp." />
+
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+                    
+                    <!-- Call audit trails API with timestamp filter and pagination -->
+                    <CallEndpoint url="${/xmCyberUrl}${/auditTrailsEndpoint}" method="GET" savePath="/auditTrails/response">
+                        <BearerAuthentication token="${/accessToken}" />
+
+                        <QueryParameter name="filter" value="{&quot;timestamp&quot;:{&quot;$gt&quot;:&quot;${/fromTimestamp}&quot;,&quot;$lte&quot;:&quot;${/toTimestamp}&quot;}}" />
+                        <QueryParameter name="sort" value="timestamp" />
+                        <QueryParameter name="page" value="${/currentPage}" />
+                        <QueryParameter name="pageSize" value="${/pageSize}" />
+
+                        <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+
+                        <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                            "Accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded"
+                        }
+                        </RequestBody>
+                    </CallEndpoint>
+
+                    <!-- Handle rate limit (429) -->
+                    <If condition="${/auditTrails/response/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while collecting ${/collectionType} data." />
+                            <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while collecting ${/collectionType} data." />
+                        </If>
+
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                        <Sleep duration="${/defaultSleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Handle successful response (200) -->
+                <If condition="/auditTrails/response/status_code = 200">
+
+                    <!-- Extract pagination information -->
+                    <Set path="/totalPages" value="${/auditTrails/response/body/paging/totalPages}" />
+                    <Set path="/currentPageSize" value="${count(/auditTrails/response/body/data)}" />
+                    
+                    <!-- Process collected audit trail events, add metadata -->
+                    <ForEach item="/currentEvent" items="/auditTrails/response/body/data">
+                        <Set path="/currentEvent/event_id" value="audit_trail" />
+                        <Set path="/currentEvent/event_category" value="XM Cyber" />
+                        <PostEvent path="/currentEvent"/>
+                    </ForEach>
+
+                    <!-- Log ingested event count for current page -->
+                    <Log type="INFO" message="${/logPrefix} - Page ${/currentPage}: ${/currentPageSize} ${/collectionType} ingested in QRadar." />
+
+                    
+                    <!-- Check if there are more pages to process -->
+                    <If condition="${/currentPage + 0} &lt; ${/totalPages + 0}">
+                        <!-- Store current page in checkpoint after successful ingestion -->
+                        <Set path="/auditTrailsPage" value="${/currentPage + 1}" />
+                        <Set path="/auditTrailsTime" value="${/fromTimestamp}" />
+                        <Log type="INFO" message="${/logPrefix} - Updated auditTrailsPage checkpoint to: ${/currentPage + 1}" />
+
+                        <Set path="/currentPage" value="${/currentPage + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - Moving to next page: ${/currentPage} of ${/totalPages}." />
+                    </If>
+                    <Else>
+                        <!-- All pages processed, complete the collection -->
+                        <Set path="/loopBreaker" value="true"/>
+                        <Set path="/errorCount" value="${/maxRetry}"/>
+                        
+                        <!-- Update checkpoint parameters -->
+                        <Set path="/auditTrailsTime" value="${/toTimestamp}" />
+                        <Set path="/auditTrailsPage" value="1" />
+                        <Log type="INFO" message="${/logPrefix} Updated auditTrailsTime checkpoint to: ${/toTimestamp}" />
+                        <Log type="INFO" message="${/logPrefix} Reset auditTrailsPage checkpoint to: 1" />
+                        <Log type="INFO" message="${/logPrefix} Audit Trails collection completed successfully." />
+                    </Else>
+
+                </If>
+                
+                <!-- Handle token expired (419 or 401) -->
+                <ElseIf condition="${/auditTrails/response/status_code} = 419 or ${/auditTrails/response/status_code} = 401">
+                    <!-- To retry for token expiration -->
+                    <Set path="/loopBreaker" value="true"/>
+                    <Set path="/errorCount" value="${/errorCount + 1}" />
+                    <Log type="INFO" message="${/logPrefix} - Access token is expired with status code - ${/auditTrails/response/status_code}." />
+                    <Set path="/accessToken" value="" />
+                </ElseIf>
+
+                <!-- Handle 403 Forbidden -->
+                <ElseIf condition="/auditTrails/response/status_code = 403">
+                    <Log type="INFO" message="${/logPrefix} Abort - Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                    <Abort reason="Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                </ElseIf>
+
+                <!-- Handle other error status codes -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting ${/collectionType} data with status code - ${/auditTrails/response/status_code}, Body - ${/auditTrails/response/body}" />
+                    <Abort reason="API call failed for collecting ${/collectionType} data with status code - ${/auditTrails/response/status_code}." />
+                </Else>
+            </While>
+        </While>
+    </Actions>
+
+    <!-- Performing some connectivity tests -->
+    <Tests>
+        <DNSResolutionTest host="${/tenantName}" />
+        <TCPConnectionTest host="${/tenantName}" />
+        <SSLHandshakeTest host="${/tenantName}" />
+        <HTTPConnectionThroughProxyTest url="https://${/tenantName}" />
+    </Tests>
+
+</Workflow>

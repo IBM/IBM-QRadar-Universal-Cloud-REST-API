@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="XM Cyber Devices" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
+
+    <!-- Collect configurations from workflow parameter file -->
+    <Parameters>
+        <Parameter name="tenantName" label="Tenant Name" required="true"/>
+        <Parameter name="apiKey" label="API Key" secret="true" required="true" />
+        <Parameter name="ingestChokepointStats" label="Ingest Chokepoint Stats" required="false"/>
+        <Parameter name="auditTrailsStartTime" label="Audit Trails Start Time" required="false"/>
+        <Parameter name="ingestScenarios" label="Ingest Scenarios" required="false"/>
+        <Parameter name="timeId" label="Time ID" required="false"/>
+    </Parameters>
+
+    <Actions>
+
+        <!-- Clear status of log source -->
+        <ClearStatus />
+
+        <!-- Defining variables for running workflow -->
+        <Set path="/xmCyberUrl" value="https://${/tenantName}"/>
+        <Set path="/logPrefix" value="[XM_Cyber_App_for_QRadar][Devices][${/xmCyberUrl}]" />
+        <Initialize path="/errorCount" value="0" />
+        <Initialize path="/maxRetry" value="3" />
+        <Initialize path="/authEndpoint" value="/api/auth" />
+        <Initialize path="/refreshEndpoint" value="/api/refresh-token" />
+        <Initialize path="/devicesEndpoint" value="/api/v2/vavm/devices" />
+        <Initialize path="/pageSize" value="5000" />
+        <Initialize path="/refreshToken" value="" />
+        <Initialize path="/accessToken" value="" />
+        <Initialize path="/defaultSleepTime" value="60" />
+        <Initialize path="/appVersion" value="2.0.0" />
+        <Initialize path="/userAgentHeader" value="QRadar-v${/appVersion}" />
+        <Initialize path="/collectionType" value="devices" />
+
+        <Set path="/currentPage" value="1" />
+        <Set path="/totalPages" value="1" />
+
+        <!-- Get current timestamp -->
+        <Set path="/currentTimestamp" value="${time()}" />
+
+        <!-- Extract tenant prefix from tenantName -->
+        <Split value="${/tenantName}" delimiter="\." savePath="/tenantParts" />
+        <Set path="/tenantPrefix" value="${/tenantParts[0]}" />
+
+        <!-- Print log in the /var/log/qradar.log file with info log level -->
+        <Log type="INFO" message="${/logPrefix} - Devices collection started." />
+
+        <Set path="/errorCount" value="0" />
+
+        <!-- Perform data collection continuously in case of no error -->
+        <While condition="${/errorCount != ${/maxRetry}}">
+
+            <!-- Create Refresh Token if it is not created -->
+            <If condition="${empty(/refreshToken)} = 'true'">
+
+                <Log type="INFO" message="${/logPrefix} - Refresh token not found. Creating new Access and Refresh token using provided API key." />
+
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                    <!-- Create Refresh token and Access Token using API key and save response at Jpath /refreshTokenResponse -->
+                    <CallEndpoint url="${/xmCyberUrl}${/authEndpoint}" method="POST" savePath="/refreshTokenResponse">
+
+                        <!-- Request header -->
+                        <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+                        <RequestHeader name="Content-Type" value="application/json" />
+                        <RequestHeader name="x-api-key" value="${/apiKey}" />
+
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/refreshTokenResponse/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                            <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                        </If>
+
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                        <Sleep duration="${/defaultSleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Storing Refresh token and Access token from API response -->
+                <If condition="${/refreshTokenResponse/status_code} = 200">
+                    <Log type="INFO" message="${/logPrefix} - Refresh token and Access token created successfully." />
+                    <Set path="/refreshToken" value="${/refreshTokenResponse/body/refreshToken}" />
+                    <Set path="/accessToken" value="${/refreshTokenResponse/body/accessToken}" />
+                </If>
+
+                <!-- Handle 401 Unauthorized -->
+                <ElseIf condition="${/refreshTokenResponse/status_code} = 401">
+                    <Log type="INFO" message="${/logPrefix} Abort - Invalid API token provided while collecting ${/collectionType} data. Status code = 401." />
+                    <Abort reason="Invalid API token provided while collecting ${/collectionType} data. Status code = 401." />
+                </ElseIf>
+
+                <!-- Handle 403 Forbidden -->
+                <ElseIf condition="${/refreshTokenResponse/status_code} = 403">
+                    <Log type="INFO" message="${/logPrefix} Abort - Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                    <Abort reason="Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                </ElseIf>
+
+                <!-- Aborting execution of workflow for http status code other than 200 -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access and Refresh token with status code - ${/refreshTokenResponse/status_code}, Body - ${/refreshTokenResponse/body}" />
+                    <Abort reason="API call failed while creating Access and Refresh token with status code - ${/refreshTokenResponse/status_code}." />
+                </Else>
+
+            </If>
+            <Else>
+                <Log type="INFO" message="${/logPrefix} - Refresh token found. Creating new Access token using stored Refresh token." />
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                    <!-- Create an Access Token using Refresh token and save response at Jpath /accessTokenResponse-->
+                    <CallEndpoint url="${/xmCyberUrl}${/refreshEndpoint}" method="POST" savePath="/accessTokenResponse">
+
+                        <!-- Request header -->
+                        <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+                        <RequestHeader name="Content-Type" value="application/json" />
+
+                        <!-- Request body with refresh token -->
+                        <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                            "refreshToken": "${/refreshToken}"
+                        }
+                        </RequestBody>
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/accessTokenResponse/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while creating access token using saved refresh token." />
+                            <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while creating access token using saved refresh token." />
+                        </If>
+
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                        <Sleep duration="${/defaultSleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Storing Access token from API response -->
+                <If condition="${/accessTokenResponse/status_code} = 200">
+                    <Log type="INFO" message="${/logPrefix} - Access token created successfully." />
+                    <Set path="/accessToken" value="${/accessTokenResponse/body/accessToken}" />
+                </If>
+
+                <!-- In case of expired Refresh token -->
+                <ElseIf condition="${/accessTokenResponse/status_code} = 401 or ${/accessTokenResponse/status_code} = 400">
+
+                    <Log type="INFO" message="${/logPrefix} - Refresh token is expired. Recreating an Access token and Refresh token using provided API key." />
+                    <Set path="/rateLimitErrorCount" value="0" />
+                    <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+
+                        <!-- Create a Refresh token and Access Token using API key and save response at Jpath /refreshTokenResponse-->
+                        <CallEndpoint url="${/xmCyberUrl}${/authEndpoint}" method="POST" savePath="/refreshTokenResponse">
+
+                            <!-- Request header -->
+                            <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+                            <RequestHeader name="Content-Type" value="application/json" />
+                            <RequestHeader name="x-api-key" value="${/apiKey}" />
+
+                        </CallEndpoint>
+
+                        <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                        <If condition="${/refreshTokenResponse/status_code} = 429">
+                            <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                            <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                            <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                                <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                                <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while creating Access and Refresh token." />
+                            </If>
+
+                            <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                            <Sleep duration="${/defaultSleepTime * 1000}" />
+                        </If>
+                        <Else>
+                            <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                        </Else>
+                    </While>
+
+                    <!-- Storing Refresh token and Access token from API response -->
+                    <If condition="${/refreshTokenResponse/status_code} = 200">
+                        <Log type="INFO" message="${/logPrefix} - Refresh token and Access token created successfully." />
+                        <Set path="/refreshToken" value="${/refreshTokenResponse/body/refreshToken}" />
+                        <Set path="/accessToken" value="${/refreshTokenResponse/body/accessToken}" />
+                    </If>
+
+                    <!-- Aborting execution of workflow for failed API call -->
+                    <Else>
+                        <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Refresh and Access token with status code - ${/refreshTokenResponse/status_code}, Body - ${/refreshTokenResponse/body}" />
+                        <Abort reason="API call failed while creating Refresh and Access token with status code - ${/refreshTokenResponse/status_code}." />
+                    </Else>
+                </ElseIf>
+
+                <!-- Aborting execution of workflow for failed API call with status code other than 200 and 401 -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Abort - API call failed while creating Access token with status code - ${/accessTokenResponse/status_code}, Body - ${/accessTokenResponse/body}" />
+                    <Abort reason="API call failed while creating Access token with status code - ${/accessTokenResponse/status_code}." />
+                </Else>
+            </Else>
+
+            <!-- Reset errorCount after successful authentication -->
+            <Set path="/errorCount" value="0" />
+            <Set path="/loopBreaker" value="false" />
+
+            <!-- Fetch devices data with pagination support and retry mechanism -->
+            <While condition="${/loopBreaker} = false">
+
+                <Log type="INFO" message="${/logPrefix} Collecting ${/collectionType} data from ${/devicesEndpoint} - Page ${/currentPage}, pageSize ${/pageSize}." />
+
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+                    
+                    <!-- Call devices API with OAuth authentication and pagination -->
+                    <CallEndpoint url="${/xmCyberUrl}${/devicesEndpoint}" method="GET" savePath="/devices/response">
+                        <BearerAuthentication token="${/accessToken}" />
+
+                        <QueryParameter name="page" value="${/currentPage}" />
+                        <QueryParameter name="pageSize" value="${/pageSize}" />
+
+                        <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
+
+                        <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                            "Accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded"
+                        }
+                        </RequestBody>
+                    </CallEndpoint>
+
+                    <!-- Handle rate limit (429) -->
+                    <If condition="${/devices/response/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - The number of retry attempts (3) exceeded for status code = 429 while collecting ${/collectionType} data." />
+                            <Abort reason="The number of retry attempts (3) exceeded for status code = 429 while collecting ${/collectionType} data." />
+                        </If>
+
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/defaultSleepTime} seconds." />
+                        <Sleep duration="${/defaultSleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <!-- Handle successful response (200) -->
+                <If condition="/devices/response/status_code = 200">
+
+                    <!-- Extract pagination information -->
+                    <Set path="/totalPages" value="${/devices/response/body/paging/totalPages}" />
+                    <Set path="/currentPageSize" value="${count(/devices/response/body/data)}" />
+
+                    <!-- Add completion timestamp to the last device event if this is the last page -->
+                    <If condition="${/currentPage + 0} = ${/totalPages + 0}">
+                        <If condition="${/currentPageSize} > 0">
+                            <!-- Add collectionStartTime to the last device event -->
+                            <Set path="/devices/response/body/data[${/currentPageSize - 1}]/collectionStartTime" value="${/currentTimestamp}" />
+                        </If>
+                    </If>
+
+                    <!-- Process collected device events, add tenant prefix and metadata -->
+                    <ForEach item="/currentEvent" items="/devices/response/body/data">
+                        <Set path="/currentEvent/event_id" value="device" />
+                        <Set path="/currentEvent/event_category" value="XM Cyber" />
+                        <Set path="/currentEvent/tenant" value="${/tenantPrefix}" />
+                        <PostEvent path="/currentEvent"/>
+                    </ForEach>
+
+                    <!-- Log ingested event count for current page -->
+                    <Log type="INFO" message="${/logPrefix} - Page ${/currentPage}: ${/currentPageSize} ${/collectionType} ingested in QRadar." />
+                    
+                    <!-- Check if there are more pages to process -->
+                    <If condition="${/currentPage + 0} &lt; ${/totalPages + 0}">
+                        <Set path="/currentPage" value="${/currentPage + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - Moving to next page: ${/currentPage} of ${/totalPages}." />
+                    </If>
+                    <Else>
+                        <!-- All pages processed, complete the collection -->
+                        <Set path="/loopBreaker" value="true"/>
+                        <Set path="/errorCount" value="${/maxRetry}"/>
+                        <Log type="INFO" message="${/logPrefix} Devices collection completed successfully." />
+                    </Else>
+
+                </If>
+                
+                <!-- Handle token expired (419 or 401) -->
+                <ElseIf condition="${/devices/response/status_code} = 419 or ${/devices/response/status_code} = 401">
+                    <!-- To retry for token expiration -->
+                    <Set path="/loopBreaker" value="true"/>
+                    <Set path="/errorCount" value="${/errorCount + 1}" />
+                    <Log type="INFO" message="${/logPrefix} - Access token is expired with status code - ${/devices/response/status_code}." />
+                    <Set path="/accessToken" value="" />
+                </ElseIf>
+
+                <!-- Handle 403 Forbidden -->
+                <ElseIf condition="/devices/response/status_code = 403">
+                    <Log type="INFO" message="${/logPrefix} Abort - Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                    <Abort reason="Insufficient permissions while collecting ${/collectionType} data. Status code = 403." />
+                </ElseIf>
+
+                <!-- Handle other error status codes -->
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting ${/collectionType} data with status code - ${/devices/response/status_code}, Body - ${/devices/response/body}" />
+                    <Abort reason="API call failed for collecting ${/collectionType} data with status code - ${/devices/response/status_code}." />
+                </Else>
+            </While>
+        </While>
+    </Actions>
+
+    <!-- Performing some connectivity tests -->
+    <Tests>
+        <DNSResolutionTest host="${/tenantName}" />
+        <TCPConnectionTest host="${/tenantName}" />
+        <SSLHandshakeTest host="${/tenantName}" />
+        <HTTPConnectionThroughProxyTest url="https://${/tenantName}" />
+    </Tests>
+
+</Workflow>

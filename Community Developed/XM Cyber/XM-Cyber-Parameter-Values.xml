@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2">
-	<Value name="api_host" value="" />
-	<Value name="api_key" value="" />
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2_1">
+    
+    <!-- XM Cyber tenant name (hostname). Do not add http or https. -->
+    <Value name="tenantName" value="your-tenant.clients.xmcyber.com" />
+    
+    <!-- API Key for authentication -->
+    <Value name="apiKey" value="" />
+
+    <!-- Required for Audit Trails collection. Provide the Audit Trails start time in the format YYYY-MM-DDTHH:MM:SS.SSSZ -->
+    <Value name="auditTrailsStartTime" value="" />
+
+    <!-- Required for Entities collection. Must be from [true, false].-->
+    <!-- If set to True, entities chokepoint statistics will also be ingested into QRadar as an event after entity data collection. -->
+    <Value name="ingestChokepointStats" value="false" />
+
+    <!-- Required for Security Score collection.-->
+
+    <!-- If set to True, scenarios data collected during Security Score data collection will also be ingested into QRadar. -->
+    <!-- Must be from [true, false].-->
+    <Value name="ingestScenarios" value="false" />
+
+    <!--Defines the start time for collecting Security Score data. Example: timeAgo_days_7.-->
+    <!-- Must be from [timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_365].-->
+    <Value name="timeId" value="timeAgo_days_7" />
+    
 </WorkflowParameterValues>
