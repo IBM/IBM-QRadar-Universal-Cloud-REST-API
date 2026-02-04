@@ -11,7 +11,9 @@ Parameters:
 - "api_key" - Orca API key for QRadar (required)
 
 -->
-<Workflow name="Orca Security" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+<Workflow name="Orca Security" version="1.0"
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
         <Parameter name="api_host" label="API Host" required="true" default="api.orcasecurity.io" />
@@ -22,27 +24,31 @@ Parameters:
         <!-- Clear the log source status before a new workflow run starts -->
         <ClearStatus />
 
-        <Set path="/event_start_time" value="${time()}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${time()}"
+            savePath="/event_start_time" />
 
         <If condition="/successful_event_start_time != null">
-            <Set path="/last_updated" value="${/successful_event_start_time}" />
+            <Set path="/from_date" value="${/successful_event_start_time}" />
         </If>
+
         <Else>
-            <Set path="/last_updated" value="0" />
+            <Set path="/from_date" value="1970-01-01T00:00:00Z" />
         </Else>
 
-        <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
+
+        <Set path="/page"
+            value="1" />
+        <Set path="/limit" value="100" />
+
+        <CallEndpoint
+            url="https://${/api_host}/api/automations/query/alerts" method="POST"
+            savePath="/get_alerts">
             <RequestHeader name="authorization" value="Token ${/api_token}" />
             <RequestBody type="application/json" encoding="UTF-8">
                 {
-                    "limit": "100",
-                    "next_page_token":"${/get_alerts/body/next_page_token}",
-                    "dsl_filter": [
-                        {
-                            "field": "state.last_updated",
-                            "range": {"gte": "${/last_updated}"}
-                        }
-                    ]
+                "limit": "${/limit}",
+                "page": "${/page}",
+                "from_date": "${/from_date}"
                 }
             </RequestBody>
         </CallEndpoint>
@@ -59,24 +65,26 @@ Parameters:
             <Abort reason="${/get_alerts/body}" />
         </If>
 
-        <If condition="count(/get_alerts/body/data) > 0">
+        <Set path="/total_items"
+            value="${/get_alerts/body/total_items}" />
+
+        <If
+            condition="count(/get_alerts/body/data) > 0">
             <PostEvents path="/get_alerts/body/data" source="${/api_host}" />
         </If>
 
         <!-- Fetch the rest of alerts -->
-        <While condition="/get_alerts/body/has_next_page_token">
-            <CallEndpoint url="https://${/api_host}/api/rules/query/alerts" method="POST" savePath="/get_alerts">
+        <While condition="/total_items > (/limit * /page)">
+            <Set path="/page" value="${/page + 1}" />
+
+            <CallEndpoint url="https://${/api_host}/api/automations/query/alerts" method="POST"
+                savePath="/get_alerts">
                 <RequestHeader name="authorization" value="Token ${/api_token}" />
                 <RequestBody type="application/json" encoding="UTF-8">
                     {
-                        "limit": "100",
-                        "next_page_token":"${/get_alerts/body/next_page_token}",
-                        "dsl_filter": [
-                            {
-                                "field": "state.last_updated",
-                                "range": {"gte": "${/last_updated}"}
-                            }
-                        ]
+                    "limit": "${/limit}",
+                    "page": "${/page}",
+                    "from_date": "${/from_date}"
                     }
                 </RequestBody>
             </CallEndpoint>
@@ -103,7 +111,8 @@ Parameters:
 
         </While>
 
-        <Set path="/successful_event_start_time" value="${/event_start_time}" />
+        <Set
+            path="/successful_event_start_time" value="${/event_start_time}" />
 
     </Actions>
 
