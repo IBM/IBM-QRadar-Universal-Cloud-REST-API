@@ -2,7 +2,7 @@
 
 #### Author Name: Nozomi Networks
 #### Maintainer Name: NozomiNetworks
-#### Version Number: 1.0.0
+#### Version Number: 1.2.0
 #### Event Types Currently Supported by the workflows: Alerts and Assets
 
 #### Workflow Parameter Values
@@ -13,12 +13,26 @@ To generate the `key_name` and the `key_token` follow the Vantage guide.
 The host must without the protocol `http`
 ```nozominetworkscom.customers.vantage.io```
 
-
 #### Workflows
-The workflows are two, are thought to be used to configure LogSource to get Assets and Alerts from an host.
-It could be useful to get the Alerts only from a given time, to do it you can modify the Workflow bookmark initialization; for example if you want to get the Alerts from the last hour you can initialize the bookmark as:
+The workflows included are used to configure Log Sources to retrieve **Assets** and **Alerts** from a Vantage host.
 
-```<Initialize path="/bookmark" value="${time() - 3600000}" />```
+Two workflows are provided for Alerts depending on the desired behavior:
+
+- **NN-Universal-Alert**  
+  Retrieves alerts based on the `record_created_at` field.  
+  This workflow sends only **newly created alerts** to QRadar.
+
+- **NN-Universal-Alert-Updated**  
+  Retrieves alerts based on the `record_updated_at` field.  
+  This workflow sends **new alerts and updates to existing alerts** (for example when an alert is acknowledged, modified, or closed).
+
+The `NN-Universal-Alert-Updated` workflow can be useful when QRadar needs to track the **lifecycle changes of alerts**, not only their creation.
+
+It could be useful to get the Alerts only from a given time; to do it you can modify the Workflow bookmark initialization. For example if you want to get the Alerts from the last hour you can initialize the bookmark as:
+
+```xml
+<Initialize path="/bookmark" value="${time() - 3600000}" />
+```
 
 ### Event Mappings
 
