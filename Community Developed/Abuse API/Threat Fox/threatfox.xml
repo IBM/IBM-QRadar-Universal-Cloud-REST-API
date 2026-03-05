@@ -1,0 +1,16 @@
+<Workflow name="Threat Fox" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    <Parameters>
+        <Parameter name="api_host" label="API Host" required="true"/>
+    </Parameters>
+    <Actions>
+        <CallEndpoint url="https://${/api_host}" method="POST" savePath="/response">
+            <RequestHeader name="Accept" value="application/json" />
+            <RequestBody type="application/json" encoding="UTF-8"> 
+               { "query": "get_iocs", "days": 1}
+        </RequestBody>
+        </CallEndpoint>
+        <ForEach item="/sample" items="/response/body/data">
+         <PostEvent path="/sample" source="threatfox"/>
+        </ForEach>
+</Actions>
+</Workflow>
