@@ -9,12 +9,13 @@
         <Parameter name="auth_type" label="Authentication Type" required="true" />
         <Parameter name="gql_query" label="GraphQL Query" required="true" />
         <Parameter name="audit_logs_gql_query" label="GraphQL Query" required="false" />
+        <Parameter name="detections_gql_query" label="Detections GraphQL Query" required="false" />
     </Parameters>
 
     <Actions>
         
         <Log type="INFO" message="WIZ: Workflow Actions started..." />
-        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.3-v2" />
+        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.4" />
         <If condition="/bookmark != null">
             <!-- Format Date to be passed in fetching events -->
             <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />
