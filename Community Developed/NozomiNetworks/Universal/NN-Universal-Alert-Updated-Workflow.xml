@@ -25,7 +25,7 @@
     </If>
 
     <Set path="/bearer_token" value="${/sign_in/headers/Authorization}"/>
-    <If condition="/bearer_token = null">
+    <If condition="/bearer_token = null or /bearer_token = ''">
       <Set path="/bearer_token" value="${/sign_in/headers/authorization}"/>
     </If>
 

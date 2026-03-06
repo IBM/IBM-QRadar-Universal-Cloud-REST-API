@@ -2,7 +2,7 @@
 
 #### Author Name: Nozomi Networks
 #### Maintainer Name: NozomiNetworks
-#### Version Number: 1.2.0
+#### Version Number: 1.2.1
 #### Event Types Currently Supported by the workflows: Alerts and Assets
 
 #### Workflow Parameter Values
