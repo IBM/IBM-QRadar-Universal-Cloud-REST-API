@@ -2,12 +2,14 @@
 <!--
 CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API)
 -->
-<Workflow name="CyberarkAggEventEPM" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="CyberArkAggPolicyEPM" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
-    <Parameters>
-	    <Parameter name="host" label="EPM Dispatcher URL" default="login.epm.cyberark.com" required="true" />
-        <Parameter name="username" label="Username" default="johndoe" required="true" />
-        <Parameter name="password" label="Password" required="true" secret="true" />
+     <Parameters>
+	<Parameter name="identity_host" label="identity_host" required="true" description="the id of the identity tenant. I.E.: abc9876.id.cyberark.cloud" />
+        <Parameter name="client_id" label="client_id" required="true" />
+        <Parameter name="client_secret" label="client_secret" required="true" secret="true" />
+        <Parameter name="webapp_id" label="webapp_id" required="true" />
+        <Parameter name="api_host" label="api_host" required="true" description="the EPM host of the region to retrieve the EPM tenanturl, api-{region}.epm.cyberark.cloud where region in [na,eu,uk,ca,au] I.E.: api-na.epm.cyberark.cloud" />
     </Parameters>
 
     <Actions>
@@ -27,7 +29,7 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 		<!-- Set max retry to 3 in case of 403 API exceeded error and timeout for 60 secs -->
 		<Initialize path="/epm_policy/maxRetry" value="3" />
         
-		<Initialize path="/epm_policy/logPrefix" value="EPM::AggPolicy" />
+		<Initialize path="/epm_policy/logPrefix" value="ISPSS-EPM::AggPolicy" />
 		
         <!-- Set limit for max fetch to now this is like the last_run -  do i need to initalize this?-->
         <Set path="/epm_policy/max_created" value="${time()}" />
@@ -38,25 +40,44 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 		<!-- Display the bookmark in epoch and utc format for debug info -->
         <Log type="INFO" message="${/epm_policy/logPrefix} - The EPM Bookmark value was ${/epm_policy/bookmark} : ${/epm_policy/from_time} " />
 		
-        <!--Fetch the Access Token and Tenant from EPM Dispatcher url what is the timeout for the token? need to check in doc -->
-		<CallEndpoint url="https://${/host}/EPM/API/Auth/EPM/Logon" method="POST" savePath="/get_access_token">
-			<RequestBody type="application/json" encoding="UTF-8">{ "Username": "${/username}", "Password": "${/password}", "ApplicationID": "IBM QRadar EPM Plugin" }</RequestBody>
+       <!-- Step1: Fetch the Bearer Access Token from the ISPSS Identity tenant via the configured webapp-->
+		<CallEndpoint url="https://${/identity_host}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
+                    <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
+			<UrlEncodedFormRequestBody>
+				<Parameter name="grant_type" value="client_credentials" />
+				<Parameter name="client_id" value="${/client_id}" />
+				<Parameter name="client_secret" value="${/client_secret}" />
+			</UrlEncodedFormRequestBody>
 		</CallEndpoint>
 
 		<!-- Check for errors during Auth-->
 		<If condition="/get_access_token/status_code != 200">
-			<Log type="INFO" message="${/epm_policy/logPrefix} - Abort - Login fail, check userid and password." />
+			<Log type="ERROR" message="${/epm_policy/logPrefix} - Abort - Login fail, check client_id and client_secret. ${/get_access_token/body}" />
             <Abort reason="${/get_access_token/status_message}" />
 		</If>
 		
-		<!-- Extract the tenant url and the token -->
+		<!-- Extract the bearer token for subsequent calls to EPM-->
 		<Log type="INFO" message="${/epm_policy/logPrefix} - ${/get_access_token/status_code} : ${/get_access_token/status_message}." />
-		<Set path="/epm_url" value="${/get_access_token/body/ManagerURL}" />
-		<Set path="/auth_token" value="${/get_access_token/body/EPMAuthenticationResult}" />
+		<Set path="/access_token" value="${/get_access_token/body/access_token}" />
+		<Set path="/access_token_type" value="${/get_access_token/body/token_type}" />
+
+		<!-- Step2: get the tenanturl using the api of your region api-<REGION>.epm.cyberark.cloud/epm/api/accounts/tenanturl-->
+		<CallEndpoint url="https://${/api_host}/epm/api/accounts/tenanturl" method="GET" savePath="/get_tenanturl">
+			<RequestHeader name="authorization" value="${/access_token_type} ${/access_token}" />
+		</CallEndpoint>
+
+		<!-- Check for errors during Auth-->
+		<If condition="/get_tenanturl/status_code != 200">
+			<Log type="INFO" message="${/epm_policy/logPrefix} - Abort - EPM tenanturl failed REGION should be api-REGION.epm.cyberark.cloud." />
+                <Abort reason="${/get_tenanturl/status_message}" />
+		</If>
+
+		<Log type="INFO" message="${/epm_policy/logPrefix} - ${/get_tenanturl/status_code} : ${/get_tenanturl/status_message}." />
+		<Set path="/epm_url" value="${/get_tenanturl/body/tenantUrl}" />
 			
 		<!-- Get all the sets, there could be 0 or more than 1 set -->
 		<CallEndpoint url="${/epm_url}/EPM/API/Sets" method="GET" savePath="/get_sets">
-			<RequestHeader name="authorization" value="basic ${/auth_token}" />
+			<RequestHeader name="authorization" value="${/access_token_type} ${/access_token}" />
 		</CallEndpoint>
 		
 		<!-- Check for errors during get Sets  do i need to retry here 3 times as well?-->
@@ -90,7 +111,7 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 																																<!-- was /epm_policy/nextcursor -->
 							<CallEndpoint url="${/epm_url}/EPM/API/Sets/${/current_set/Id}/policyaudits/aggregations/search" method="POST" savePath="/get_events">
 								<QueryParameter name="nextCursor" value="${/epm_policy/nextcursor}" />
-								<RequestHeader name="authorization" value="basic ${/auth_token}" />
+								<RequestHeader name="authorization" value="${/access_token_type} ${/access_token}" />
 								<RequestBody type="application/json" encoding="UTF-8">{ "filter": "arrivalTime GE ${/epm_policy/from_time}" }</RequestBody>
 								
 								<!-- 
@@ -136,7 +157,7 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 					<Log type="INFO" message="${/epm_policy/logPrefix} - ${/current_set/Id} : ${/get_events/status_code} : ${/get_events/status_message}" />
 					<!-- only post the event if there are events can also use condition /get/events/body/returnedCount >0 -->
 					<If condition="${count(/get_events/body/events)} != 0">
-						<PostEvents path="/get_events/body/events" source="${/epm_url}"/> 
+						<PostEvents path="/get_events/body/events" source="${/identity_host}_Policies"/> 
 					</If>
 					
 					<!-- <Log type="INFO" message="${/epm_policy/logPrefix} -  : ${/get_events/status_code} : ${/get_events/status_message}" /> -->
@@ -168,9 +189,8 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
     </Actions>
 
     <Tests>
-		 <DNSResolutionTest host="${/host}"/>
-        <TCPConnectionTest host="${/host}"/>
-        <HTTPConnectionThroughProxyTest url="https://${/host}"/>
+	<DNSResolutionTest host="${/identiy_host}"/>
+        <TCPConnectionTest host="${/identity_host}"/>
     </Tests>
 
 </Workflow>
