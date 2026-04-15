@@ -93,12 +93,7 @@
 				<RequestHeader name="Authorization" value="Bearer ${/access_token}" />
 				<RequestHeader name="content-type" value="application/json" />
 				<RequestHeader name="x-api-key" value="${/api_key}" />
-				<RequestHeader name="IntegrationName" value="IBM QRadar" />
-				<RequestHeader name="IntegrationType" value="SIEM" />
-				<RequestHeader name="IntegrationVersion" value="1.0" />
-				<RequestHeader name="CyberArkService" value="Audit" />
-				<RequestHeader name="VendorName" value="IBM" />
-				<RequestHeader name="VendorProductName" value="QRadar" />
+				<RequestHeader name="x-cybr-telemetry" value="aW49SUJNIFFyYWRhciBBdWRpdCZpdj0xLjAmdm49SUJNJml0PVNJRU0=" />
 				<RequestBody type="application/json" encoding="UTF-8">${/create_query_body}</RequestBody>
 			</CallEndpoint>
 			<Log type="INFO" message="CyberArk Audit: createQuery status code:: ${/create_query/status_code}" />
