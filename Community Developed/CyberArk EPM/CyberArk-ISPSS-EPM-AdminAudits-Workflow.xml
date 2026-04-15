@@ -2,7 +2,7 @@
 <!--
 CyberArk EPM AdminAudit API - QRadar Integration (Universal Cloud REST API)
 -->
-<Workflow name="CyberArkAdminAuditEPM" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="CyberArkEPM" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
     <Parameters>
 	<Parameter name="identity_host" label="identity_host" required="true" description="the id of the identity tenant. I.E.: abc9876.id.cyberark.cloud" />
@@ -48,12 +48,12 @@ CyberArk EPM AdminAudit API - QRadar Integration (Universal Cloud REST API)
 
 		<!-- Check for errors during Auth-->
 		<If condition="/get_access_token/status_code != 200">
-			<Log type="ERROR" message="${/epm_policy/logPrefix} - Abort - Login fail, check client_id and client_secret. ${/get_access_token/body}" />
+			<Log type="ERROR" message="${/epm_audit/logPrefix} - Abort - Login fail, check client_id and client_secret. ${/get_access_token/body}" />
             <Abort reason="${/get_access_token/status_message}" />
 		</If>
 		
 		<!-- Extract the bearer token for subsequent calls to EPM-->
-		<Log type="INFO" message="${/epm_policy/logPrefix} - ${/get_access_token/status_code} : ${/get_access_token/status_message}." />
+		<Log type="INFO" message="${/epm_audit/logPrefix} - ${/get_access_token/status_code} : ${/get_access_token/status_message}." />
 		<Set path="/access_token" value="${/get_access_token/body/access_token}" />
 		<Set path="/access_token_type" value="${/get_access_token/body/token_type}" />
 
@@ -64,11 +64,11 @@ CyberArk EPM AdminAudit API - QRadar Integration (Universal Cloud REST API)
 
 		<!-- Check for errors during Auth-->
 		<If condition="/get_tenanturl/status_code != 200">
-			<Log type="INFO" message="${/epm_policy/logPrefix} - Abort - EPM tenanturl failed REGION should be api-REGION.epm.cyberark.cloud." />
+			<Log type="INFO" message="${/epm_audit/logPrefix} - Abort - EPM tenanturl failed REGION should be api-REGION.epm.cyberark.cloud." />
                 <Abort reason="${/get_tenanturl/status_message}" />
 		</If>
 
-		<Log type="INFO" message="${/epm_policy/logPrefix} - ${/get_tenanturl/status_code} : ${/get_tenanturl/status_message}." />
+		<Log type="INFO" message="${/epm_audit/logPrefix} - ${/get_tenanturl/status_code} : ${/get_tenanturl/status_message}." />
 		<Set path="/epm_url" value="${/get_tenanturl/body/tenantUrl}" />
 			
 			

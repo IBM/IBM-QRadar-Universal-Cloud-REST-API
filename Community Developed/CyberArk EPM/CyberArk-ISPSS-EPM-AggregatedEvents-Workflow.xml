@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
-CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API)
+CyberArk ISPSS EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API)
 -->
-<Workflow name="CyberArkAggPolicyEPM" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+<Workflow name="CyberarkAggEventEPM" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
 
      <Parameters>
 	<Parameter name="identity_host" label="identity_host" required="true" description="the id of the identity tenant. I.E.: abc9876.id.cyberark.cloud" />
@@ -20,27 +20,27 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 		<!-- Initialize doesn't overwrite with new value with one exists, Set overwrite with new value if one exists 
 			 use bookmark in PRODUCTION, but use set in Test with older data. change between *Initalize* and *Set* here.
 		-->
-		<!-- go back to how ever i want, bookmark seems to be stuck for some reason, need to figure out  why 7*24=168, 336 14 days -->
 		
-		<!-- Initialize the bookmark (Start date) to 7 days ago, if not set default is 7 day -->
+		<!-- Initialize the bookmark (Start date) to 7 days ago, if not set default is 7 days or whatever customers want. -->
 
-        <Initialize path="/epm_policy/bookmark" value="${time() - (60000 * 60 * 24 * 7)}" /> <!-- 7 days prior -->
+        <Initialize path="/epm_event/bookmark" value="${time() - (60000 * 60 * 24 * 7)}" /> <!-- 7 days prior -->
 		
 		<!-- Set max retry to 3 in case of 403 API exceeded error and timeout for 60 secs -->
-		<Initialize path="/epm_policy/maxRetry" value="3" />
+		<Initialize path="/epm_event/maxRetry" value="3" />
         
-		<Initialize path="/epm_policy/logPrefix" value="ISPSS-EPM::AggPolicy" />
+		<Initialize path="/epm_event/logPrefix" value="ISPSS-EPM::AggEvent" />
 		
         <!-- Set limit for max fetch to now this is like the last_run -  do i need to initalize this?-->
-        <Set path="/epm_policy/max_created" value="${time()}" />
+        <Set path="/epm_event/max_created" value="${time()}" />
 		
         <!-- Reformat datetimes to use in API the arrivalTime has to be in this utc format for some reason. see doc.  Use ISO-8601 to format dates and UTC time zone - YYYY-MM-DDThh:mm:ssZ-->
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/epm_policy/bookmark}" savePath="/epm_policy/from_time" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/epm_event/bookmark}" savePath="/epm_event/from_time" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/epm_event/max_created}" savePath="/epm_event/to_time" />
        
 		<!-- Display the bookmark in epoch and utc format for debug info -->
-        <Log type="INFO" message="${/epm_policy/logPrefix} - The EPM Bookmark value was ${/epm_policy/bookmark} : ${/epm_policy/from_time} " />
+        <Log type="INFO" message="${/epm_event/logPrefix} - The EPM Bookmark value was ${/epm_event/bookmark} : ${/epm_event/from_time} " />
 		
-       <!-- Step1: Fetch the Bearer Access Token from the ISPSS Identity tenant via the configured webapp-->
+                <!-- Step1: Fetch the Bearer Access Token from the ISPSS Identity tenant via the configured webapp-->
 		<CallEndpoint url="https://${/identity_host}/oauth2/token/${/webapp_id}" method="POST" savePath="/get_access_token">
                     <RequestHeader name="content-type" value="application/x-www-form-urlencoded" />
 			<UrlEncodedFormRequestBody>
@@ -52,12 +52,12 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 
 		<!-- Check for errors during Auth-->
 		<If condition="/get_access_token/status_code != 200">
-			<Log type="ERROR" message="${/epm_policy/logPrefix} - Abort - Login fail, check client_id and client_secret. ${/get_access_token/body}" />
-            <Abort reason="${/get_access_token/status_message}" />
+			<Log type="ERROR" message="${/epm_event/logPrefix} - Abort - Login fail, check client_id and client_secret. ${/get_access_token/body}" />
+                <Abort reason="${/get_access_token/status_message}" />
 		</If>
 		
 		<!-- Extract the bearer token for subsequent calls to EPM-->
-		<Log type="INFO" message="${/epm_policy/logPrefix} - ${/get_access_token/status_code} : ${/get_access_token/status_message}." />
+		<Log type="INFO" message="${/epm_event/logPrefix} - ${/get_access_token/status_code} : ${/get_access_token/status_message}." />
 		<Set path="/access_token" value="${/get_access_token/body/access_token}" />
 		<Set path="/access_token_type" value="${/get_access_token/body/token_type}" />
 
@@ -68,55 +68,55 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 
 		<!-- Check for errors during Auth-->
 		<If condition="/get_tenanturl/status_code != 200">
-			<Log type="INFO" message="${/epm_policy/logPrefix} - Abort - EPM tenanturl failed REGION should be api-REGION.epm.cyberark.cloud." />
+			<Log type="INFO" message="${/epm_event/logPrefix} - Abort - Login fail, check userid and password." />
                 <Abort reason="${/get_tenanturl/status_message}" />
 		</If>
 
-		<Log type="INFO" message="${/epm_policy/logPrefix} - ${/get_tenanturl/status_code} : ${/get_tenanturl/status_message}." />
+		<Log type="INFO" message="${/epm_event/logPrefix} - ${/get_tenanturl/status_code} : ${/get_tenanturl/status_message}." />
 		<Set path="/epm_url" value="${/get_tenanturl/body/tenantUrl}" />
 			
-		<!-- Get all the sets, there could be 0 or more than 1 set -->
+		<!-- Step3 - Get all the sets, there could be 0 or more than 1 set -->
 		<CallEndpoint url="${/epm_url}/EPM/API/Sets" method="GET" savePath="/get_sets">
 			<RequestHeader name="authorization" value="${/access_token_type} ${/access_token}" />
 		</CallEndpoint>
 		
 		<!-- Check for errors during get Sets  do i need to retry here 3 times as well?-->
 		<If condition="/get_sets/status_code != 200">
-			<Log type="INFO" message="${/epm_policy/logPrefix} - Abort - Get Sets failed ${/get_sets/status_code} : ${/get_sets/status_message}" />
-			<Abort reason="${/epm_policy/logPrefix} -  ${/get_sets/status_message}" />
+			<Log type="INFO" message="${/epm_event/logPrefix} - Abort - Get Sets failed ${/get_sets/status_code} : ${/get_sets/status_message}" />
+			<Abort reason="${/epm_event/logPrefix} -  ${/get_sets/status_message}" />
 		</If>
-		<Log type="INFO" message="${/epm_policy/logPrefix} - ${/get_sets/status_code} : ${/get_sets/status_message}" />
+		<Log type="INFO" message="${/epm_event/logPrefix} - ${/get_sets/status_code} : ${/get_sets/status_message}" />
 			
 		<!-- Loop thru the sets, there could be a x number of sets or no set etc and get all aggregated event data -->
 		<If condition="/get_sets/body/SetsCount > 0">
 		
 			<ForEach item="/current_set" items="/get_sets/body/Sets">
 				
-				<Log type="INFO" message="${/epm_policy/logPrefix} - ${/current_set/Id} : ${/current_set/Name}" />
+				<Log type="INFO" message="${/epm_event/logPrefix} - ${/current_set/Id} : ${/current_set/Name}" />
 				<!-- keep track of the nextcursor and # of record for each set, the nextcursor is the # of records for pagination 'start' is for 1st page always-->
-				<Set path="/epm_policy/nextcursor" value="start" />
+				<Set path="/epm_event/nextcursor" value="start" />
 				<!-- <Set path="/get_events/body/nextCursor" value="start" /> -->
-				<Set path="/epm_policy/count" value="1" />
-				<Set path="/epm_policy/records" value="0" />
+				<Set path="/epm_event/count" value="1" />
+				<Set path="/epm_event/records" value="0" />
 				
 				
 				
 				<DoWhile condition="${count(/get_events/body/events)} != 0" >
 				
-					<Log type="INFO" message="${/epm_policy/logPrefix} - nextcursor:${/epm_policy/nextcursor} : count=${count(/get_events/body/events)} : arrivalTime=${/epm_policy/from_time}" />
+					<Log type="INFO" message="${/epm_event/logPrefix} - nextcursor:${/epm_event/nextcursor} : count=${count(/get_events/body/events)} : arrivalTime=${/epm_event/from_time}" />
 					
-					<Set path="/epm_policy/apiLimitErrorCount" value="0" />
+					<Set path="/epm_event/apiLimitErrorCount" value="0" />
 					
-					<While condition="${/epm_policy/apiLimitErrorCount != ${/epm_policy/maxRetry}}">
-																																<!-- was /epm_policy/nextcursor -->
-							<CallEndpoint url="${/epm_url}/EPM/API/Sets/${/current_set/Id}/policyaudits/aggregations/search" method="POST" savePath="/get_events">
-								<QueryParameter name="nextCursor" value="${/epm_policy/nextcursor}" />
+					<While condition="${/epm_event/apiLimitErrorCount != ${/epm_event/maxRetry}}">
+																																<!-- was /epm_event/nextcursor -->
+							<CallEndpoint url="${/epm_url}/EPM/API/Sets/${/current_set/Id}/events/aggregations/search" method="POST" savePath="/get_events">
+								<QueryParameter name="nextCursor" value="${/epm_event/nextcursor}" />
 								<RequestHeader name="authorization" value="${/access_token_type} ${/access_token}" />
-								<RequestBody type="application/json" encoding="UTF-8">{ "filter": "arrivalTime GE ${/epm_policy/from_time}" }</RequestBody>
+								<RequestBody type="application/json" encoding="UTF-8">{ "filter": "arrivalTime GE ${/epm_event/from_time}" }</RequestBody>
 								
 								<!-- 
 								<UrlEncodedFormRequestBody>
-									<Parameter name="filter" value="arrivalTime GE ${/epm_policy/from_time}" />
+									<Parameter name="filter" value="arrivalTime GE ${/epm_event/from_time}" />
 								</UrlEncodedFormRequestBody>
 								-->
 							
@@ -133,14 +133,14 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 							-->
 							<If condition="/get_events/status_code = 403">
 							
-								<Set path="/epm_policy/apiLimitErrorCount" value="${/epm_policy/apiLimitErrorCount + 1}" />
-								<Log type="INFO" message="${/epm_policy/logPrefix} - API Rate limit exceeded. Status Code: 403 ${/get_events/body/message} : sleep 60 secs and retry" />
+								<Set path="/epm_event/apiLimitErrorCount" value="${/epm_event/apiLimitErrorCount + 1}" />
+								<Log type="INFO" message="${/epm_event/logPrefix} - API Rate limit exceeded. Status Code: 403 ${/get_events/body/message} : sleep 60 secs and retry" />
 								<!-- can i sleep here for a min(1000 ms * 60 seconds) and wake up and continue ? how do i recapture/rerun the REST query that error with 403? do i need a while loop here to account for larget # of data? so far 1 rerun works for 35k rows for set with 20 API limit/min.
 								just to account for tenant with 5 API limit/min the lowest - this is really crappy stuff limits on EPM 
 								can do retry 3 times here if needed.
 								-->
-								<If condition="${/epm_policy/apiLimitErrorCount = ${/epm_policy/maxRetry}}">
-									<Log type="INFO" message="${/epm_policy/logPrefix} - Abort - Number of retry attempts for status code 403 exceeded." />
+								<If condition="${/epm_event/apiLimitErrorCount = ${/epm_event/maxRetry}}">
+									<Log type="INFO" message="${/epm_event/logPrefix} - Abort - Number of retry attempts for status code 403 exceeded." />
 									<Abort reason="Number of retries exceeded for status code 403." />
 								</If>
 								
@@ -148,48 +148,45 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
 							</If>
 							
 							<Else>
-								<Set path="/epm_policy/apiLimitErrorCount" value="${/epm_policy/maxRetry}" />
+								<Set path="/epm_event/apiLimitErrorCount" value="${/epm_event/maxRetry}" />
 							</Else>
 						
 					</While>
 					
 					<!-- to do here, make sure get_events are from all the sets here how to double check ? -->
-					<Log type="INFO" message="${/epm_policy/logPrefix} - ${/current_set/Id} : ${/get_events/status_code} : ${/get_events/status_message}" />
+					<Log type="INFO" message="${/epm_event/logPrefix} - ${/current_set/Id} : ${/get_events/status_code} : ${/get_events/status_message}" />
 					<!-- only post the event if there are events can also use condition /get/events/body/returnedCount >0 -->
 					<If condition="${count(/get_events/body/events)} != 0">
-						<PostEvents path="/get_events/body/events" source="${/identity_host}_Policies"/> 
+						<PostEvents path="/get_events/body/events" source="${/identity_host}_Events"/> 
 					</If>
 					
-					<!-- <Log type="INFO" message="${/epm_policy/logPrefix} -  : ${/get_events/status_code} : ${/get_events/status_message}" /> -->
+					<!-- <Log type="INFO" message="${/epm_event/logPrefix} -  : ${/get_events/status_code} : ${/get_events/status_message}" /> -->
 					<!-- pagination logic here nextcursor is the # of records to skip and keep track and output of the # of records for each set for debug 
 					case sensitive i had it as /get_events/body/nextcursor in low c not BIG C 
 					the issue is IBM Qradar json body variable are case sensitive, but url into EPM is case insensitive 
-					/get_events/body/nextCursor   is case sensitive accessing the variable in Qradar.
-					https://na.../policyaudits/aggregations/search?nextcursor=start&limit=1000  nextcursor is not case sensitive
 					-->
-					<Set path="/epm_policy/nextcursor" value="${/get_events/body/nextCursor}" />
-					<Set path="/epm_policy/count" value="${/get_events/body/returnedCount}" />
+					<Set path="/epm_event/nextcursor" value="${/get_events/body/nextCursor}" />
+					<Set path="/epm_event/count" value="${/get_events/body/returnedCount}" />
 					<!-- TODO: if the nextcursor is empty, set a check condition here to exit and not do it -->
 					
-					<Log type="INFO" message="${/epm_policy/logPrefix} - nextcursor=${/epm_policy/nextcursor}*** - count=${/epm_policy/count}" />
-					<Set path="/epm_policy/records" value="${/epm_policy/records + count(/get_events/body/events)}" />
-					<Log type="INFO" message="${/epm_policy/logPrefix} - DoWhile #records for setID ${/current_set/Id} : ${/epm_policy/records}" />
+					<Log type="INFO" message="${/epm_event/logPrefix} - nextcursor=${/epm_event/nextcursor}*** - count=${/epm_event/count}" />
+					<Set path="/epm_event/records" value="${/epm_event/records + count(/get_events/body/events)}" />
+					<Log type="INFO" message="${/epm_event/logPrefix} - DoWhile #records for setID ${/current_set/Id} : ${/epm_event/records}" />
 				</DoWhile>
 				
 				<!-- Log API call and received total event count for each Set -->
-				<Log type="INFO" message="${/epm_policy/logPrefix} - endDoWHile #records for setID ${/current_set/Id} : ${/epm_policy/records}" />
+				<Log type="INFO" message="${/epm_event/logPrefix} - endDoWHile #records for setID ${/current_set/Id} : ${/epm_event/records}" />
 				
 			</ForEach>
 			
 		</If>
 		
 		<!-- Update bookmark to last running max time (start from this next time) -->
-		<Set path="/epm_policy/bookmark" value="${/epm_policy/max_created}" />
+		<Set path="/epm_event/bookmark" value="${/epm_event/max_created}" />
 	    
     </Actions>
 
     <Tests>
-	<DNSResolutionTest host="${/identiy_host}"/>
         <TCPConnectionTest host="${/identity_host}"/>
     </Tests>
 
