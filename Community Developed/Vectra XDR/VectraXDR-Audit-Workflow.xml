@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Vectra XDR" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -307,7 +307,7 @@
                     </ForEach>
 
                     <!-- Ingest processed audit events into QRadar -->
-                    <PostEvents path="/newEvents" source="${/vectraUrl}" />
+                    <PostEvents path="/newEvents" />
 
                     <!-- Update checkpoint id to latest audit -->
                     <Log type="INFO" message="${/logPrefix} - Total ${count(/audit/response/body/events)} audits ingested in QRadar" />
