@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Vectra XDR" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <!-- historical parameter will not be used in this workflow -->
@@ -291,7 +291,7 @@
                     </ForEach>
 
                     <Set path="/newEvent" value="vectra_json_health:${/health/response/body}" />
-                    <PostEvent path="/newEvent" source="${/vectraUrl}" />
+                    <PostEvent path="/newEvent" />
                     <Log type="INFO" message="${/logPrefix} - Total 1 system and ${count(/health/response/body/sensors)} sensor(s) information ingested in QRadar." />
 
                     <Set path="/loopBreaker" value="true"/>

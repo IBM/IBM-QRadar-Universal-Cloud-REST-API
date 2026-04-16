@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Vectra XDR" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -375,7 +375,12 @@
                             <If condition="/detections/response/status_code = 200">
 
                                 <ForEach item="/currentDetection" items="/detections/response/body/results">
-                                    <Set path="/detection_details/is_key_asset" value="${/currentDetection/src_host/is_key_asset}" />
+                                    <If condition="${empty(/currentDetection/src_host)} = 'true'">
+                                        <Set path="/detection_details/is_key_asset" value="" />
+                                    </If>
+                                    <Else>
+                                        <Set path="/detection_details/is_key_asset" value="${/currentDetection/src_host/is_key_asset}" />
+                                    </Else>
                                     <Set path="/detection_details/is_targeting_key_asset" value="${/currentDetection/is_targeting_key_asset}" />
 
                                     <Set path="/eventLists" value="${/detection/response/body/events[@detection_id = /currentDetection/id]}" />
@@ -383,9 +388,16 @@
                                     <ForEach item="/currentEvent" items="/eventLists">
                                         <Set path="/currentEvent/detection_details" value="[${/detection_details}]" />
                                         <Set path="/currentEvent/src_ip" value="${/currentDetection/src_ip}" />
-                                        <Set path="/currentEvent/grouped_details/bytes_sent" value="${/currentDetection/grouped_details/bytes_sent}" />
-                                        <Set path="/currentEvent/grouped_details/bytes_received" value="${/currentDetection/grouped_details/bytes_received}" />
-                                        <Set path="/currentEvent/grouped_details/dst_ips" value="${/currentDetection/grouped_details/dst_ips}" />
+                                        <If condition="${empty(/currentDetection/grouped_details)} = 'true'">
+                                            <Set path="/currentEvent/grouped_details/bytes_sent" value="" />
+                                            <Set path="/currentEvent/grouped_details/bytes_received" value="" />
+                                            <Set path="/currentEvent/grouped_details/dst_ips" value="" />
+                                        </If>
+                                        <Else>
+                                            <Set path="/currentEvent/grouped_details/bytes_sent" value="${/currentDetection/grouped_details/bytes_sent}" />
+                                            <Set path="/currentEvent/grouped_details/bytes_received" value="${/currentDetection/grouped_details/bytes_received}" />
+                                            <Set path="/currentEvent/grouped_details/dst_ips" value="${/currentDetection/grouped_details/dst_ips}" />
+                                        </Else>
 
                                         <Set path="/currentEvent/grouped_details" value="[${/currentEvent/grouped_details}]" />
 
@@ -420,7 +432,7 @@
 
                     <If condition="${/ingestEvents} = true">
                         <!-- Ingest collected detections into QRadar -->
-                        <PostEvents path="/newEvents" source="${/vectraUrl}" />
+                        <PostEvents path="/newEvents" />
 
                         <!-- Update checkpoint id to latest detection -->
                         <Log type="INFO" message="${/logPrefix} - Total ${count(/newEvents)} detections ingested in QRadar." />

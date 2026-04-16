@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Workflow name="Vectra XDR" version="1.0"
-    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2">
+    xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
@@ -302,7 +302,7 @@
                 <If condition="/account/response/status_code = 200">
 
                     <!-- Ingest collected Account Scoring Events into QRadar -->
-                    <PostEvents path="/account/response/body/events" source="${/vectraUrl}" />
+                    <PostEvents path="/account/response/body/events" />
 
                     <!-- Update checkpoint id to latest Account Scoring Events -->
                     <Log type="INFO" message="${/logPrefix} - Total ${count(/account/response/body/events)} Account Scoring Events ingested in QRadar" />
@@ -415,7 +415,7 @@
                 <If condition="/host/response/status_code = 200">
 
                     <!-- Ingest collected hosts into QRadar -->
-                    <PostEvents path="/host/response/body/events" source="${/vectraUrl}" />
+                    <PostEvents path="/host/response/body/events" />
 
                     <!-- Update checkpoint id to latest host -->
                     <Log type="INFO" message="${/logPrefix} - Total ${count(/host/response/body/events)} Host Scoring Events ingested in QRadar." />
