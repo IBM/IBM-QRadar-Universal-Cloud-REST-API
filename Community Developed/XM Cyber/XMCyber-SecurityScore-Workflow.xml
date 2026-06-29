@@ -24,19 +24,19 @@
         <Initialize path="/maxRetry" value="3" />
         <Initialize path="/authEndpoint" value="/api/auth" />
         <Initialize path="/refreshEndpoint" value="/api/refresh-token" />
-        <Initialize path="/securityScoreEndpoint" value="/api/systemReport/riskScoreV2" />
+        <Initialize path="/securityScoreEndpoint" value="/api/scenarios/v2/scenarios/riskScore" />
         <Initialize path="/refreshToken" value="" />
         <Initialize path="/accessToken" value="" />
         <Initialize path="/defaultSleepTime" value="60" />
-        <Initialize path="/appVersion" value="2.0.0" />
+        <Initialize path="/appVersion" value="2.1.0" />
         <Initialize path="/userAgentHeader" value="QRadar-v${/appVersion}" />
         <Initialize path="/collectionType" value="security_score" />
         <Initialize path="/trimmedData" value="[]" />
         
         <!-- Validate timeId parameter -->
-        <If condition="${/timeId != 'timeAgo_days_7' and /timeId != 'timeAgo_days_14' and /timeId != 'timeAgo_days_30' and /timeId != 'timeAgo_days_365'}">
-            <Log type="INFO" message="${/logPrefix} - Invalid timeId value: ${/timeId}. Must be one of: timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_365" />
-            <Abort reason="Invalid timeId parameter. Must be one of: timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_365" />
+        <If condition="${/timeId != 'timeAgo_days_7' and /timeId != 'timeAgo_days_14' and /timeId != 'timeAgo_days_30' and /timeId != 'timeAgo_days_180'}">
+            <Log type="INFO" message="${/logPrefix} - Invalid timeId value: ${/timeId}. Must be one of: timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_180" />
+            <Abort reason="Invalid timeId parameter. Must be one of: timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_180" />
         </If>
 
         <!-- Extract tenant prefix from tenantName -->
@@ -217,7 +217,7 @@
             <!-- Fetch security score data with retry mechanism -->
             <While condition="${/loopBreaker} = false">
 
-                <Log type="INFO" message="${/logPrefix} Collecting ${/collectionType} data from ${/securityScoreEndpoint} with timeId: ${/timeId} and resolution: 1." />
+                <Log type="INFO" message="${/logPrefix} Collecting ${/collectionType} data from ${/securityScoreEndpoint} with timeId: ${/timeId}." />
 
                 <Set path="/rateLimitErrorCount" value="0" />
                 <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
@@ -227,7 +227,6 @@
                         <BearerAuthentication token="${/accessToken}" />
 
                         <QueryParameter name="timeId" value="${/timeId}" />
-                        <QueryParameter name="resolution" value="1" />
 
                         <RequestHeader name="X-XMCYBER-CONNECTOR-NAME-VERSION" value="${/userAgentHeader}" />
 
@@ -368,5 +367,4 @@
         <SSLHandshakeTest host="${/tenantName}" />
         <HTTPConnectionThroughProxyTest url="https://${/tenantName}" />
     </Tests>
-
 </Workflow>

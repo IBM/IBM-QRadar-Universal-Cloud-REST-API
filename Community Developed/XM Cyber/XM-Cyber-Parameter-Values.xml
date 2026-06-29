@@ -21,7 +21,7 @@
     <Value name="ingestScenarios" value="false" />
 
     <!--Defines the start time for collecting Security Score data. Example: timeAgo_days_7.-->
-    <!-- Must be from [timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_365].-->
+    <!-- Must be from [timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_180].-->
     <Value name="timeId" value="timeAgo_days_7" />
     
 </WorkflowParameterValues>

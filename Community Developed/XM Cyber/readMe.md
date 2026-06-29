@@ -74,7 +74,7 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 3. auditTrailsStartTime: Required for Audit Trails collection. Defines the start time for collecting Audit Trails data. Provide the Audit Trails start time in the format YYYY-MM-DDTHH:MM:SS.SSSZ 
 4. ingestChokepointStats: Required for Entities collection. If set to True, entities chokepoint statistics will also be ingested into QRadar as an event after entity data collection. 
 5. ingestScenarios: Required for Security Score collection. If set to True, scenarios data collected during Security Score data collection will also be ingested into QRadar.
-6. timeId: Required for Security Score collection. Defines the start time for collecting Security Score data. Must be from [timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_365].
+6. timeId: Required for Security Score collection. Defines the start time for collecting Security Score data. Must be from [timeAgo_days_7, timeAgo_days_14, timeAgo_days_30, timeAgo_days_180].
 
 # Supported Events Types #
 
@@ -85,7 +85,7 @@ If you want to ingest data from an endpoint using Universal Rest API Protocol, c
 | XMCyber-Devices-Workflow.xml | Device | /api/v2/vavm/devices |
 | XMCyber-FindingsExposures-Workflow.xml | Finding and Exposure | /api/v2/reports/data/scenariosExposureReport/exposures |
 | XMCyber-Products-Workflow.xml | Products | /api/v2/vavm/public/products |
-| XMCyber-Scenarios-Workflow.xml | Scenario | /api/scenariosInfo/scenarios |
-| XMCyber-SecurityScore-Workflow.xml | Security Score, Security Score Scenario | /api/systemReport/riskScoreV2 |
+| XMCyber-Scenarios-Workflow.xml | Scenario | /api/scenarios/v2/scenarios |
+| XMCyber-SecurityScore-Workflow.xml | Security Score, Security Score Scenario | /api/scenarios/v2/scenarios/riskScore |
 | XMCyber-Sensors-Workflow.xml | Sensor | /api/sensors |
 | XMCyber-Vulnerabilities-Workflow.xml | Vulnerability | /api/v2/vavm/public/vulnerabilities |

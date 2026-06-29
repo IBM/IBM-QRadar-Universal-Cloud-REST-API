@@ -24,12 +24,12 @@
         <Initialize path="/maxRetry" value="3" />
         <Initialize path="/authEndpoint" value="/api/auth" />
         <Initialize path="/refreshEndpoint" value="/api/refresh-token" />
-        <Initialize path="/scenariosEndpoint" value="/api/scenariosInfo/scenarios" />
+        <Initialize path="/scenariosEndpoint" value="/api/scenarios/v2/scenarios" />
         <Initialize path="/pageSize" value="1000" />
         <Initialize path="/refreshToken" value="" />
         <Initialize path="/accessToken" value="" />
         <Initialize path="/defaultSleepTime" value="60" />
-        <Initialize path="/appVersion" value="2.0.0" />
+        <Initialize path="/appVersion" value="2.1.0" />
         <Initialize path="/userAgentHeader" value="QRadar-v${/appVersion}" />
         <Initialize path="/collectionType" value="scenarios" />
 
@@ -315,5 +315,4 @@
         <SSLHandshakeTest host="${/tenantName}" />
         <HTTPConnectionThroughProxyTest url="https://${/tenantName}" />
     </Tests>
-
 </Workflow>

@@ -29,7 +29,7 @@
         <Initialize path="/refreshToken" value="" />
         <Initialize path="/accessToken" value="" />
         <Initialize path="/defaultSleepTime" value="60" />
-        <Initialize path="/appVersion" value="2.0.0" />
+        <Initialize path="/appVersion" value="2.1.0" />
         <Initialize path="/userAgentHeader" value="QRadar-v${/appVersion}" />
         <Initialize path="/collectionType" value="devices" />
 
@@ -327,5 +327,4 @@
         <SSLHandshakeTest host="${/tenantName}" />
         <HTTPConnectionThroughProxyTest url="https://${/tenantName}" />
     </Tests>
-
 </Workflow>
