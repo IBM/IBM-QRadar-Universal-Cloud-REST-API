@@ -50,43 +50,18 @@ xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
     </If>
     
     <ForEach item="/service" items="/service_response/body/data">
-        <!--        Fetching count of total events available in the given time frame-->
-        <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts" method="POST" savePath="/get_count">
-            <RequestHeader name="Accept" value="*/*" />
-            <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
-            <RequestHeader name="Content-Type" value="application/json" />
-            <RequestBody type="application/json" encoding="UTF-8">
-                {
-                    "filters": {
-                        "service" : [ "${/service/name}" ],
-                        "created_at": {
-                            "gte": "${/fromDateFormatted}",
-                            "lte": "${/toDateFormatted}"
-                        },
-                        "status": [ "VIEWED", "UNREVIEWED", "CONFIRMED_INCIDENT", "UNDER_REVIEW", "INFORMATIONAL" ]
-                    },
-                    "orderBy": [{ "created_at": "desc" }],
-                    "skip": 0,
-                    "take": 1,
-                    "countOnly": true,
-                    "taggedAlert" : false,
-                    "withDataMessage": true
-                }
-            </RequestBody>
-        </CallEndpoint>
-        <If condition="${/get_count/status_code} != 200">
-            <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
-            <Set path="/get_count/body/data" value="0" />
-        </If>
-        <!--        Setting parameters for API request for fetching events-->
-        <Set path="/total_count" value="${/get_count/body/data}" />
+        <!--        Paginating through all alerts for this service within the time frame.
+                    We page directly off the events response instead of a separate
+                    countOnly request, so a missing/empty "data" field can never crash
+                    the workflow (e.g. "/get_count/body/data is not valid").-->
         <Set path="/skip" value="0" />
-        <Set path="/take" value="1000" />
-        <While condition="${/total_count} > 0">
-            <If condition="${/take} > ${/total_count}">
-                <Set path="/take" value="${/total_count}" />
-            </If>
-            
+        <!--        Keep the page size small so each request returns quickly.
+                    Large pages combined with "withDataMessage": true make the
+                    upstream slow and cause "504: Gateway Timeout".-->
+        <Set path="/take" value="100" />
+        <Set path="/hasMore" value="True" />
+
+        <While condition="/hasMore = 'True'">
             <CallEndpoint url="https://${/hostname}/engine/api/v1/y/tpi/qradar/alerts" method="POST" savePath="/get_events">
                 <RequestHeader name="Accept" value="*/*" />
                 <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
@@ -110,20 +85,26 @@ xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
                     }
                 </RequestBody>
             </CallEndpoint>
-            
+
             <If condition="${/get_events/status_code} != 200">
-                <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_count/status_message}" />
+                <Log type="DEBUG" message="CybleThreatIntel:: API Request Failed. Reason: ${/get_events/status_message}" />
                 <Abort reason="${/get_events/status_code}: ${/get_events/status_message}" />
             </If>
-            
-            <Log type="INFO" message="CybleThreatIntel:: Fetched ${count(/get_events/body/data)} events." />
-            
+
+            <Set path="/batch_count" value="${count(/get_events/body/data)}" />
+            <Log type="INFO" message="CybleThreatIntel:: Fetched ${/batch_count} events for service ${/service/name}." />
+
             <ForEach item="/current_event" items="/get_events/body/data">
                 <PostEvent path="/current_event" source="${/hostname}" />
             </ForEach>
-            
-            <Set path="/total_count" value="${/total_count - /take}" />
-            <Set path="/skip" value="${/skip + /take}" />
+
+            <!--        Stop once the API returns a partial (or empty) page-->
+            <If condition="${/batch_count} &lt; ${/take}">
+                <Set path="/hasMore" value="False" />
+            </If>
+            <Else>
+                <Set path="/skip" value="${/skip + /take}" />
+            </Else>
         </While>
     </ForEach>
 </Actions>
