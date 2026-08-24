@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workflow name="Cyble IOC" version="2.0"
+xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+<!--    Reading required parameters for the Workflow-->
+<Parameters>
+    <Parameter name="hostname" label="Hostname" required="true" secret="true" />
+    <Parameter name="api_key" label="Api Key" required="true" secret="true" />
+    <Parameter name="fetch_since" label="Fetch Since (days)" required="true" />
+    <Parameter name="ioc_type" label="IOC Types (comma separated, no spaces, e.g. Domain,IPv4,URL)" required="true" />
+    <Parameter name="risk_gte" label="Risk Rating Gte" required="true" />
+    <Parameter name="risk_lte" label="Risk Rating Lte" required="true" />
+    <Parameter name="regions" label="Regions filter (comma separated, optional)" required="false" />
+    <Parameter name="industries" label="Industries filter (comma separated, optional)" required="false" />
+</Parameters>
+
+<Actions>
+
+    <!--        Initializing parameters-->
+    <Initialize path="/isFirstFetch" value="True" />
+    <Initialize path="/fromDate" value="" />
+    <Initialize path="/toDate" value="" />
+    <Initialize path="/fetch_since_int" value="1" />
+
+    <!--        Checking whether the current run is fetching for the first time-->
+    <If condition="/isFirstFetch = 'True'">
+        <Set path="/fetch_since_int" value="${/fetch_since}" />
+        <Set path="/fromDate" value="${time() - /fetch_since_int * 24 * 60 * 60 * 1000}" />
+        <Set path="/isFirstFetch" value="False" />
+        <Log type="INFO" message="CybleIOC:: Fetching IOCs for the first time." />
+    </If>
+    <Else>
+        <Set path="/fromDate" value="${/toDate + 1}" />
+    </Else>
+
+    <Set path="/toDate" value="${time() - 1}" />
+
+    <!--        The IOC API expects date-only (yyyy-MM-dd) boundaries-->
+    <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/fromDate}" savePath="/fromDateFormatted" />
+    <FormatDate pattern="yyyy-MM-dd" timeZone="UTC" time="${/toDate}" savePath="/toDateFormatted" />
+
+    <Log type="INFO" message="CybleIOC:: Fetching IOCs from: ${/fromDateFormatted} to: ${/toDateFormatted}" />
+
+    <!--        The API accepts only a single iocType per request, so we split the
+                comma-separated list and run one paginated pass per type.-->
+    <Split value="${/ioc_type}" delimiter="," savePath="/ioc_type_list" />
+
+    <ForEach item="/type" items="/ioc_type_list">
+
+        <!--        Persistent per-type de-dup state: epoch SECONDS of the newest IOC of
+                    this type already ingested. Because the API filters by date only, the
+                    incremental window still overlaps on the current day, so this mark is
+                    used to avoid re-posting IOCs already ingested in a previous run.-->
+        <Initialize path="/highWater_${/type}" value="0" />
+
+        <Log type="INFO" message="CybleIOC:: Processing type '${/type}' (highWater=${/highWater_${/type}})" />
+
+        <!--        Pagination + de-dup controls. Keep the page size modest so each request
+                    returns quickly and avoids upstream "504: Gateway Timeout".-->
+        <Set path="/page" value="1" />
+        <Set path="/limit" value="100" />
+        <Set path="/hasMore" value="True" />
+        <Set path="/newHighWater" value="${/highWater_${/type}}" />
+
+        <While condition="/hasMore = 'True'">
+            <CallEndpoint url="https://${/hostname}/engine/api/v4/y/iocs" method="POST" savePath="/get_iocs">
+                <RequestHeader name="Accept" value="application/json" />
+                <RequestHeader name="Authorization" value="Bearer ${/api_key}" />
+                <RequestHeader name="Content-Type" value="application/json" />
+                <RequestBody type="application/json" encoding="UTF-8">
+                    {
+                        "iocType": "${/type}",
+                        "riskRating": { "gte": "${/risk_gte}", "lte": "${/risk_lte}" },
+                        "regions": "${/regions}",
+                        "industries": "${/industries}",
+                        "dateFilterBy": "last_seen",
+                        "startDate": "${/fromDateFormatted}",
+                        "endDate": "${/toDateFormatted}",
+                        "sortBy": "last_seen",
+                        "order": "desc",
+                        "countOnly": false,
+                        "limit": ${/limit},
+                        "page": ${/page}
+                    }
+                </RequestBody>
+            </CallEndpoint>
+
+            <!--        Handling error-->
+            <If condition="${/get_iocs/status_code} != 200">
+                <Log type="DEBUG" message="CybleIOC:: API Request Failed. Reason: ${/get_iocs/status_message}" />
+                <Abort reason="${/get_iocs/status_code}: ${/get_iocs/status_message}" />
+            </If>
+
+            <Set path="/batch_count" value="${count(/get_iocs/body/data/iocs)}" />
+            <Set path="/reachedOld" value="False" />
+            <Set path="/posted_count" value="0" />
+
+            <!--        Results are sorted by last_seen desc, so anything at or below the
+                        high-water mark has already been ingested in a previous run.-->
+            <ForEach item="/current_ioc" items="/get_iocs/body/data/iocs">
+                <If condition="${/current_ioc/last_seen} > ${/highWater_${/type}}">
+                    <PostEvent path="/current_ioc" source="${/hostname}" />
+                    <Set path="/posted_count" value="${/posted_count + 1}" />
+                    <If condition="${/current_ioc/last_seen} > ${/newHighWater}">
+                        <Set path="/newHighWater" value="${/current_ioc/last_seen}" />
+                    </If>
+                </If>
+                <Else>
+                    <Set path="/reachedOld" value="True" />
+                </Else>
+            </ForEach>
+
+            <Log type="INFO" message="CybleIOC:: '${/type}' page ${/page}: fetched ${/batch_count}, posted ${/posted_count} new." />
+
+            <!--        Stop paging on a partial/empty page, or once we reach already-seen IOCs-->
+            <If condition="${/batch_count} &lt; ${/limit}">
+                <Set path="/hasMore" value="False" />
+            </If>
+            <Else>
+                <If condition="/reachedOld = 'True'">
+                    <Set path="/hasMore" value="False" />
+                </If>
+                <Else>
+                    <Set path="/page" value="${/page + 1}" />
+                </Else>
+            </Else>
+        </While>
+
+        <!--        Persist this type's newest last_seen for the next run-->
+        <Set path="/highWater_${/type}" value="${/newHighWater}" />
+    </ForEach>
+</Actions>
+
+<!--    Running tests-->
+<Tests>
+    <DNSResolutionTest host="${/hostname}" />
+    <TCPConnectionTest host="${/hostname}" />
+    <SSLHandshakeTest host="${/hostname}"/>
+</Tests>
+
+</Workflow>
