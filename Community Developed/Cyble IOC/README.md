@@ -22,8 +22,8 @@ For integrating QRadar with Cyble Vision via the workflow, you will need the fol
 | IOC Types           | ioc_type      | A **comma-separated** list of IOC types to fetch (no spaces), e.g. `Domain` or `Domain,IPv4,URL`. Use the exact type labels returned by the API (the `ioc_type` field). The API accepts only one type per request, so the workflow runs one paginated pass per type. |
 | Risk Rating Gte     | risk_gte      | Lower bound (inclusive) of the IOC `risk_score` filter, e.g. `70`.                                                                                         |
 | Risk Rating Lte     | risk_lte      | Upper bound (inclusive) of the IOC `risk_score` filter, e.g. `100`.                                                                                        |
-| Regions filter      | regions       | _(V2, optional)_ Comma-separated list of regions to filter on, e.g. `Asia & Pacific (APAC)`. Leave **empty** to not filter by region.                      |
-| Industries filter   | industries    | _(V2, optional)_ Comma-separated list of industries to filter on, e.g. `BFSI,Healthcare`. Leave **empty** to not filter by industry.                       |
+| Regions filter      | regions       | Comma-separated list of regions to filter on, e.g. `Asia & Pacific (APAC)`. Leave **empty** to not filter by region.                      |
+| Industries filter   | industries    | Comma-separated list of industries to filter on, e.g. `BFSI,Healthcare`. Leave **empty** to not filter by industry.                       |
 
 > Note: `regions` and `industries` are always sent in the request; an **empty** value is ignored by the API (equivalent to no filter), so they are safe to leave blank.
 
@@ -43,8 +43,8 @@ The response is `{"data": { ... }, "success": true}`, where each key under `data
 | Filters endpoint category | IOC request body field | Notes                                    |
 |---------------------------|-------------------------|------------------------------------------|
 | `types`                   | `iocType`               | Exposed as the `ioc_type` parameter      |
-| `regions`                 | `regions`               | Exposed as the `regions` parameter (V2)  |
-| `industries`              | `industries`            | Exposed as the `industries` parameter (V2) |
+| `regions`                 | `regions`               | Exposed as the `regions` parameter  |
+| `industries`              | `industries`            | Exposed as the `industries` parameter |
 | `confidence_ratings`      | `confidentRating`       | Not yet exposed as a parameter           |
 | `countries`               | `countryCodes`          | Not yet exposed as a parameter           |
 | `sources`                 | `sources`               | Not yet exposed as a parameter           |
@@ -59,33 +59,6 @@ Current values for the smaller enumerations (larger lists such as `countries`, `
 - **`regions`**: `Asia & Pacific (APAC)`, `Australia and New Zealand (ANZ)`, `Europe & UK`, `Middle East & Africa (MEA)`, `North America (NA)`, `South America (SA)`, `Worldwide`
 - **`industries`**: `Aerospace & Defense`, `Agriculture & Livestock`, `Automotive`, `BFSI`, `Chemicals`, `Construction`, `Consumer Goods`, `Critical Infrastructure`, `Education`, `Energy & Utilities`, `Food & Beverages`, `Government & LEA`, `Healthcare`, `Hospitality`, `IT & ITES`, `Manufacturing`, `Media & Entertainment`, `Metals Minerals & Mining`, `Multiple`, `Organisation`, `Pharmaceuticals & Biotechnology`, `Professional Services`, `Real Estate`, `Retail`, `Technology`, `Telecommunication`, `Transportation & Logistics`
 - **`confidence_ratings`**: `High`, `Medium`, `Low`
-
-## Versions
-
-- **v2 (current)** — `Cyble-IOC-Workflow.xml` + `Cyble-IOC-Workflow-Parameter-Values.xml`. Adds the optional `regions` and `industries` filters.
-- **v1 (rollback)** — `v1/Cyble-IOC-Workflow.xml` + `v1/Cyble-IOC-Workflow-Parameter-Values.xml`. The original working version without the `regions`/`industries` filters. To roll back, paste these files into the log source instead.
-
-The following filters are fixed in the workflow and can be changed by editing `Cyble-IOC-Workflow.xml` directly if required:
-
-- `dateFilterBy`: `last_seen`
-- `sortBy`: `last_seen`
-- `order`: `desc`
-- `limit` (page size): `100`
-- `countOnly`: `false`
-
-## Notes on incremental fetching and de-duplication
-
-The Cyble IOC API filters by **date only** (`yyyy-MM-dd`), which on its own would re-fetch the current day on every poll and produce duplicates. To avoid this, the workflow maintains a persistent **per-type `last_seen` high-water mark** (`/highWater_<iocType>`, epoch seconds) between runs. Each IOC type is tracked independently so that types with older timestamps are not starved by a type with newer ones:
-
-- Results are requested sorted by `last_seen desc`.
-- Only IOCs with `last_seen` greater than that type's stored high-water mark are posted; the workflow stops paging as soon as it reaches already-ingested IOCs.
-- After a successful run, each type's high-water mark is advanced to the newest `last_seen` ingested for that type.
-
-Trade-offs to be aware of:
-
-- If Cyble **updates an existing IOC's `last_seen`** on re-sighting, that IOC will be ingested again (this is generally desirable — it represents a new sighting).
-- IOCs whose `last_seen` equals the exact high-water second may be skipped (standard high-water boundary trade-off). If you need guaranteed exactly-once delivery, additionally dedupe downstream via a QRadar reference set keyed on the `ioc` value.
-- The high-water mark is reset if the log source is re-created, which triggers a fresh `fetch_since` back-fill.
 
 ## QRadar Log Source Configuration
 
@@ -114,3 +87,15 @@ The steps to configure a log source on the QRadar® Console using the Workflow f
 9. To fix any errors, click 'Configure Protocol Parameters'. Configure the parameters and click Test Protocol Parameters.
 10. Click 'Finish'
 11. Navigate to the 'Admin' tab. From the top bar choose 'Deploy Changes'
+
+## Installing the Cyble IOC DSM Parser (optional)
+
+By default the log source uses the **Universal DSM**, so incoming IOC events are stored with their raw JSON payload but are not normalized into QRadar fields. To have the IOC events parsed and mapped into proper QRadar properties, install the Cyble IOC DSM parser:
+
+1. **Request the DSM export** — the parser is distributed as a DSM export archive (e.g. `Cyble-IOC-DSM-Export.zip`). Contact your **Customer Success Manager (Cyble)** to obtain the latest zip.
+2. In your QRadar instance, navigate to **Admin Panel > Extensions Management > Add**, select the downloaded zip, and install it.
+   - Alternatively, import it from the **DSM Editor** (Admin > DSM Editor > import), if provided in that format.
+3. Edit the **Cyble IOC** log source and set its **Log Source Type** to the **Cyble IOC DSM** provided by the parser (instead of Universal DSM).
+4. Navigate to the 'Admin' tab and choose **Deploy Changes**.
+
+> Note: QRadar parses events at ingest time. Installing or updating the DSM only affects **new** events received after it is deployed; events already ingested under the Universal DSM are not retroactively re-parsed.
