@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V1">
+    <Value name="host" value="api.github.com" />
+    <Value name="app_id" value="" />
+    <Value name="app_private_key" value="" />
+    <Value name="app_installation_id" value="" />
+    <Value name="personal_access_token" value="" />
+    <Value name="organization" value="" />
+    <Value name="enterprise" value="" />
+</WorkflowParameterValues>
