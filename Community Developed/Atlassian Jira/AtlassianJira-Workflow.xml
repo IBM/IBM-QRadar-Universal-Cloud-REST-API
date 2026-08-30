@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="AtlassianJira" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+
+    <Parameters>
+        <Parameter name="host" label="host" required="true" />
+        <Parameter name="token" label="token" required="true" />
+	<Parameter name="user_id" label="user_id" required="true" />
+    </Parameters>
+
+    <Actions>
+	<!-- Setting up initial timeframe for last 10 mins -->
+        <Initialize path="/time" value="${time()-( 10 * 60 * 1000)}" />
+	<!-- Convert time into Atlassian API supported format. Addin 1 sec in order no to receive same event twice on a next iteration -->
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss.SSSZ" timeZone="UTC" time="${/time+(1)}" savePath="/bookmark" />
+        <CallEndpoint url="https://${/host}/rest/api/3/auditing/record" method="GET" savePath="/get_logs">
+	    <SSLConfiguration allowUntrustedServerCertificate="true" />
+	    <BasicAuthentication username="${/user_id}" password="${/token}" />
+	    <QueryParameter name="from" value="${/bookmark}" />
+            <RequestHeader name="Content-Type" value="application/json" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+        <If condition="/get_logs/status_code != 200">
+            <Abort reason="${/get_logs/status_code}" />
+        </If>
+
+        <!-- Checking if response contains records. Collecting latest timestamp -->
+	<If condition="${count(/get_logs/body/records)} != 0">
+            <PostEvents path="/get_logs/body/records" source="${/host}"/>
+            <Set path="/time" value="${max(/get_logs/body/records/created)}" />
+	</If>
+    </Actions>
+
+    <Tests>
+        <DNSResolutionTest host="${/host}" />
+    </Tests>
+
+</Workflow>
