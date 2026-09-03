@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="FireEye HX" version="1.0" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+	<Parameters>
+		<Parameter name="host" label="Host" required="true" />
+		<Parameter name="hx_port" label="Port" value="443" required="true" />
+		<Parameter name="username" label="Username" required="true" />
+		<Parameter name="password" label="Password" required="true" secret="true" />
+	</Parameters>
+	<Actions>
+		<!-- Initialize the Bookmark -->
+		<Initialize path="/bookmark" value="${time() - 86400000}" />
+	
+		<!-- Use bookmark -10 mins as start time -->
+		<FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/startTime" />
+
+		<!-- Authenticate and request API Token -->
+        <CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="GET" savePath="/getApiToken" >
+		<BasicAuthentication username="${/username}" password="${/password}" />
+		<RequestHeader name="Accept" value="application/json" />
+        </CallEndpoint>
+
+        <!-- Handle Errors -->
+	<If condition="/getApiToken/status_code != 204">
+		<Log type="Error" message="FE HX API: Error Authenticating to API: ${/getApiToken/body}" />
+		<Abort reason="Error login: ${/getApiToken/body}" />
+        </If>
+	<Else>
+		<!-- Extract the API Token -->
+		<Set path="/x_feapi_token" value="${/getApiToken/headers/X-FeApi-Token}" />
+		<!-- Build filterQuery -->
+		<Set path="/filterQuery" value='{"operator":"gt","arg": ["${/startTime}"],"field":"last_event_at"}' />
+
+		<!-- Get Alerts -->
+		<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/alert_groups/?" method="GET" savePath="/getAlerts">
+			<QueryParameter name="offset" value="0" />
+			<QueryParameter name="limit" value="100" />
+			<QueryParameter name="sort" value="last_event_at" />
+			<!-- URL Encoded Filter for last_event_at greater than Start Time -->
+			<QueryParameter name="filterQuery" value="${/filterQuery}" />
+			<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+			<RequestHeader name="Accept" value="application/json" />
+		</CallEndpoint>
+			
+		<!-- Handle Errors -->
+		<If condition="/getAlerts/status_code != 200">
+			<Log type="Error" message="FE HX API: Error fetching alerts ${/getAlerts/body}" />
+		</If>
+		<Else>
+			<Log type="INFO" message="FE HX API: Got ${/getAlerts/body/data/total} events" />
+
+			<!-- Alert are returned in JSON format-->
+			<!-- Extract Alerts-->
+			<If condition="${/getAlerts/body/data/total} > 0">
+				<Set path="/alerts" value="${/get_alerts/body/data/entries}" />
+				<Set path="/bookmark" value="${max(/alerts/reported_at)}" />
+			</If>
+			<!-- Post Alerts -->
+			<PostEvents path="/alerts" source="${/host}" />
+		</Else>
+
+		<!-- Dispose generated token to clear active session -->
+		<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="DELETE" savePath="/delApiToken" >
+			<RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+			<RequestHeader name="Accept" value="application/json" />
+		</CallEndpoint>
+
+		<!-- Handle Errors -->
+		<If condition="/del_feapi_token/status_code != 204">
+			<Log type="Error" message="FE HX API: Error Deleting Session: ${/del_feapi_token/body/message}" />
+			<Abort reason="${/get_feapi_token/body/message}" />
+		</If>
+		</Else>
+	</Actions>
+	<Tests>
+		<DNSResolutionTest host="${/host}" />
+		<TCPConnectionTest host="${/host}" port="${/hx_port}" />
+		<SSLHandshakeTest host="${/host}" port="${/hx_port}"/>
+		<HTTPConnectionThroughProxyTest url="https://${/host}:${/hx_port}" />
+	</Tests>
+</Workflow>
