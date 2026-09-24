@@ -192,7 +192,7 @@ CyberArk EPM AggregatedEvents API - QRadar Integration (Universal Cloud REST API
     </Actions>
 
     <Tests>
-	<DNSResolutionTest host="${/identiy_host}"/>
+	<DNSResolutionTest host="${/identity_host}"/>
         <TCPConnectionTest host="${/identity_host}"/>
     </Tests>
 
