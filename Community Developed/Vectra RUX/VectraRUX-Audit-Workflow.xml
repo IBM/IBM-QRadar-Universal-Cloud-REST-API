@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Vectra XDR" version="1.0"
+<Workflow name="Vectra RUX" version="1.0"
     xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
-    <!-- historical parameter will not be used in the workflow -->
     <Parameters>
         <Parameter name="vectraHostName" label="Vectra Hostname" required="true"/>
         <Parameter name="clientId" label="Client ID" required="true"/>
-        <Parameter name="historical" label="Historical Collection" required="false"/>
+        <Parameter name="historical" label="Historical Collection" required="true"/>
         <Parameter name="secretKey" label="Secret Key" secret="true" required="true" />
+        <Parameter name="from" label="Initial Detection Event Checkpoint" required="false"/>
+        <Parameter name="lookbackHours" label="Initial Lookback Hours" required="false"/>
+        <Parameter name="includeInfoCategory" label="Include Info Category Detections" required="false"/>
+        <Parameter name="includeTriaged" label="Include Triaged Detections" required="false"/>
+        <Parameter name="collectEdrHealth" label="Collect EDR Health" required="false"/>
+        <Parameter name="collectExternalConnectorsHealth" label="Collect External Connectors Health" required="false"/>
     </Parameters>
 
     <Actions>
@@ -18,21 +23,36 @@
 
         <!-- Defining variables for running workflow -->
         <Set path="/vectraUrl" value="https://${/vectraHostName}"/>
-        <Set path="/logPrefix" value="[Vectra_XDR_App_for_QRadar][Lockdown][${/vectraUrl}]" />
+        <Set path="/logPrefix" value="[Vectra_RUX_App_for_QRadar][Audits][${/vectraUrl}]" />
         <Initialize path="/errorCount" value="0" />
         <Initialize path="/maxRetry" value="3" />
         <Initialize path="/createTokenEndpoint" value="/oauth2/token" />
-        <Initialize path="/lockdownEndpoint" value="/api/v3.3/lockdown" />
+        <Initialize path="/auditEndpoint" value="/api/v3.5/events/audits" />
+        <Initialize path="/limit" value="1000" />
         <Initialize path="/refreshToken" value="" />
         <Initialize path="/defaultSleepTime" value="30" />
-        <Initialize path="/appVersion" value="1.0.0" />
+        <Initialize path="/appVersion" value="2.0.0" />
         <Initialize path="/userAgentHeader" value="Vectra-QRadar-${/appVersion}" />
 
-        <!-- Initialize array to store lookup key i.e combination of entity_name, type, lock_event_timestamp, unlock_event_timestamp -->
-        <Initialize path="/lockdownMapper/array" value="[]" />
+        <!-- Audit checkpoint -->
+        <Initialize path="/auditNextCheckpoint" value="" />
+
+        <!-- Store current timestamp -->
+        <Initialize path="/currentEpochTime" value="${time()}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/currentEpochTime}" savePath="/formattedCurrentTime" />
+
+        <!-- Store past 24 hours timestamp -->
+        <Initialize path="/defaultEpochTime" value="${time() - 86400000}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/defaultEpochTime}" savePath="/defaultEventTime" />
 
         <!-- Print log in the /var/log/qradar.log file with info log level -->
-        <Log type="INFO" message="${/logPrefix} - Lockdown event collection started." />
+        <Log type="INFO" message="${/logPrefix} - Audit collection started." />
+
+        <!-- Validate the 'historical' parameter (expects enable/disable, case-insensitive). -->
+        <If condition="${'${lower(/historical)}' != 'enable' and '${lower(/historical)}' != 'disable'}">
+            <Log type="INFO" message="${/logPrefix} - Invalid historical value: ${/historical}. Must be one of: enable, disable" />
+            <Abort reason="Invalid historical parameter. Must be one of: enable, disable" />
+        </If>
 
         <Set path="/errorCount" value="0" />
 
@@ -215,17 +235,45 @@
                 </Else>
             </Else>
 
-            <!-- Fetch lockdown events with retry mechanism for 401 status code and save response at Jpath /lockdown/response-->
+            <!-- Set event timestamp value past 24 hours in case of historical is enabled else current time -->
+            <If condition="${'${lower(/historical)}' = 'enable'}">
+                <Set path="/eventTimestamp" value="${/defaultEventTime}" />
+            </If>
+            <Else>
+                <Set path="/eventTimestamp" value="${/formattedCurrentTime}" />
+            </Else>
+
+            <If condition="${empty(/auditNextCheckpoint)} = 'true'">
+                <Log type="INFO" message="${/logPrefix} Collecting audits from event_timestamp_gte ${/eventTimestamp}" />
+            </If>
+            <Else>
+                <Log type="INFO" message="${/logPrefix} Collecting audits from checkpoint id ${/auditNextCheckpoint}" />
+            </Else>
+
+            <!-- Fetch audits with retry mechanism for 401 status code and save response at Jpath /audit/response-->
             <Set path="/errorCount" value="0" />
             <Set path="/loopBreaker" value="false" />
 
             <While condition="${/loopBreaker} = false">
 
+                <!-- Collect audits using checkpoint ID if present else use event Timestamp -->
+                <If condition="${empty(/auditNextCheckpoint)} = 'true'">
+                    <Log type="INFO" message="${/logPrefix} Collecting audits with limit = ${/limit}, event_time_gte = ${/eventTimestamp}" />
+                </If>
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Collecting audits with limit = ${/limit}, from = ${/auditNextCheckpoint}" />
+                    <Set path="/eventTimestamp" value="" />
+                </Else>
+
                 <Set path="/rateLimitErrorCount" value="0" />
                 <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
-                    <CallEndpoint url="${/vectraUrl}${/lockdownEndpoint}" method="GET" savePath="/lockdown/response">
+                    <CallEndpoint url="${/vectraUrl}${/auditEndpoint}" method="GET" savePath="/audit/response">
 
                         <BearerAuthentication token="${/accessToken}" />
+
+                        <QueryParameter name="limit" value="${/limit}" omitIfEmpty="true" />
+                        <QueryParameter name="event_timestamp_gte" value="${/eventTimestamp}" omitIfEmpty="true" />
+                        <QueryParameter name="from" value="${/auditNextCheckpoint}" omitIfEmpty="true" />
 
                         <!-- Request header -->
                         <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
@@ -240,7 +288,7 @@
                     </CallEndpoint>
 
                     <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
-                    <If condition="${/lockdown/response/status_code} = 429">
+                    <If condition="${/audit/response/status_code} = 429">
                         <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                         <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
                         <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
@@ -249,7 +297,7 @@
                         </If>
 
                         <!-- Calculating back off time, if it is not present in header take default time -->
-                        <Set path="/sleepTime" value="${/lockdown/response/headers/retry-after}" />
+                        <Set path="/sleepTime" value="${/audit/response/headers/retry-after}" />
                         <If condition="${/sleepTime = ''}">
                             <Set path="/sleepTime" value="${/defaultSleepTime}" />
                         </If>
@@ -260,30 +308,32 @@
                         <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                     </Else>
                 </While>
-                <If condition="/lockdown/response/status_code = 200">
+                <If condition="/audit/response/status_code = 200">
 
                     <Set path="/newEvents" value="[]" />
 
-                    <!-- Ingest only unique collected lockdown events and add vectra_json_lockdown in prefix -->
-                    <ForEach item="/currentEvent" items="/lockdown/response/body">
-                        <Set path="/lookup" value="${/currentEvent/entity_name}_${/currentEvent/type}_${/currentEvent/lock_event_timestamp}_${/currentEvent/unlock_event_timestamp}" />
-                        <Set path="/lookupCount" value="${count(/lockdownMapper/array[@ = /lookup])}" />
-                        <!-- Add lookup for new event if not present in array -->
-                        <If condition="${/lookupCount = 0}">
-                            <Add path="/lockdownMapper/array" value="${/lookup}" />
-                            <Add path="/newEvents" value="vectra_json_lockdown:${/currentEvent}" />
-                        </If>
+                    <!-- Process collected audit events, add vectra_json_audit in prefix -->
+                    <ForEach item="/currentEvent" items="/audit/response/body/events">
+                        <Set path="/currentEvent/event_data" value="'${/currentEvent/event_data}'" />
+                        <Add path="/newEvents" value="vectra_json_audit:${/currentEvent}" />
                     </ForEach>
 
-                    <!-- Ingest processed lockdown events into QRadar -->
+                    <!-- Ingest processed audit events into QRadar -->
                     <PostEvents path="/newEvents" />
 
-                    <Log type="INFO" message="${/logPrefix} - Total ${count(/newEvents)} lockdown events ingested in QRadar." />
-                    <Set path="/loopBreaker" value="true"/>
-                    <Set path="/errorCount" value="${/maxRetry}"/>
-                    <Log type="INFO" message="${/logPrefix} Lockdown event collection completed." />
+                    <!-- Update checkpoint id to latest audit -->
+                    <Log type="INFO" message="${/logPrefix} - Total ${count(/audit/response/body/events)} audits ingested in QRadar" />
+                    <Log type="INFO" message="${/logPrefix} - Next checkpoint id = ${/audit/response/body/next_checkpoint}" />
+
+                    <Set path="/auditNextCheckpoint" value="${/audit/response/body/next_checkpoint}" />
+                    <If condition="${count(/audit/response/body/events) != ${/limit}}">
+                        <Set path="/loopBreaker" value="true"/>
+                        <Set path="/errorCount" value="${/maxRetry}"/>
+                        <Log type="INFO" message="${/logPrefix} Audit collection completed." />
+                    </If>
                 </If>
-                <ElseIf condition="/lockdown/response/status_code = 401">
+                <ElseIf condition="/audit/response/status_code = 401">
+
                     <!-- To retry for 401 status code -->
                     <Set path="/loopBreaker" value="true"/>
                     <Set path="/errorCount" value="${/errorCount + 1}" />
@@ -291,8 +341,8 @@
                     <Set path="/accessToken" value="" />
                 </ElseIf>
                 <Else>
-                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting lockdown events with status code - ${/lockdown/response/status_code}, Body - ${/lockdown/response/body}" />
-                    <Abort reason="API call failed for collecting lockdown events with status code - ${/lockdown/response/status_code}" />
+                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting audits with status code - ${/audit/response/status_code}, Body - ${/audit/response/body}" />
+                    <Abort reason="API call failed for collecting audits with status code - ${/audit/response/status_code}" />
                 </Else>
             </While>
         </While>

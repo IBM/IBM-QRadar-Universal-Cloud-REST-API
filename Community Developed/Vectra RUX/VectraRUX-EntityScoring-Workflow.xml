@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Vectra XDR" version="1.0"
+<Workflow name="Vectra RUX" version="1.0"
     xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
@@ -8,6 +8,12 @@
         <Parameter name="clientId" label="Client ID" required="true"/>
         <Parameter name="historical" label="Historical Collection" required="true"/>
         <Parameter name="secretKey" label="Secret Key" secret="true" required="true" />
+        <Parameter name="from" label="Initial Detection Event Checkpoint" required="false"/>
+        <Parameter name="lookbackHours" label="Initial Lookback Hours" required="false"/>
+        <Parameter name="includeInfoCategory" label="Include Info Category Detections" required="false"/>
+        <Parameter name="includeTriaged" label="Include Triaged Detections" required="false"/>
+        <Parameter name="collectEdrHealth" label="Collect EDR Health" required="false"/>
+        <Parameter name="collectExternalConnectorsHealth" label="Collect External Connectors Health" required="false"/>
     </Parameters>
 
     <Actions>
@@ -17,20 +23,20 @@
 
         <!-- Defining variables for running workflow -->
         <Set path="/vectraUrl" value="https://${/vectraHostName}"/>
-        <Set path="/logPrefix" value="[Vectra_XDR_App_for_QRadar][Detections][${/vectraUrl}]" />
+        <Set path="/logPrefix" value="[Vectra_RUX_App_for_QRadar][Entity_Score][${/vectraUrl}]" />
         <Initialize path="/errorCount" value="0" />
         <Initialize path="/maxRetry" value="3" />
         <Initialize path="/createTokenEndpoint" value="/oauth2/token" />
-        <Initialize path="/eventDetectionEndpoint" value="/api/v3.3/events/detections" />
-        <Initialize path="/detectionEndpoint" value="/api/v3.3/detections" />
-        <Initialize path="/limit" value="250" />
+        <Initialize path="/scoreEndpoint" value="/api/v3.4/events/entity_scoring" />
+        <Initialize path="/limit" value="1000" />
         <Initialize path="/refreshToken" value="" />
         <Initialize path="/defaultSleepTime" value="30" />
-        <Initialize path="/appVersion" value="1.0.0" />
+        <Initialize path="/appVersion" value="2.0.0" />
         <Initialize path="/userAgentHeader" value="Vectra-QRadar-${/appVersion}" />
 
-        <!-- Detection checkpoint -->
-        <Initialize path="/detectionNextCheckpoint" value="" />
+        <!-- Host and Account Scoring Events checkpoints -->
+        <Initialize path="/hostNextCheckpoint" value="" />
+        <Initialize path="/accountNextCheckpoint" value="" />
 
         <!-- Store current timestamp -->
         <Initialize path="/currentEpochTime" value="${time()}" />
@@ -40,8 +46,11 @@
         <Initialize path="/defaultEpochTime" value="${time() - 86400000}" />
         <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/defaultEpochTime}" savePath="/defaultEventTime" />
 
-        <!-- Print log in the /var/log/qradar.log file with info log level -->
-        <Log type="INFO" message="${/logPrefix} - Detection collection started." />
+        <!-- Validate the 'historical' parameter (expects enable/disable, case-insensitive). -->
+        <If condition="${'${lower(/historical)}' != 'enable' and '${lower(/historical)}' != 'disable'}">
+            <Log type="INFO" message="${/logPrefix} - Invalid historical value: ${/historical}. Must be one of: enable, disable" />
+            <Abort reason="Invalid historical parameter. Must be one of: enable, disable" />
+        </If>
 
         <Set path="/errorCount" value="0" />
 
@@ -112,6 +121,7 @@
             <Else>
 
                 <Log type="INFO" message="${/logPrefix} - Refresh token found. Creating new Access token using stored Refresh token." />
+
                 <Set path="/rateLimitErrorCount" value="0" />
                 <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
 
@@ -161,6 +171,7 @@
                 <ElseIf condition="${/accessTokenResponse/status_code} = 401">
 
                     <Log type="INFO" message="${/logPrefix} - Refresh token is expired. Recreating an Access token and Refresh token using provided credentials." />
+
                     <Set path="/rateLimitErrorCount" value="0" />
                     <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
 
@@ -224,60 +235,62 @@
                 </Else>
             </Else>
 
-            <!-- Set event timestamp value past 24 hours in case of historical is true else current time -->
-            <If condition="${'${lower(/historical)}' = 'true'}">
+            <!-- Account Scoring Events collection -->
+            <Log type="INFO" message="${/logPrefix} - Account Scoring Events collection started." />
+
+            <!-- Set event timestamp value past 24 hours in case of historical is enabled else current time -->
+            <If condition="${'${lower(/historical)}' = 'enable'}">
                 <Set path="/eventTimestamp" value="${/defaultEventTime}" />
             </If>
             <Else>
                 <Set path="/eventTimestamp" value="${/formattedCurrentTime}" />
             </Else>
 
-            <If condition="${empty(/detectionNextCheckpoint)} = 'true'">
-                <Log type="INFO" message="${/logPrefix} Collecting detections from event_timestamp_gte ${/eventTimestamp}" />
+            <If condition="${empty(/accountNextCheckpoint)} = 'true'">
+                <Log type="INFO" message="${/logPrefix} Collecting Account Scorings Events from event_timestamp_gte ${/eventTimestamp}" />
             </If>
             <Else>
-                <Log type="INFO" message="${/logPrefix} Collecting detections from checkpoint id ${/detectionNextCheckpoint}" />
+                <Log type="INFO" message="${/logPrefix} Collecting Account Scorings Events from checkpoint id ${/accountNextCheckpoint}" />
             </Else>
 
-            <!-- Fetch Detections with retry mechanism for 401 status code and save response at Jpath /detection/response-->
             <Set path="/errorCount" value="0" />
             <Set path="/loopBreaker" value="false" />
 
             <While condition="${/loopBreaker} = false">
 
-                <!-- Collect Detections using checkpoint ID if present else use event Timestamp -->
-                <If condition="${empty(/detectionNextCheckpoint)} = 'true'">
-                    <Log type="INFO" message="${/logPrefix} Collecting detections with limit = ${/limit}, event_time_gte = ${/eventTimestamp}" />
+                <!-- Collect Account Scoring Events using checkpoint ID if present else use event Timestamp -->
+                <If condition="${empty(/accountNextCheckpoint)} = 'true'">
+                    <Log type="INFO" message="${/logPrefix} Collecting Account Scoring Events with limit = ${/limit}, event_time_gte = ${/eventTimestamp}, type = account" />
                 </If>
                 <Else>
-                    <Log type="INFO" message="${/logPrefix} Collecting detections with limit = ${/limit}, from = ${/detectionNextCheckpoint}" />
+                    <Log type="INFO" message="${/logPrefix} Collecting Account Scoring Events with limit = ${/limit}, from = ${/accountNextCheckpoint}, type = account" />
                     <Set path="/eventTimestamp" value="" />
                 </Else>
 
                 <Set path="/rateLimitErrorCount" value="0" />
                 <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
-                    <CallEndpoint url="${/vectraUrl}${/eventDetectionEndpoint}" method="GET" savePath="/detection/response">
+                    <CallEndpoint url="${/vectraUrl}${/scoreEndpoint}" method="GET" savePath="/account/response">
 
                         <BearerAuthentication token="${/accessToken}" />
-
                         <QueryParameter name="limit" value="${/limit}" omitIfEmpty="true" />
                         <QueryParameter name="event_timestamp_gte" value="${/eventTimestamp}" omitIfEmpty="true" />
-                        <QueryParameter name="from" value="${/detectionNextCheckpoint}" omitIfEmpty="true" />
+                        <QueryParameter name="from" value="${/accountNextCheckpoint}" omitIfEmpty="true" />
+                        <QueryParameter name="type" value="account" />
 
                         <!-- Request header -->
                         <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
 
                         <RequestBody type="application/json" encoding="UTF-8">
-                    {
-                        "Accept": "application/json",
-                        "content-type": "application/x-www-form-urlencoded"
-                    }
+                        {
+                            "Accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded"
+                        }
                         </RequestBody>
 
                     </CallEndpoint>
 
                     <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
-                    <If condition="${/detection/response/status_code} = 429">
+                    <If condition="${/account/response/status_code} = 429">
                         <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                         <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
                         <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
@@ -286,7 +299,7 @@
                         </If>
 
                         <!-- Calculating back off time, if it is not present in header take default time -->
-                        <Set path="/sleepTime" value="${/detection/response/headers/retry-after}" />
+                        <Set path="/sleepTime" value="${/account/response/headers/retry-after}" />
                         <If condition="${/sleepTime = ''}">
                             <Set path="/sleepTime" value="${/defaultSleepTime}" />
                         </If>
@@ -297,156 +310,27 @@
                         <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                     </Else>
                 </While>
-                <If condition="/detection/response/status_code = 200">
 
-                    <Set path="/newEvents" value="[]" />
+                <If condition="/account/response/status_code = 200">
 
-                    <!-- Process collected detection events. -->
-                    <Set path="/idString" value="" />
-                    <ForEach item="/currentEvent" items="/detection/response/body/events">
-                        <If condition="${/currentEvent/type = 'host'}">
-                            <If condition="${empty(/idString)} = 'true'">
-                                <Set path="/idString" value="${/currentEvent/detection_id}" />
-                            </If>
-                            <Else>
-                                <Set path="/idString" value="${/idString},${/currentEvent/detection_id}" />
-                            </Else>
-                        </If>
-                        <Else>
-                            <Set path="/currentEvent/detail" value="'${/currentEvent/detail}'" />
-                            <Add path="/newEvents" value="${/currentEvent}" />
-                        </Else>
-                    </ForEach>
-                    <!-- Collect and add detection detials for host type of detection into the pipeline response. -->
-                    <Set path="/ingestEvents" value="true" />
-                    <If condition="${empty(/idString)} != 'true'">
-                        <Set path="/loopBreakerDetection" value="false" />
+                    <!-- Ingest collected Account Scoring Events into QRadar -->
+                    <PostEvents path="/account/response/body/events" />
 
-                        <Set path="/page" value="1" />
-                        <Log type="INFO" message="${/logPrefix} Collecting detection details for ids = ${/idString}" />
+                    <!-- Update checkpoint id to latest Account Scoring Events -->
+                    <Log type="INFO" message="${/logPrefix} - Total ${count(/account/response/body/events)} Account Scoring Events ingested in QRadar" />
 
-                        <While condition="${/loopBreakerDetection} = false">
-
-                            <Log type="INFO" message="${/logPrefix} Collecting detection details with page = ${/page}" />
-
-                            <Set path="/rateLimitErrorCountDetection" value="0" />
-                            <While condition="${/rateLimitErrorCountDetection != ${/maxRetry}}">
-                                <CallEndpoint url="${/vectraUrl}${/detectionEndpoint}" method="GET" savePath="/detections/response">
-
-                                    <BearerAuthentication token="${/accessToken}" />
-
-                                    <QueryParameter name="id" value="${/idString}" omitIfEmpty="true" />
-                                    <QueryParameter name="page" value="${/page}" omitIfEmpty="true" />
-
-                                    <!-- Request header -->
-                                    <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
-
-                                    <RequestBody type="application/json" encoding="UTF-8">
-                                {
-                                    "Accept": "application/json",
-                                    "content-type": "application/x-www-form-urlencoded"
-                                }
-                                    </RequestBody>
-
-                                </CallEndpoint>
-
-                                <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
-                                <If condition="${/detections/response/status_code} = 429">
-                                    <Set path="/rateLimitErrorCountDetection" value="${/rateLimitErrorCountDetection + 1}" />
-                                    <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
-                                    <If condition="${/rateLimitErrorCountDetection = ${/maxRetry}}">
-                                        <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
-                                        <Abort reason="Number of retries exceeded for status code 429." />
-                                    </If>
-
-                                    <!-- Calculating back off time, if it is not present in header take default time -->
-                                    <Set path="/sleepTime" value="${/detections/response/headers/retry-after}" />
-                                    <If condition="${/sleepTime = ''}">
-                                        <Set path="/sleepTime" value="${/defaultSleepTime}" />
-                                    </If>
-                                    <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
-                                    <Sleep duration="${/sleepTime * 1000}" />
-                                </If>
-                                <Else>
-                                    <Set path="/rateLimitErrorCountDetection" value="${/maxRetry}" />
-                                </Else>
-                            </While>
-
-                            <If condition="/detections/response/status_code = 200">
-
-                                <ForEach item="/currentDetection" items="/detections/response/body/results">
-                                    <If condition="${empty(/currentDetection/src_host)} = 'true'">
-                                        <Set path="/detection_details/is_key_asset" value="" />
-                                    </If>
-                                    <Else>
-                                        <Set path="/detection_details/is_key_asset" value="${/currentDetection/src_host/is_key_asset}" />
-                                    </Else>
-                                    <Set path="/detection_details/is_targeting_key_asset" value="${/currentDetection/is_targeting_key_asset}" />
-
-                                    <Set path="/eventLists" value="${/detection/response/body/events[@detection_id = /currentDetection/id]}" />
-
-                                    <ForEach item="/currentEvent" items="/eventLists">
-                                        <Set path="/currentEvent/detection_details" value="[${/detection_details}]" />
-                                        <Set path="/currentEvent/src_ip" value="${/currentDetection/src_ip}" />
-                                        <If condition="${empty(/currentDetection/grouped_details)} = 'true'">
-                                            <Set path="/currentEvent/grouped_details/bytes_sent" value="" />
-                                            <Set path="/currentEvent/grouped_details/bytes_received" value="" />
-                                            <Set path="/currentEvent/grouped_details/dst_ips" value="" />
-                                        </If>
-                                        <Else>
-                                            <Set path="/currentEvent/grouped_details/bytes_sent" value="${/currentDetection/grouped_details/bytes_sent}" />
-                                            <Set path="/currentEvent/grouped_details/bytes_received" value="${/currentDetection/grouped_details/bytes_received}" />
-                                            <Set path="/currentEvent/grouped_details/dst_ips" value="${/currentDetection/grouped_details/dst_ips}" />
-                                        </Else>
-
-                                        <Set path="/currentEvent/grouped_details" value="[${/currentEvent/grouped_details}]" />
-
-                                        <Set path="/currentEvent/summary" value="[${/currentDetection/summary}]" />
-                                        <Add path="/newEvents" value="${/currentEvent}" />
-                                    </ForEach>
-                                </ForEach>
-                                <If condition="${/detections/response/body/next = null}">
-                                    <Set path="/loopBreakerDetection" value="true"/>
-                                </If>
-                                <Else>
-                                    <Set path="/page" value="${/page + 1}"/>
-                                </Else>
-
-                            </If>
-                            <ElseIf condition="/detections/response/status_code = 401">
-
-                                <!-- To retry for 401 status code -->
-                                <Set path="/loopBreakerDetection" value="true"/>
-                                <Set path="/loopBreaker" value="true"/>
-                                <Set path="/ingestEvents" value="false"/>
-                                <Set path="/errorCount" value="${/errorCount + 1}" />
-                                <Log type="INFO" message="${/logPrefix} - Access token is expired with status code - 401" />
-                                <Set path="/accessToken" value="" />
-                            </ElseIf>
-                            <Else>
-                                <Log type="INFO" message="${/logPrefix} - API call failed for collecting detections with status code - ${/detections/response/status_code}, Body - ${/detections/response/body}" />
-                                <Abort reason="API call failed for collecting detections with status code - ${/detections/response/status_code}" />
-                            </Else>
-                        </While>
+                    <!-- Store next_checkpoint value if not null -->
+                    <If condition="/account/response/body/next_checkpoint != null">
+                        <Set path="/accountNextCheckpoint" value="${/account/response/body/next_checkpoint}" />
+                        <Log type="INFO" message="${/logPrefix} - Next Account Scoring Events checkpoint id = ${/account/response/body/next_checkpoint}" />
                     </If>
 
-                    <If condition="${/ingestEvents} = true">
-                        <!-- Ingest collected detections into QRadar -->
-                        <PostEvents path="/newEvents" />
-
-                        <!-- Update checkpoint id to latest detection -->
-                        <Log type="INFO" message="${/logPrefix} - Total ${count(/newEvents)} detections ingested in QRadar." />
-                        <Log type="INFO" message="${/logPrefix} - Next checkpoint id = ${/detection/response/body/next_checkpoint}" />
-
-                        <Set path="/detectionNextCheckpoint" value="${/detection/response/body/next_checkpoint}" />
-                        <If condition="${count(/newEvents) != ${/limit}}">
-                            <Set path="/loopBreaker" value="true"/>
-                            <Set path="/errorCount" value="${/maxRetry}"/>
-                            <Log type="INFO" message="${/logPrefix} Detection collection completed." />
-                        </If>
+                    <If condition="${count(/account/response/body/events) != ${/limit}}">
+                        <Set path="/loopBreaker" value="true"/>
+                        <Log type="INFO" message="${/logPrefix} Account scoring collection completed." />
                     </If>
                 </If>
-                <ElseIf condition="/detection/response/status_code = 401">
+                <ElseIf condition="/account/response/status_code = 401">
 
                     <!-- To retry for 401 status code -->
                     <Set path="/loopBreaker" value="true"/>
@@ -454,11 +338,131 @@
                     <Log type="INFO" message="${/logPrefix} - Access token is expired with status code - 401" />
                     <Set path="/accessToken" value="" />
                 </ElseIf>
+                <ElseIf condition="/account/response/status_code = 404">
+                    <Set path="/loopBreaker" value="true"/>
+                    <Log type="INFO" message="${/logPrefix} Received status code ${/account/response/status_code} for collecting Account Scoring Events. Body - ${/account/response/body}" />
+                </ElseIf>
                 <Else>
-                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting detections with status code - ${/detection/response/status_code}, Body - ${/detection/response/body}" />
-                    <Abort reason="API call failed for collecting detections with status code - ${/detection/response/status_code}" />
+                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting Account Scoring Events with status code - ${/account/response/status_code}, Body - ${/account/response/body}" />
+                    <Abort reason="API call failed for collecting Account Scoring Events with status code - ${/account/response/status_code}" />
                 </Else>
             </While>
+
+            <!-- Host Scoring Events collection -->
+            <Log type="INFO" message="${/logPrefix} - Host Scoring Events collection started." />
+
+            <!-- Set event timestamp value past 24 hours in case of historical is enabled else current time -->
+            <If condition="${'${lower(/historical)}' = 'enable'}">
+                <Set path="/eventTimestamp" value="${/defaultEventTime}" />
+            </If>
+            <Else>
+                <Set path="/eventTimestamp" value="${/formattedCurrentTime}" />
+            </Else>
+
+            <If condition="${empty(/hostNextCheckpoint)} = 'true'">
+                <Log type="INFO" message="${/logPrefix} Collecting Host Scoring Events from event_timestamp_gte ${/eventTimestamp}" />
+            </If>
+            <Else>
+                <Log type="INFO" message="${/logPrefix} Collecting Host Scoring Events from checkpoint id ${/hostNextCheckpoint}" />
+            </Else>
+
+            <Set path="/errorCount" value="0" />
+            <Set path="/loopBreaker" value="false" />
+
+            <While condition="${/loopBreaker} = false">
+
+                <!-- Collect Host Scoring Events using checkpoint ID if present else use event Timestamp -->
+                <If condition="${empty(/hostNextCheckpoint)} = 'true'">
+                    <Log type="INFO" message="${/logPrefix} Collecting Host Scoring Events with limit = ${/limit}, event_timestamp_gte = ${/eventTimestamp}, type = host" />
+                </If>
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} Collecting Host Scoring Events with limit = ${/limit}, from = ${/hostNextCheckpoint}, type = host" />
+                    <Set path="/eventTimestamp" value="" />
+                </Else>
+
+                <Set path="/rateLimitErrorCount" value="0" />
+                <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
+                    <CallEndpoint url="${/vectraUrl}${/scoreEndpoint}" method="GET" savePath="/host/response">
+
+                        <BearerAuthentication token="${/accessToken}" />
+                        <QueryParameter name="limit" value="${/limit}" omitIfEmpty="true" />
+                        <QueryParameter name="event_timestamp_gte" value="${/eventTimestamp}" omitIfEmpty="true" />
+                        <QueryParameter name="from" value="${/hostNextCheckpoint}" omitIfEmpty="true" />
+                        <QueryParameter name="type" value="host" />
+
+                        <!-- Request header -->
+                        <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
+
+                        <RequestBody type="application/json" encoding="UTF-8">
+                        {
+                            "Accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded"
+                        }
+                        </RequestBody>
+
+                    </CallEndpoint>
+
+                    <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
+                    <If condition="${/host/response/status_code} = 429">
+                        <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
+                        <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
+                        <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
+                            <Log type="INFO" message="${/logPrefix} Abort - Number of retry attempts for status code 429 exceeded." />
+                            <Abort reason="Number of retries exceeded for status code 429." />
+                        </If>
+
+                        <!-- Calculating back off time, if it is not present in header take default time -->
+                        <Set path="/sleepTime" value="${/host/response/headers/retry-after}" />
+                        <If condition="${/sleepTime = ''}">
+                            <Set path="/sleepTime" value="${/defaultSleepTime}" />
+                        </If>
+                        <Log type="INFO" message="${/logPrefix} - Sleeping for ${/sleepTime} seconds." />
+                        <Sleep duration="${/sleepTime * 1000}" />
+                    </If>
+                    <Else>
+                        <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
+                    </Else>
+                </While>
+
+                <If condition="/host/response/status_code = 200">
+
+                    <!-- Ingest collected hosts into QRadar -->
+                    <PostEvents path="/host/response/body/events" />
+
+                    <!-- Update checkpoint id to latest host -->
+                    <Log type="INFO" message="${/logPrefix} - Total ${count(/host/response/body/events)} Host Scoring Events ingested in QRadar." />
+
+                    <!-- Store next_checkpoint value if not 'null' -->
+                    <If condition="/host/response/body/next_checkpoint != null">
+                        <Set path="/hostNextCheckpoint" value="${/host/response/body/next_checkpoint}" />
+                        <Log type="INFO" message="${/logPrefix} - Next Host Scoring Events checkpoint id = ${/host/response/body/next_checkpoint}" />
+                    </If>
+
+                    <If condition="${count(/host/response/body/events) != ${/limit}}">
+                        <Set path="/loopBreaker" value="true"/>
+                        <Set path="/errorCount" value="${/maxRetry}"/>
+                        <Log type="INFO" message="${/logPrefix} Host Scoring Events collection completed." />
+                    </If>
+                </If>
+                <ElseIf condition="/host/response/status_code = 401">
+
+                    <!-- To retry for 401 status code -->
+                    <Set path="/loopBreaker" value="true"/>
+                    <Set path="/errorCount" value="${/errorCount + 1}" />
+                    <Log type="INFO" message="${/logPrefix} - Access token is expired with status code - 401" />
+                    <Set path="/accessToken" value="" />
+                </ElseIf>
+                <ElseIf condition="/host/response/status_code = 404">
+                    <Set path="/loopBreaker" value="true"/>
+                    <Set path="/errorCount" value="${/maxRetry}"/>
+                    <Log type="INFO" message="${/logPrefix} Received status code ${/host/response/status_code} for collecting Host Scoring Events. Body - ${/host/response/body}" />
+                </ElseIf>
+                <Else>
+                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting Host Scoring Events with status code - ${/host/response/status_code}, Body - ${/host/response/body}" />
+                    <Abort reason="API call failed for collecting Host Scoring Events with status code - ${/host/response/status_code}" />
+                </Else>
+            </While>
+
         </While>
     </Actions>
 
@@ -469,4 +473,5 @@
         <SSLHandshakeTest host="${/vectraHostName}" />
         <HTTPConnectionThroughProxyTest url="https://${/vectraHostName}" />
     </Tests>
+
 </Workflow>

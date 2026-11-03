@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<WorkflowParameterValues xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/WorkflowParameterValues/V2_1">
+
+    <!-- Do not add http or https in the below value of Vectra Hostname-->
+    <Value name="vectraHostName" value=""/>
+    <Value name="clientId" value=""/>
+    <Value name="secretKey" value=""/>
+    <!-- If historical set to 'enable' will start collection from past 24 hours else from current time. Must be from [enable, disable]. -->
+    <!-- Applicable to Audit and Entity Scoring collection. It will be applicable in case of initial configuration only. -->
+    <Value name="historical" value="enable"/>
+
+    <!-- Applicable to Detection collection. 'from' and 'lookbackHours' will be applicable in case of initial configuration only. -->
+
+    <!-- Optional initial detection event checkpoint. Define id of the detection event to start collecting Detecction from there. Leave empty to start from the lookback window. -->
+    <Value name="from" value=""/>
+
+    <!-- Initial lookback window in hours to start collecting Detection from specific time. It will applicable when 'from' is empty. Default is 24 hours. -->
+    <Value name="lookbackHours" value="24"/>
+
+    <!-- If set to 'enable', detections having an INFO category will also be collected. Must be from [enable, disable]. -->
+    <Value name="includeInfoCategory" value="enable"/>
+
+    <!-- If set to 'enable', triaged detections will also be collected. Must be from [enable, disable]. -->
+    <Value name="includeTriaged" value="disable"/>
+
+    <!-- Applicable to Health collection. -->
+
+    <!-- If set to 'enable', EDR Health summary and details will also be ingested into QRadar. Must be from [enable, disable]. -->
+    <Value name="collectEdrHealth" value="enable"/>
+
+    <!-- If set to 'enable', External Connectors Health summary and details will also be ingested into QRadar. Must be from [enable, disable]. -->
+    <Value name="collectExternalConnectorsHealth" value="enable"/>
+</WorkflowParameterValues>

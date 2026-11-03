@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Workflow name="Vectra XDR" version="1.0"
+<Workflow name="Vectra RUX" version="1.0"
     xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V2_1">
 
     <!-- Collect configurations from workflow parameter file -->
     <Parameters>
         <Parameter name="vectraHostName" label="Vectra Hostname" required="true"/>
         <Parameter name="clientId" label="Client ID" required="true"/>
-        <Parameter name="historical" label="Historical Collection" required="true"/>
+        <Parameter name="historical" label="Historical Collection" required="false"/>
         <Parameter name="secretKey" label="Secret Key" secret="true" required="true" />
+        <Parameter name="from" label="Initial Detection Event Checkpoint" required="false"/>
+        <Parameter name="lookbackHours" label="Initial Lookback Hours" required="false"/>
+        <Parameter name="includeInfoCategory" label="Include Info Category Detections" required="true"/>
+        <Parameter name="includeTriaged" label="Include Triaged Detections" required="true"/>
+        <Parameter name="collectEdrHealth" label="Collect EDR Health" required="false"/>
+        <Parameter name="collectExternalConnectorsHealth" label="Collect External Connectors Health" required="false"/>
     </Parameters>
 
     <Actions>
@@ -17,30 +23,54 @@
 
         <!-- Defining variables for running workflow -->
         <Set path="/vectraUrl" value="https://${/vectraHostName}"/>
-        <Set path="/logPrefix" value="[Vectra_XDR_App_for_QRadar][Audits][${/vectraUrl}]" />
+        <Set path="/logPrefix" value="[Vectra_RUX_App_for_QRadar][Detections][${/vectraUrl}]" />
         <Initialize path="/errorCount" value="0" />
         <Initialize path="/maxRetry" value="3" />
         <Initialize path="/createTokenEndpoint" value="/oauth2/token" />
-        <Initialize path="/auditEndpoint" value="/api/v3.3/events/audits" />
-        <Initialize path="/limit" value="1000" />
+        <Initialize path="/eventDetectionEndpoint" value="/api/v3.5/events/detections" />
+        <Initialize path="/limit" value="500" />
         <Initialize path="/refreshToken" value="" />
         <Initialize path="/defaultSleepTime" value="30" />
-        <Initialize path="/appVersion" value="1.0.0" />
+        <Initialize path="/appVersion" value="2.0.0" />
         <Initialize path="/userAgentHeader" value="Vectra-QRadar-${/appVersion}" />
+        <Initialize path="/defaultLookbackHours" value="24" />
 
-        <!-- Audit checkpoint -->
-        <Initialize path="/auditNextCheckpoint" value="" />
+        <!-- Detection checkpoint -->
+        <Initialize path="/detectionNextCheckpoint" value="" />
 
-        <!-- Store current timestamp -->
-        <Initialize path="/currentEpochTime" value="${time()}" />
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/currentEpochTime}" savePath="/formattedCurrentTime" />
+        <!-- On the first run only, seed the checkpoint from the optional 'from' parameter. -->
+        <If condition="${empty(/detectionNextCheckpoint)} = 'true'">
+            <Set path="/detectionNextCheckpoint" value="${/from}" />
+        </If>
 
-        <!-- Store past 24 hours timestamp -->
-        <Initialize path="/defaultEpochTime" value="${time() - 86400000}" />
-        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss" timeZone="UTC" time="${/defaultEpochTime}" savePath="/defaultEventTime" />
+        <!-- Resolve the effective lookback hours: use the provided value, else fall back to the default. -->
+        <If condition="${empty(/lookbackHours)} = 'true'">
+            <Set path="/effectiveLookbackHours" value="${/defaultLookbackHours}" />
+        </If>
+        <Else>
+            <Set path="/effectiveLookbackHours" value="${/lookbackHours}" />
+        </Else>
+
+        <!-- Compute the lookback timestamp (now - lookbackHours) used only on the very first collection. -->
+        <Set path="/currentEpochTime" value="${time()}" />
+        <Set path="/lookbackMillis" value="${/effectiveLookbackHours * 3600000}" />
+        <Set path="/lookbackEpoch" value="${/currentEpochTime - /lookbackMillis}" />
+        <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/lookbackEpoch}" savePath="/lookbackTime" />
 
         <!-- Print log in the /var/log/qradar.log file with info log level -->
-        <Log type="INFO" message="${/logPrefix} - Audit collection started." />
+        <Log type="INFO" message="${/logPrefix} - Detection collection started." />
+
+        <!-- Validate the 'includeInfoCategory' parameter (expects enable/disable, case-insensitive). -->
+        <If condition="${'${lower(/includeInfoCategory)}' != 'enable' and '${lower(/includeInfoCategory)}' != 'disable'}">
+            <Log type="INFO" message="${/logPrefix} - Invalid includeInfoCategory value: ${/includeInfoCategory}. Must be one of: enable, disable" />
+            <Abort reason="Invalid includeInfoCategory parameter. Must be one of: enable, disable" />
+        </If>
+
+        <!-- Validate the 'includeTriaged' parameter (expects enable/disable, case-insensitive). -->
+        <If condition="${'${lower(/includeTriaged)}' != 'enable' and '${lower(/includeTriaged)}' != 'disable'}">
+            <Log type="INFO" message="${/logPrefix} - Invalid includeTriaged value: ${/includeTriaged}. Must be one of: enable, disable" />
+            <Abort reason="Invalid includeTriaged parameter. Must be one of: enable, disable" />
+        </If>
 
         <Set path="/errorCount" value="0" />
 
@@ -223,45 +253,43 @@
                 </Else>
             </Else>
 
-            <!-- Set event timestamp value past 24 hours in case of historical is true else current time -->
-            <If condition="${'${lower(/historical)}' = 'true'}">
-                <Set path="/eventTimestamp" value="${/defaultEventTime}" />
+            <!-- Log the starting point of this collection cycle. -->
+            <If condition="${empty(/detectionNextCheckpoint)} = 'true'">
+                <Log type="INFO" message="${/logPrefix} Collecting detections from event_timestamp_gte ${/lookbackTime}" />
             </If>
             <Else>
-                <Set path="/eventTimestamp" value="${/formattedCurrentTime}" />
+                <Log type="INFO" message="${/logPrefix} Collecting detections from checkpoint id ${/detectionNextCheckpoint}" />
             </Else>
 
-            <If condition="${empty(/auditNextCheckpoint)} = 'true'">
-                <Log type="INFO" message="${/logPrefix} Collecting audits from event_timestamp_gte ${/eventTimestamp}" />
-            </If>
-            <Else>
-                <Log type="INFO" message="${/logPrefix} Collecting audits from checkpoint id ${/auditNextCheckpoint}" />
-            </Else>
-
-            <!-- Fetch audits with retry mechanism for 401 status code and save response at Jpath /audit/response-->
+            <!-- Fetch Detections with retry mechanism for 401 status code and save response at Jpath /detection/response-->
             <Set path="/errorCount" value="0" />
             <Set path="/loopBreaker" value="false" />
 
             <While condition="${/loopBreaker} = false">
 
-                <!-- Collect audits using checkpoint ID if present else use event Timestamp -->
-                <If condition="${empty(/auditNextCheckpoint)} = 'true'">
-                    <Log type="INFO" message="${/logPrefix} Collecting audits with limit = ${/limit}, event_time_gte = ${/eventTimestamp}" />
+                <!-- Collect Detections using checkpoint ID if present else use event Timestamp -->
+                <If condition="${empty(/detectionNextCheckpoint)} = 'true'">
+                    <Set path="/eventTimestamp" value="${/lookbackTime}" />
+                    <Log type="INFO" message="${/logPrefix} Collecting detections with event_timestamp_gte = ${/eventTimestamp}, limit = ${/limit}, size = detailed, include_info_category = ${'${lower(/includeInfoCategory)}' = 'enable'}, include_triaged = ${'${lower(/includeTriaged)}' = 'enable'}, ordering = id" />
                 </If>
                 <Else>
-                    <Log type="INFO" message="${/logPrefix} Collecting audits with limit = ${/limit}, from = ${/auditNextCheckpoint}" />
                     <Set path="/eventTimestamp" value="" />
+                    <Log type="INFO" message="${/logPrefix} Collecting detections with from = ${/detectionNextCheckpoint}, limit = ${/limit}, size = detailed, include_info_category = ${'${lower(/includeInfoCategory)}' = 'enable'}, include_triaged = ${'${lower(/includeTriaged)}' = 'enable'}, ordering = id" />
                 </Else>
 
                 <Set path="/rateLimitErrorCount" value="0" />
                 <While condition="${/rateLimitErrorCount != ${/maxRetry}}">
-                    <CallEndpoint url="${/vectraUrl}${/auditEndpoint}" method="GET" savePath="/audit/response">
+                    <CallEndpoint url="${/vectraUrl}${/eventDetectionEndpoint}" method="GET" savePath="/detection/response">
 
                         <BearerAuthentication token="${/accessToken}" />
 
-                        <QueryParameter name="limit" value="${/limit}" omitIfEmpty="true" />
+                        <QueryParameter name="from" value="${/detectionNextCheckpoint}" omitIfEmpty="true" />
                         <QueryParameter name="event_timestamp_gte" value="${/eventTimestamp}" omitIfEmpty="true" />
-                        <QueryParameter name="from" value="${/auditNextCheckpoint}" omitIfEmpty="true" />
+                        <QueryParameter name="limit" value="${/limit}" />
+                        <QueryParameter name="size" value="detailed" />
+                        <QueryParameter name="include_info_category" value="${'${lower(/includeInfoCategory)}' = 'enable'}" />
+                        <QueryParameter name="include_triaged" value="${'${lower(/includeTriaged)}' = 'enable'}" />
+                        <QueryParameter name="ordering" value="id" />
 
                         <!-- Request header -->
                         <RequestHeader name="User-Agent" value="${/userAgentHeader}" />
@@ -276,7 +304,7 @@
                     </CallEndpoint>
 
                     <!-- Retry 3 times if the status code is 429. i.e API Rate limit exceeded. -->
-                    <If condition="${/audit/response/status_code} = 429">
+                    <If condition="${/detection/response/status_code} = 429">
                         <Set path="/rateLimitErrorCount" value="${/rateLimitErrorCount + 1}" />
                         <Log type="INFO" message="${/logPrefix} - API Rate limit exceeded. Status Code: 429." />
                         <If condition="${/rateLimitErrorCount = ${/maxRetry}}">
@@ -285,7 +313,7 @@
                         </If>
 
                         <!-- Calculating back off time, if it is not present in header take default time -->
-                        <Set path="/sleepTime" value="${/audit/response/headers/retry-after}" />
+                        <Set path="/sleepTime" value="${/detection/response/headers/retry-after}" />
                         <If condition="${/sleepTime = ''}">
                             <Set path="/sleepTime" value="${/defaultSleepTime}" />
                         </If>
@@ -296,31 +324,34 @@
                         <Set path="/rateLimitErrorCount" value="${/maxRetry}" />
                     </Else>
                 </While>
-                <If condition="/audit/response/status_code = 200">
+                <If condition="/detection/response/status_code = 200">
 
-                    <Set path="/newEvents" value="[]" />
+                    <Set path="/eventCount" value="${count(/detection/response/body/events)}" />
 
-                    <!-- Process collected audit events, add vectra_json_audit in prefix -->
-                    <ForEach item="/currentEvent" items="/audit/response/body/events">
-                        <Set path="/currentEvent/event_data" value="'${/currentEvent/event_data}'" />
-                        <Add path="/newEvents" value="vectra_json_audit:${/currentEvent}" />
-                    </ForEach>
+                    <If condition="${/eventCount} != 0">
+                        <!-- Format and ingest each detection event individually. -->
+                        <ForEach item="/currentEvent" items="/detection/response/body/events">
+                            <!-- Wrap the detail and summary dictionaries as quoted strings before ingestion. -->
+                            <Set path="/currentEvent/detail" value="'${/currentEvent/detail}'" />
+                            <Set path="/currentEvent/summary" value="'${/currentEvent/summary}'" />
+                            <PostEvent path="/currentEvent" />
+                        </ForEach>
 
-                    <!-- Ingest processed audit events into QRadar -->
-                    <PostEvents path="/newEvents" />
+                        <Log type="INFO" message="${/logPrefix} - Total ${/eventCount} detections ingested in QRadar." />
 
-                    <!-- Update checkpoint id to latest audit -->
-                    <Log type="INFO" message="${/logPrefix} - Total ${count(/audit/response/body/events)} audits ingested in QRadar" />
-                    <Log type="INFO" message="${/logPrefix} - Next checkpoint id = ${/audit/response/body/next_checkpoint}" />
+                        <!-- Advance the checkpoint to the next_checkpoint cursor returned by the API and continue draining. -->
+                        <Set path="/detectionNextCheckpoint" value="${/detection/response/body/next_checkpoint}" />
+                        <Log type="INFO" message="${/logPrefix} - Saved checkpoint id = ${/detectionNextCheckpoint} (next request from = ${/detectionNextCheckpoint})" />
+                    </If>
 
-                    <Set path="/auditNextCheckpoint" value="${/audit/response/body/next_checkpoint}" />
-                    <If condition="${count(/audit/response/body/events) != ${/limit}}">
+                    <!-- A page smaller than the limit means this was the last batch, so stop here instead of making one more API call. -->
+                    <If condition="${/eventCount} != ${/limit}">
                         <Set path="/loopBreaker" value="true"/>
                         <Set path="/errorCount" value="${/maxRetry}"/>
-                        <Log type="INFO" message="${/logPrefix} Audit collection completed." />
+                        <Log type="INFO" message="${/logPrefix} - Detection collection completed." />
                     </If>
                 </If>
-                <ElseIf condition="/audit/response/status_code = 401">
+                <ElseIf condition="/detection/response/status_code = 401">
 
                     <!-- To retry for 401 status code -->
                     <Set path="/loopBreaker" value="true"/>
@@ -329,8 +360,8 @@
                     <Set path="/accessToken" value="" />
                 </ElseIf>
                 <Else>
-                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting audits with status code - ${/audit/response/status_code}, Body - ${/audit/response/body}" />
-                    <Abort reason="API call failed for collecting audits with status code - ${/audit/response/status_code}" />
+                    <Log type="INFO" message="${/logPrefix} - API call failed for collecting detections with status code - ${/detection/response/status_code}, Body - ${/detection/response/body}" />
+                    <Abort reason="API call failed for collecting detections with status code - ${/detection/response/status_code}" />
                 </Else>
             </While>
         </While>
