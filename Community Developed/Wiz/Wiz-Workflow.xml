@@ -15,7 +15,7 @@
     <Actions>
         
         <Log type="INFO" message="WIZ: Workflow Actions started..." />
-        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.4" />
+        <Initialize path="/user_agent_header" value="127fb887-6a5e-99be-c1ef-5c62031e9614/qradar/2.0.5" />
         <If condition="/bookmark != null">
             <!-- Format Date to be passed in fetching events -->
             <FormatDate pattern="yyyy-MM-dd'T'HH:mm:ss'Z'" timeZone="UTC" time="${/bookmark}" savePath="/timestamp" />

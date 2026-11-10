@@ -96,18 +96,6 @@
                     name
                     url
                 }
-                notes {
-                    createdAt
-                    updatedAt
-                    text
-                    user {
-                    name
-                    email
-                    }
-                    serviceAccount {
-                    name
-                    }
-                }
                 }
                 pageInfo {
                 hasNextPage
