@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Workflow name="Trellix HX Process Tracker Events" version="1.0.1" xmlns="http://qradar.ibm.com/UniversalCloudRESTAPI/Workflow/V1">
+	<Parameters>
+		<Parameter name="host" label="Host" required="true" />
+		<Parameter name="hx_port" label="Port" required="true" />
+		<Parameter name="username" label="Username" required="true" />
+		<Parameter name="password" label="Password" required="true" secret="true" />
+	</Parameters>
+	<Actions>
+		<!-- Initialize the Bookmark -->
+		<Initialize path="/bookmark" value="0" />
+		<Initialize path="/totalEventCount" value="0" />
+
+		<!-- Authenticate and request API Token -->
+		<CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="GET" savePath="/getFeApiToken" >
+			<BasicAuthentication username="${/username}" password="${/password}" />
+			<RequestHeader name="Accept" value="application/json" />
+		</CallEndpoint>
+
+		<!-- Handle Errors -->
+		<If condition="/getFeApiToken/status_code != 204">
+			<Log type="Error" message="Trellix HX API: Error Authenticating to API: ${/getFeApiToken/body}" />
+			<Abort reason="Trellix HX API: API Authentication Error: ${/getFeApiToken/body}" />
+		</If>
+		<Else>
+			<!-- Extract the API Token -->
+			<Set path="/x_feapi_token" value="${/getFeApiToken/headers/X-FeApi-Token}" />
+        </Else>
+        <!-- Get PT Events -->
+        <!-- Get First Event -->
+        <Set path="/offset" value="0" />
+        <Set path="/limit" value="1" />
+        
+        <CallEndpoint url="https://${/host}:${/hx_port}/hx/api/plugins/process-tracker/v1/events?" method="GET" savePath="/getFirstPTEvent">
+            <QueryParameter name="offset" value="${/offset}" />
+            <QueryParameter name="limit" value="${/limit}" />
+            <QueryParameter name="sort" value="id:asc" />
+            <RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+            <RequestHeader name="Accept" value="application/json" />
+        </CallEndpoint>
+        <!-- Handle Errors -->
+        <If condition="/getFirstPTEvent/status_code != 200">
+            <Log type="Error" message="Trellix HX API: Error fetching first PT Event ${/getFirstPTEvent/body}" />
+            <Abort reason="Trellix HX API: Error pulling ProcessTracker first Event: ${/getFirstPTEvent/body}" />
+        </If>
+        <Else>
+            <Set path="/totalEventCount" value="${/getFirstPTEvent/body/total}" />
+            <Log type="INFO" message="Trellix HX API: Got ${/totalEventCount} PT events" />
+            <!-- Check for events -->
+            <If condition="${/totalEventCount} > 0">
+                <!-- Set first event ID -->
+                <Set path="/firstEventId" value="${/getFirstPTEvent/body/data[0]/id}" />
+            </If>
+            <Else>
+                <!-- Dispose generated token to clear active session -->
+                <CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="DELETE" savePath="/delFeApiToken" >
+                    <RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+                    <RequestHeader name="Accept" value="application/json" />
+                </CallEndpoint>
+                <Log type="INFO" message="Trellix HX API: no PT Events available" />
+                <Abort reason="Trellix HX API: no PT Events available" />
+            </Else>
+        </Else>
+
+        <!-- Get last Event on the system
+            Events might not have sequential IDs and offest doesn’t match event ID -->
+        <Set path="/offset" value="${/totalEventCount - 1}" />
+        <CallEndpoint url="https://${/host}:${/hx_port}/hx/api/plugins/process-tracker/v1/events?" method="GET" savePath="/getPTLastEvent">
+            <QueryParameter name="offset" value="${/offset}" />
+            <QueryParameter name="limit" value="${/limit}" />
+            <QueryParameter name="sort" value="id:asc" />
+            <RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+            <RequestHeader name="Accept" value="application/json" />
+        </CallEndpoint>
+        <!-- Handle Errors -->
+        <If condition="/getPTLastEvent/status_code != 200">
+            <Log type="Error" message="Trellix HX API: Error fetching last PT Event: ${/getPTLastEvent/body}" />
+            <Abort reason="Trellix HX API: Error pulling ProcessTracker Last Event: ${/getPTLastEvent/body}" />
+        </If>
+        <Else>
+            <!-- HX API ill return a new token as part of response headers when nearing exipry-->
+            <If condition="/getPTLastEvent/headers/X-FeApi-Token != null">
+                <Set path="/x_feapi_token" value="${/getPTEvents/headers/X-FeApi-Token}" />
+            </If>
+            
+            <!-- Set last Event ID-->
+            <Set path="/lastEventId" value="${/getPTLastEvent/body/data[0]/id}" />
+            <!-- Check for bookmark-->
+            <If condition="/bookmark > 0">
+                <If condition="/firstEventId > /bookmark">
+                    <Set path="/bookmark" value="${/firstEventId}"/>
+                </If>
+                <ElseIf condition="/bookmark >= /lastEventId">
+                    <Set path="/bookmark" value="${/lastEventId}"/>
+                    <Log type="INFO" message="Trellix HX API: no more PT Events " />
+                    <Abort reason="Trellix HX API: no more PT Events" />
+                </ElseIf>
+            </If>
+            <Else>
+                <Set path="/bookmark" value="${/firstEventId}"/>
+            </Else>
+            
+            <Set path="/entries" value="${/lastEventId - /firstEventId + 1}" />
+        
+            <DoWhile condition="${/entries} > 0">
+                <!-- Loop through event using IDs -->
+                <CallEndpoint url="https://${/host}:${/hx_port}/hx/api/plugins/process-tracker/v1/events/${/bookmark}" method="GET" savePath="/getPTEvent">
+                    <RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+                    <RequestHeader name="Accept" value="application/json" />
+                </CallEndpoint>
+                <!-- HX API ill return a new token as part of response headers when nearing exipry-->
+                <If condition="/getPTEvents/headers/X-FeApi-Token != null">
+                    <Set path="/x_feapi_token" value="${/getPTEvent/headers/X-FeApi-Token}" />
+                </If>
+                <If condition="/getPTEvent/status_code = 404">
+                    <!-- Update bookmark -->
+                    <Set path="/bookmark" value="${/bookmark  + 1}" />
+                    <Log type="INFO" message="Trellix HX API: Error PT event ${/bookmark} not found: ${/getPTEvent/body}" />
+                </If>
+                <ElseIf condition="/getPTEvent/status_code = 200">
+                    <Set path="/event" value="${/getPTEvent/body/data[0]}" />
+                    <PostEvent path="/event" source="${/host}" />
+                    <!-- Update bookmark -->
+                    <Set path="/bookmark" value="${/bookmark + 1}" />
+                    <Set path="/entries" value="${/entries - 1}" />
+                    <Log type="INFO" message="Trellix HX API: Next PT Even ID ${/bookmark}" />
+                </ElseIf>
+                <Else>
+                    <Log type="ERROR" message="Trellix HX API: Error getting PT Events: ${/getPTEvent/body}" />
+                </Else>
+            </DoWhile>
+        </Else>
+
+        <!-- Dispose generated token to clear active session -->
+        <CallEndpoint url="https://${/host}:${/hx_port}/hx/api/v3/token" method="DELETE" savePath="/delFeApiToken" >
+            <RequestHeader name="X-FeApi-Token" value="${/x_feapi_token}" />
+            <RequestHeader name="Accept" value="application/json" />
+        </CallEndpoint>
+    </Actions>
+	
+	<Tests>
+		<DNSResolutionTest host="${/host}" />
+		<TCPConnectionTest host="${/host}" port="${/hx_port}" />
+		<!--SSLHandshakeTest host="${/host}" port="${/hx_port}"/-->
+		<HTTPConnectionThroughProxyTest url="https://${/host}:${/hx_port}" />
+	</Tests>
+</Workflow>
